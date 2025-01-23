@@ -1,0 +1,2 @@
+# betternewtab
+Better New Tab
