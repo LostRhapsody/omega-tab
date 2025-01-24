@@ -5,8 +5,8 @@ import LinkColumns from './components/LinkColumns.vue';
 import LandingPage from './components/LandingPage.vue';
 import { useApi } from './composables/useApi';
 import { Clerk } from "@clerk/clerk-js";
-import { linkUtils } from './composables/useDatabase';
-import type { Tables } from './types/Database';
+import { linkUtils, subscriptionUtils } from './composables/useDatabase';
+import type { Tables, Json, Plan } from './types/Database';
 type Link = Tables<'links'>;
 
 const { api } = useApi()
@@ -18,6 +18,7 @@ const showSignIn = ref(false);
 const isLoading = ref(true);
 
 const userId = ref<string | null>(null);
+  const userPlan = ref<Tables<'plans'> | null>(null);
 
 const tools = ref<Link[]>([]);
 const docs = ref<Link[]>([]);
@@ -58,11 +59,18 @@ onMounted(async () => {
 
   if (isLoggedIn.value) {
     // mostly for type checks
-    if(!clerk.user) return;    
+    if(!clerk.user) return;
     userId.value = clerk.user.id;
     const links = await linkUtils.getUserLinks(clerk.user.id);
     for(const link of links) {
       if (link.column_type === "tools") handleToolAdded(link); else handleDocAdded(link);
+    }
+
+    userPlan.value = await subscriptionUtils.getUserPlan(userId.value);
+    if(!userPlan.value) {
+      console.error('User plan not found');
+    } else if(!userPlan.value.max_pins) {
+      userPlan.value.max_pins = 6;
     }
 
   } // end if is logged in
@@ -89,9 +97,12 @@ onMounted(async () => {
     </div>
     <div v-else>
       <div v-if="isLoggedIn" class="mt-16">
-        <v-container class="bg-primary text-center">
-          <v-row align="center" justify="end" class="text-end">
+        <v-container class="bg-primary">
+          <v-row class="items-center">
             <v-col>
+              Plan:{{ userPlan?.name }} <br/> Max pins:{{ userPlan?.max_pins }} <br /> Features: {{ userPlan?.features }}
+            </v-col>
+            <v-col class="text-end">
               <v-btn id="user-button">User</v-btn>
             </v-col>
           </v-row>
@@ -104,7 +115,7 @@ onMounted(async () => {
           <v-btn icon="mdi-help" @click="showHelpDialog = true"></v-btn>
         </div>
         <SearchBar :tools="tools" :docs="docs" />
-        <LinkColumns :tools="tools" :docs="docs" :userId="userId" :can-add-links="true" @tool-added="handleToolAdded"
+        <LinkColumns v-if="userPlan" :tools="tools" :docs="docs" :userId="userId" :maxPins="userPlan.max_pins" :can-add-links="true" @tool-added="handleToolAdded"
         @doc-added="handleDocAdded" />
         <v-dialog v-model="showHelpDialog" max-width="900px">
           <v-card>

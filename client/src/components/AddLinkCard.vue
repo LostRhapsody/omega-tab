@@ -1,12 +1,24 @@
 <!-- AddLinkCard.vue -->
 <template>
-    <div @click="openModal"
-        class="group cursor-pointer border-2 border-dashed rounded-lg p-4 transition-all duration-300 flex flex-col items-center justify-center space-y-2"
-        :class="{ 'border-primary': hover, 'border-gray-300': !hover }" @mouseenter="hover = true"
-        @mouseleave="hover = false">
-        <v-icon :color="hover ? 'primary' : 'grey'" size="24">mdi-plus</v-icon>
-        <span :class="hover ? 'text-primary' : 'text-grey'">Add new link</span>
-    </div>
+   <div @click="handleClick"
+       class="group cursor-pointer border-2 rounded-lg p-4 transition-all duration-300 flex flex-col items-center justify-center space-y-2"
+       :class="[
+           isAtMaxPins
+               ? 'border-amber-500 bg-amber-50 hover:bg-amber-100'
+               : 'border-dashed hover:border-primary border-gray-300'
+       ]"
+       @mouseenter="hover = true"
+       @mouseleave="hover = false">
+       <v-icon
+           :color="isAtMaxPins ? 'amber-darken-2' : (hover ? 'primary' : 'grey')"
+           size="24"
+       >
+           {{ isAtMaxPins ? 'mdi-arrow-up-circle' : 'mdi-plus' }}
+       </v-icon>
+       <span :class="isAtMaxPins ? 'text-amber-700' : (hover ? 'text-primary' : 'text-grey')">
+           {{ isAtMaxPins ? 'Upgrade for more pins' : 'Add new link' }}
+       </span>
+   </div>
 
     <v-dialog v-model="isModalOpen" width="500">
         <v-card>
@@ -37,7 +49,7 @@
 </template>
 
 <script setup lang="ts">
-    import { ref } from 'vue';
+    import { ref,computed } from 'vue';
     import { linkUtils } from '@/composables/useDatabase';
     import type { Tables } from '../types/Database';
     type Link = Tables<'links'>;
@@ -53,6 +65,7 @@
         tools: Link[];
         docs: Link[];
         userId: string | null;
+        maxPins: number;
     }>();
 
     const emit = defineEmits<(e: 'linkAdded', link: Link) => void>();
@@ -68,7 +81,26 @@
         description: ''
     });
 
+    const isAtMaxPins = computed(() => {
+       return props.tools.length + props.docs.length >= props.maxPins;
+    });
+
+    const handleClick = () => {
+    if (isAtMaxPins.value) {
+        // TODO: Navigate to upgrade page or open upgrade modal
+        return;
+    }
+    openModal();
+    };
+
+
     const openModal = () => {
+        const totalPins = props.tools.length + props.docs.length;
+        if (totalPins >= props.maxPins) {
+            // Use Vuetify's built-in snackbar or alert system
+            alert(`You've reached your maximum number of pins (${props.maxPins}). Please upgrade your plan for more.`);
+            return;
+        }
         isModalOpen.value = true;
     };
 

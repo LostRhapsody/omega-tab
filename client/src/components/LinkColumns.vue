@@ -4,13 +4,13 @@
       <h2 class="text-xl">Tools</h2>
       <LinkCard v-for="(tool, index) in tools" :key="tool.title" :icon="tool.icon ?? ''" :title="tool.title"
         :description="tool.description ?? ''" :link="tool.url" :index="index" :shortcut="ctrl" class="mb-2" />
-      <AddLinkCard v-if="canAddLinks" :columnType="'tools'" :tools="props.tools" :docs="props.docs" :userId="props.userId" @linkAdded="handleNewTool" />
+      <AddLinkCard v-if="canAddLinks" :columnType="'tools'" :tools="props.tools" :docs="props.docs" :userId="props.userId" :maxPins="props.maxPins" @linkAdded="handleNewTool" />
     </div>
     <div>
       <h2 class="text-xl">Docs</h2>
       <LinkCard v-for="(doc, index) in docs" :key="doc.title" :icon="doc.icon ?? ''" :title="doc.title"
         :description="doc.description ?? ''" :link="doc.url" :index="index" :shortcut="alt" class="mb-2" />
-      <AddLinkCard v-if="canAddLinks" :columnType="'docs'" :tools="props.tools" :docs="props.docs" :userId="props.userId" @linkAdded="handleNewDoc" />
+      <AddLinkCard v-if="canAddLinks" :columnType="'docs'" :tools="props.tools" :docs="props.docs" :userId="props.userId" :maxPins="props.maxPins" @linkAdded="handleNewDoc" />
     </div>
   </div>
 </template>
@@ -29,6 +29,7 @@
     docs: Link[];
     canAddLinks?: boolean;
     userId: string | null;
+    maxPins:number;
   }>();
 
   const emit = defineEmits<{

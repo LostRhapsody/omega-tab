@@ -6,6 +6,14 @@ export type Json =
 	| { [key: string]: Json | undefined }
 	| Json[];
 
+export type Plan = {
+	created_at: string | null;
+	features: Json;
+	id: string;
+	max_pins: number;
+	name: string;
+} | null;
+
 export type Database = {
 	graphql_public: {
 		Tables: {
@@ -36,6 +44,7 @@ export type Database = {
 		Tables: {
 			links: {
 				Row: {
+					column_type: string;
 					created_at: string;
 					description: string | null;
 					icon: string | null;
@@ -45,9 +54,9 @@ export type Database = {
 					owner_type: string;
 					title: string;
 					url: string;
-					column_type: string;
 				};
 				Insert: {
+					column_type?: string;
 					created_at?: string;
 					description?: string | null;
 					icon?: string | null;
@@ -59,6 +68,7 @@ export type Database = {
 					url: string;
 				};
 				Update: {
+					column_type?: string;
 					created_at?: string;
 					description?: string | null;
 					icon?: string | null;
@@ -88,6 +98,71 @@ export type Database = {
 					name?: string;
 				};
 				Relationships: [];
+			};
+			plans: {
+				Row: {
+					created_at: string | null;
+					features: Json;
+					id: string;
+					max_pins: number;
+					name: string;
+				};
+				Insert: {
+					created_at?: string | null;
+					features: Json;
+					id?: string;
+					max_pins: number;
+					name: string;
+				};
+				Update: {
+					created_at?: string | null;
+					features?: Json;
+					id?: string;
+					max_pins?: number;
+					name?: string;
+				};
+				Relationships: [];
+			};
+			subscriptions: {
+				Row: {
+					created_at: string | null;
+					current_period_end: string | null;
+					entity_id: string;
+					entity_type: string;
+					id: string;
+					plan_id: string;
+					status: string;
+					stripe_subscription_id: string | null;
+				};
+				Insert: {
+					created_at?: string | null;
+					current_period_end?: string | null;
+					entity_id: string;
+					entity_type: string;
+					id?: string;
+					plan_id: string;
+					status: string;
+					stripe_subscription_id?: string | null;
+				};
+				Update: {
+					created_at?: string | null;
+					current_period_end?: string | null;
+					entity_id?: string;
+					entity_type?: string;
+					id?: string;
+					plan_id?: string;
+					status?: string;
+					stripe_subscription_id?: string | null;
+				};
+				Relationships: [
+					{
+						foreignKeyName: "subscriptions_plan_id_fkey";
+						columns: ["plan_id"];
+						isOneToOne: false;
+						referencedRelation: "plans";
+						referencedColumns: ["id"];
+					},
+				];
 			};
 			teams: {
 				Row: {
@@ -140,7 +215,15 @@ export type Database = {
 					role?: string;
 					user_id?: string;
 				};
-				Relationships: [];
+				Relationships: [
+					{
+						foreignKeyName: "user_memberships_entity_subscription_fkey";
+						columns: ["entity_id", "entity_type"];
+						isOneToOne: false;
+						referencedRelation: "subscriptions";
+						referencedColumns: ["entity_id", "entity_type"];
+					},
+				];
 			};
 		};
 		Views: {
