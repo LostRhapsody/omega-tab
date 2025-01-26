@@ -348,7 +348,7 @@ impl Supabase {
         Ok(response.json().await?)
     }
 
-    pub async fn add_member(&self, membership: UserMembership) -> Result<UserMembership> {
+    pub async fn add_member(&self, membership: UserMembership) -> Result<()> {
         let response = self.client
             .post(format!("{}/rest/v1/user_memberships", self.url))
             .headers(self.build_headers()?)
@@ -356,7 +356,13 @@ impl Supabase {
             .send()
             .await?;
 
-        Ok(response.json().await?)
+        // Check if the response status is successful
+        if !response.status().is_success() {
+            let error_text = response.text().await?;
+            return Err(anyhow::anyhow!("Failed to add member: {}", error_text));
+        }
+
+        Ok(())
     }
 
     pub async fn update_member_role(&self, user_id: &str, entity_id: &str, role: &str) -> Result<UserMembership> {
@@ -410,6 +416,7 @@ impl Supabase {
 
     // Subscriptions
     pub async fn get_user_subscription(&self, user_id: &str) -> Result<Subscription> {
+        println!("get_user_subscription");
         let response = self.client
             .get(format!("{}/rest/v1/subscriptions?entity_id=eq.{}&entity_type=eq.user",
                 self.url, user_id))
@@ -417,7 +424,9 @@ impl Supabase {
             .send()
             .await?;
 
+        println!("response: {:?}", response);
         let mut subscriptions: Vec<Subscription> = response.json().await?;
+        println!("subscriptions: {:?}", subscriptions);
         subscriptions.pop().ok_or_else(|| anyhow::anyhow!("Subscription not found"))
     }
 

@@ -10,13 +10,14 @@
             Plan:{{ userPlan?.name }} <br /> Max pins:{{ userPlan?.max_pins }} <br /> Role:{{ currentRole }}
             <!-- <br /> Features: {{ userPlan?.features}} -->
           </v-col>
-          <v-col class="text-end">
-            <v-btn id="user-button">User</v-btn>
+          <v-col class="justify-end flex items-center">
+            <v-btn id="user-button"></v-btn>
             <!-- Show Create Team button if on team plan and no teams exist -->
             <v-btn v-if="userPlan?.name === 'team' && currentRole !== 'member' && userTeams.length === 0"
               @click="showTeamManageModal = true; selectedTeamId = ''" class="ml-2">
               Create Team
             </v-btn>
+            <v-btn class="ml-2" v-if="userPlan?.name === 'free'" @click="router.push('/plans');">Upgrade</v-btn>
             <!-- Show Manage Teams dropdown if teams exist -->
             <template v-if="userTeams.length > 0">
               <v-menu v-if="isOrganization">
@@ -138,6 +139,7 @@ import { Clerk } from "@clerk/clerk-js";
 import { linkUtils, subscriptionUtils, teamUtils, userUtils } from '../composables/useDatabase';
 import type { Tables } from '../types/Database';
 import TeamManageModal from '../components/TeamManageModal.vue';
+import {useRouter} from 'vue-router';
 
 type Link = Tables<'links'>;
 
@@ -147,6 +149,7 @@ const clerk = new Clerk(clerkPubKey);
 const userTeams = ref<Array<{ id: string; name: string; role: string; organization_id: string; }>>([]);
 const showTeamManageModal = ref(false);
 const selectedTeamId = ref<string>('');
+const router = useRouter();
 
 const isLoggedIn = ref(false);
 const showSignIn = ref(false);
@@ -213,33 +216,7 @@ onMounted(async () => {
     }
 
     // check for an active subscription
-    try {
-      const response = await fetch('http://localhost:3000/api/verify-subscription', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: clerk.user.emailAddresses[0].emailAddress
-        })
-      });
 
-      if (!response.ok) throw new Error('Failed to verify subscription');
-
-      const subscription = await response.json();
-
-      // only update if not an empty json object
-      if (Object.keys(subscription).length === 0) {
-        stripePlanId.value = null;
-        currentPeriodEnd.value = null;
-      } else {
-        // Update user's plan based on subscription status
-        stripePlanId.value = subscription.plan_id;
-        currentPeriodEnd.value = subscription.current_period_end;
-      }
-    } catch (error) {
-      console.error('Error verifying subscription:', error);
-    }
 
     // get users plans
     // if no sub is active, force to free plan
@@ -323,6 +300,7 @@ async function loadUserTeams() {
     }
   }
 
+  if(!userTeams.value[0]) return;
   currentRole.value = userTeams.value[0].role;
 
 }

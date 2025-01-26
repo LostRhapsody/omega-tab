@@ -58,6 +58,8 @@ async fn hello_handler() -> &'static str {
 async fn confirm_handler(
     Json(payload): Json<CustomerRequest>,
 ) -> Result<Json<SubscriptionResponse>, StatusCode> {
+
+    println!("Received request for email: {}", payload.email);
     // Initialize Supabase client
     let supabase = Supabase::new(
         std::env::var("SUPABASE_URL").expect("SUPABASE_URL must be set"),
@@ -65,23 +67,28 @@ async fn confirm_handler(
     )
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+    println!("Initialized Supabase client");
+    println!("Getting customer from Stripe");
     // Get Stripe customer
     let customer = match StripeClient::get_customer(&payload.email).await {
         Some(customer) => customer,
         None => return Err(StatusCode::NOT_FOUND),
     };
 
+    println!("Got customer from Stripe");
     // Get Stripe subscription
     let subscription = match StripeClient::get_subscription(&customer).await {
         Some(sub) => sub,
         None => return Err(StatusCode::NOT_FOUND),
     };
 
+    println!("Got subscription from Stripe");
     // Check if subscription is active
     if !subscription.status.eq(&stripe::SubscriptionStatus::Active) {
         return Err(StatusCode::PAYMENT_REQUIRED);
     }
 
+    println!("Subscription is active");
     // Get first subscription item
     let item = subscription
         .items
@@ -100,6 +107,7 @@ async fn confirm_handler(
         .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?
         .id();
 
+    println!("Got product id: {}", product_id);
     // Step 1: Verify/create user record
     let user = match supabase.get_user_by_email(&payload.email).await {
         Ok(user) => user,
@@ -112,16 +120,24 @@ async fn confirm_handler(
         }
     };
 
+    println!("Got user from Supabase");
+    println!("User: {:?}", user);
     // Step 2: Get corresponding Supabase plan
     let supabase_plan = supabase
         .get_plan_by_stripe_id(&product_id.to_string())
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+    println!("Got Supabase plan");
+    println!("Supabase plan: {:?}", supabase_plan);
     // Step 3: Verify/create subscription record
     let sub_result = supabase.get_user_subscription(&user.id).await;
+    println!("Got user subscription from Supabase");
+
+    println!("sub_result: {:?}", sub_result);
     match sub_result {
         Ok(sub) => {
+            println!("Got subscription from Supabase");
             // Update existing subscription if plan changed
             if sub.plan_id != supabase_plan.id {
                 let mut updates = HashMap::new();
@@ -132,6 +148,8 @@ async fn confirm_handler(
                 );
                 updates.insert("stripe_subscription_id".to_string(), json!(subscription.id));
 
+                println!("Updating subscription");
+                println!("updates: {:?}", updates);
                 supabase
                     .update_subscription(&sub.id, updates)
                     .await
@@ -139,49 +157,58 @@ async fn confirm_handler(
             }
         }
         Err(_) => {
+            println!("Creating subscription");
             // Create new subscription
             let new_sub = supabase::Subscription {
-                // id: Uuid::new_v4().to_string(),
+                id: uuid::Uuid::new_v4().to_string(),
                 entity_id: user.id.clone(),
                 entity_type: "user".to_string(),
                 plan_id: supabase_plan.clone().id,
                 status: "active".to_string(),
                 stripe_subscription_id: Some(subscription.id.to_string()),
                 current_period_end: Some(subscription.current_period_end.to_string()),
-                // created_at: Some(Utc::now().to_rfc3339()),
-                ..Default::default()
+                created_at: Some(Utc::now().to_rfc3339()),
             };
 
-            supabase
-                .create_subscription(new_sub)
-                .await
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            println!("new_sub: {:?}", new_sub);
+            if let Err(e) = supabase.create_subscription(new_sub).await {
+                println!("Error creating subscription: {:?}", e);
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            }
         }
     }
 
+    println!("Created subscription");
     // Step 4: Verify/create user membership
     let membership_result = supabase.get_user_memberships(&user.id).await;
+    println!("Got user memberships from Supabase");
+    println!("membership_result: {:?}", membership_result);
     match membership_result {
         Ok(memberships) => {
+            println!("Got memberships from Supabase good");
             if memberships.is_empty() {
-                // Create new membership
+                println!("Creating membership");
                 let membership = supabase::UserMembership {
                     user_id: user.id.clone(),
-                    entity_id: user.id,
+                    entity_id: user.id.clone(),
                     entity_type: "user".to_string(),
                     role: "owner".to_string(),
                     created_at: Utc::now().to_rfc3339(),
                 };
 
-                supabase
-                    .add_member(membership)
-                    .await
-                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                println!("new membership: {:?}", membership);
+                if let Err(e) = supabase.add_member(membership).await {
+                    println!("Error creating membership: {:?}", e);
+                    return Err(StatusCode::INTERNAL_SERVER_ERROR);
+                }
+                println!("Membership created successfully");
             }
         }
         Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 
+    println!("Created membership");
+    println!("Returning response");
     // Return successful response
     Ok(Json(SubscriptionResponse {
         plan_id: supabase_plan.id,
