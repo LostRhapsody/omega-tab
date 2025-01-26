@@ -8,7 +8,6 @@
         <v-row class="items-center">
           <v-col>
             Plan:{{ userPlan?.name }} <br /> Max pins:{{ userPlan?.max_pins }} <br /> Role:{{ currentRole }}
-            <!-- <br /> Features: {{ userPlan?.features}} -->
           </v-col>
           <v-col class="justify-end flex items-center">
             <v-btn id="user-button"></v-btn>
@@ -41,6 +40,8 @@
           </v-col>
         </v-row>
       </v-container>
+
+      <!-- Rest of the template remains unchanged -->
       <div class="header">
         <h1 class="mt-16 text-3xl">
           <v-icon icon="mdi-rocket" size="24" />
@@ -105,7 +106,7 @@
     </div>
   </div>
   <TeamManageModal v-model="showTeamManageModal" :teamId="selectedTeamId" :userId="userId" :planId="userPlan?.id"
-    @linkAdded="loadUserTeams" />
+    @linkAdded="loadUserData" />
   <div class="fixed bottom-4 right-4 bg-gray-800 p-4 rounded-lg shadow-lg z-50">
     <div class="mb-4">
       <h3 class="text-sm font-semibold mb-2">Plans:</h3>
@@ -131,42 +132,68 @@
 
 <script setup lang="ts">
 import { ref, nextTick, onMounted, computed } from 'vue';
+import { useRouter } from 'vue-router';
+import { useApi } from '../composables/useApi';
+import { Clerk } from "@clerk/clerk-js";
+import type { Tables } from '../types/Database';
 import SearchBar from '../components/SearchBar.vue';
 import LinkColumns from '../components/LinkColumns.vue';
 import LandingPage from '../components/LandingPage.vue';
-import { useApi } from '../composables/useApi';
-import { Clerk } from "@clerk/clerk-js";
-import { linkUtils, subscriptionUtils, teamUtils, userUtils } from '../composables/useDatabase';
-import type { Tables } from '../types/Database';
 import TeamManageModal from '../components/TeamManageModal.vue';
-import {useRouter} from 'vue-router';
 
 type Link = Tables<'links'>;
 
-const { api } = useApi()
+// Initialize services
+const { api } = useApi();
+const router = useRouter();
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 const clerk = new Clerk(clerkPubKey);
-const userTeams = ref<Array<{ id: string; name: string; role: string; organization_id: string; }>>([]);
+
+// State management
+const isLoggedIn = ref(false);
+const isLoading = ref(true);
+const showSignIn = ref(false);
+const showHelpDialog = ref(false);
 const showTeamManageModal = ref(false);
 const selectedTeamId = ref<string>('');
-const router = useRouter();
-
-const isLoggedIn = ref(false);
-const showSignIn = ref(false);
-const isLoading = ref(true);
-const currentRole = ref('member');
 const isOrganization = ref(false);
-const stripePlanId = ref<string | null>(null);
-const currentPeriodEnd = ref<string | null>(null);
-const activeSubscription = computed(() => {
-  return stripePlanId.value && stripePlanId.value.length > 0;
-});
 
+// User and data state
 const userId = ref<string | null>(null);
 const userPlan = ref<Tables<'plans'> | null>(null);
-
+const currentRole = ref('member');
+const userTeams = ref<Array<{ id: string; name: string; role: string; organization_id: string; }>>([]);
 const tools = ref<Link[]>([]);
 const docs = ref<Link[]>([]);
+
+// Computed properties
+const toolShortcuts = computed(() => tools.value.map((tool, index) => ({
+  shortcut: `Ctrl+${index + 1}`,
+  description: `Open ${tool.title}`
+})));
+
+const docShortcuts = computed(() => docs.value.map((doc, index) => ({
+  shortcut: `Alt+${index + 1}`,
+  description: `Open ${doc.title}`
+})));
+
+const canShowAddLink = computed(() => {
+  if (userPlan.value?.name === 'free' || userPlan.value?.name === 'plus') {
+    return true;
+  }
+
+  if (userPlan.value?.name === 'team' && (currentRole.value === 'admin' || currentRole.value === 'owner')) {
+    return true;
+  }
+
+  if (userPlan.value?.name === 'enterprise' && (currentRole.value === 'admin' || currentRole.value === 'owner')) {
+    return true;
+  }
+
+  return false;
+});
+
+// Event handlers
 const handleToolAdded = (tool: Link) => {
   tools.value.push(tool);
 };
@@ -175,19 +202,7 @@ const handleDocAdded = (doc: Link) => {
   docs.value.push(doc);
 };
 
-const showHelpDialog = ref(false);
-
-const toolShortcuts = tools.value.map((tool, index) => ({
-  shortcut: `Ctrl+${index + 1}`,
-  description: `Open ${tool.title}`
-}));
-
-const docShortcuts = docs.value.map((doc, index) => ({
-  shortcut: `Alt+${index + 1}`,
-  description: `Open ${doc.title}`
-}));
-
-function handleShowSignIn() {
+const handleShowSignIn = () => {
   showSignIn.value = true;
   nextTick(() => {
     const signInDiv = document.getElementById('sign-in');
@@ -195,115 +210,89 @@ function handleShowSignIn() {
       clerk.mountSignIn(signInDiv as HTMLDivElement);
     }
   });
-}
+};
 
-onMounted(async () => {
-  isLoading.value = true;
-  await clerk.load();
-  isLoggedIn.value = !!clerk.user;
-
-  if (isLoggedIn.value) {
-    // mostly for type checks
-    if (!clerk.user) return;
-
-    userId.value = clerk.user.id;
-
-    // Create user record if doesn't exist
-    try {
-      await userUtils.createUserIfNotExists(clerk.user.id, clerk.user.emailAddresses[0].emailAddress);
-    } catch (error) {
-      console.error('Error creating user:', error);
+// API interaction methods
+const loadUserData = async () => {
+  try {
+    if (!clerk.user?.emailAddresses[0]) {
+      throw new Error('No user email found');
     }
 
-    // check for an active subscription
+    // Get subscription status from backend
+    const subscriptionData = await api('/confirm', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: clerk.user.emailAddresses[0].emailAddress
+      })
+    });
 
+    // Load user plan data
+    const userPlanData = await api(`/plan/${subscriptionData.plan_id}`);
+    userPlan.value = userPlanData;
 
-    // get users plans
-    // if no sub is active, force to free plan
-    if (!activeSubscription.value) {
-      userPlan.value = await subscriptionUtils.getFreePlan();
-    } else {
-      if (!stripePlanId.value) throw new Error('Failed to find stripe plan id');
-      if (!currentPeriodEnd.value) throw new Error('Failed to find current period end');
-
-      // if there is a sub active, check it
-      userPlan.value = await subscriptionUtils.getUserPlan(userId.value);
-      // if they are still on the free plan with an active sub, create their correct plan records
-      if (userPlan.value?.name === 'free') {
-
-        // grab all the plans because we need their IDs and their stripe ids
-        const all_plans = await subscriptionUtils.getAllPlans();
-        // get the matching plan
-        const users_new_plan = all_plans?.find(p => p.stripe_id === stripePlanId.value);
-        if (!users_new_plan) throw new Error('Failed to find matching plan');
-
-        let entity_type: "team" | "user" | "organization";
-        if (users_new_plan.name === 'plus') entity_type = 'user';
-        else if (users_new_plan.name === 'team') entity_type = 'team';
-        else if (users_new_plan.name === 'enterprise') entity_type = 'organization';
-        else throw new Error('Failed to find matching entity type');
-
-        // first create the subscription
-
-        // sub for plus plan
-        await subscriptionUtils.createSubscription(userId.value, entity_type, users_new_plan.id, stripePlanId.value, currentPeriodEnd.value);
+    // Load user links
+    const { data: linksData } = await api(`/links/${clerk.user.id}`);
+    if(linksData !== undefined) for (const link of linksData) {
+      if (link.column_type === 'tools') {
+        handleToolAdded(link);
+      } else {
+        handleDocAdded(link);
       }
     }
 
-    // get users links
-    let limit: number | null;
+    // Load user teams
+    // const { data: teamsData } = await api(`/teams/${clerk.user.id}`);
+    // userTeams.value = teamsData.map((t: any) => ({
+    //   id: t.entity_id,
+    //   name: t.teams?.name || '',
+    //   role: t.role,
+    //   organization_id: t.teams?.organization_id || ''
+    // })).filter((t: any) => t.role === 'admin' || t.role === 'owner');
 
-    // ensure the free plan is always restricted to 6 pins
-    if (userPlan.value?.name === 'free') {
-      limit = 6;
-    } else {
-      limit = null;
+    // Update organization status
+    isOrganization.value = userTeams.value.some(team => team.organization_id.length > 0);
+
+    // Set current role if teams exist
+    if (userTeams.value[0]) {
+      currentRole.value = userTeams.value[0].role;
     }
 
-    const links = await linkUtils.getUserLinks(clerk.user.id, limit);
-    for (const link of links) {
-      if (link.column_type === "tools") handleToolAdded(link); else handleDocAdded(link);
+  } catch (error) {
+    console.error('Error loading user data:', error);
+    // Handle error appropriately
+  }
+};
+
+// Lifecycle hooks
+onMounted(async () => {
+  isLoading.value = true;
+
+  try {
+    await clerk.load();
+    isLoggedIn.value = !!clerk.user;
+
+    if (isLoggedIn.value && clerk.user) {
+      userId.value = clerk.user.id;
+      await loadUserData();
     }
+  } catch (error) {
+    console.error('Error during initialization:', error);
+    // Handle error appropriately
+  } finally {
+    isLoading.value = false;
+  }
 
-    // check users team
-    await loadUserTeams();
-
-  } // end if is logged in
-
-  isLoading.value = false;
+  // Mount Clerk user button if logged in
   if (isLoggedIn.value) {
     nextTick(() => {
-      // mount the 'user edit' button
       const userButtonDiv = document.getElementById('user-button');
       if (userButtonDiv) {
         clerk.mountUserButton(userButtonDiv as HTMLDivElement);
       }
     });
   }
-
 });
-
-async function loadUserTeams() {
-  if (!clerk.user) return;
-  const teams = await teamUtils.getUserTeams(clerk.user.id);
-  userTeams.value = teams.map(t => ({
-    id: t.entity_id,
-    name: t.teams?.name || '',
-    role: t.role,
-    organization_id: t.teams?.organization_id || ''
-  })).filter(t => t.role === 'admin' || t.role === 'owner');
-
-  for (const team of userTeams.value) {
-    if (team.organization_id.length > 0) {
-      isOrganization.value = true;
-      break;
-    }
-  }
-
-  if(!userTeams.value[0]) return;
-  currentRole.value = userTeams.value[0].role;
-
-}
 
 const plans: Tables<'plans'>[] = [
   {
@@ -345,27 +334,6 @@ const roles = ['member', 'admin', 'owner'];
 function switchPlan(plan: typeof plans[0]) {
   userPlan.value = plan;
 }
-
-const canShowAddLink = computed(() => {
-  // Show for free or plus plans
-  if (userPlan.value?.name === 'free' || userPlan.value?.name === 'plus') {
-    return true;
-  }
-
-  // Show for team admins/owners
-  if (
-    userPlan.value?.name === 'team' && (currentRole.value === 'admin' || currentRole.value === 'owner')) {
-    return true;
-  }
-
-  // Show for team admins/owners
-  if (
-    userPlan.value?.name === 'enterprise' && (currentRole.value === 'admin' || currentRole.value === 'owner')) {
-    return true;
-  }
-
-  return false;
-});
 </script>
 
 <style scoped>

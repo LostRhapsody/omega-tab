@@ -1,6 +1,7 @@
 mod stripe_client;
 mod supabase;
 
+use axum::extract::Path;
 use axum::{extract::Json, http::StatusCode};
 use axum::{
     routing::{get, post},
@@ -10,9 +11,9 @@ use chrono::Utc;
 use dotenv::dotenv;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use supabase::Supabase;
 use std::collections::HashMap;
 use stripe_client::StripeClient;
+use supabase::Supabase;
 use tower_http::cors::{Any, CorsLayer};
 
 #[derive(Serialize)]
@@ -43,6 +44,16 @@ async fn main() {
     let app = Router::new()
         .route("/hello", get(hello_handler))
         .route("/confirm", post(confirm_handler))
+        .route(
+            "/links/{user_id}", get({
+                move |path| links_handler(path)
+            }),
+        )
+        .route(
+            "/plan/{plan_id}", get({
+                move |path| plan_handler(path)
+            }),
+        )
         .layer(cors);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
@@ -58,7 +69,6 @@ async fn hello_handler() -> &'static str {
 async fn confirm_handler(
     Json(payload): Json<CustomerRequest>,
 ) -> Result<Json<SubscriptionResponse>, StatusCode> {
-
     println!("Received request for email: {}", payload.email);
     // Initialize Supabase client
     let supabase = Supabase::new(
@@ -214,4 +224,37 @@ async fn confirm_handler(
         plan_id: supabase_plan.id,
         current_period_end: subscription.current_period_end,
     }))
+}
+
+async fn links_handler(
+    Path(user_id): Path<String>,
+) -> Result<Json<Vec<supabase::Link>>, StatusCode> {
+
+    let supabase = Supabase::new(
+        std::env::var("SUPABASE_URL").expect("SUPABASE_URL must be set"),
+        std::env::var("SUPABASE_KEY").expect("SUPABASE_KEY must be set"),
+    )
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let links = supabase
+        .get_links(&user_id, "user")
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(links))
+}
+
+async fn plan_handler(Path(plan_id): Path<String>) -> Result<Json<supabase::Plan>, StatusCode> {
+    let supabase = Supabase::new(
+        std::env::var("SUPABASE_URL").expect("SUPABASE_URL must be set"),
+        std::env::var("SUPABASE_KEY").expect("SUPABASE_KEY must be set"),
+    )
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let plan = supabase
+        .get_plan(&plan_id)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(plan))
 }
