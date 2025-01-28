@@ -202,10 +202,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, type ComputedRef } from 'vue';
 import { useRouter } from 'vue-router';
 import { membershipUtils, teamUtils } from '@/composables/useDatabase';
-import type { Tables } from '../types/Database';
+import type { Tables, Json } from '../types/Database';
 import { useUserStore } from '../stores/user';
 
 // In Settings.vue setup
@@ -216,7 +216,14 @@ const firstName = computed(() => userStore.firstName);
 const lastName = computed(() => userStore.lastName);
 const fullName = computed(() => `${firstName.value} ${lastName.value}`);
 const email = computed(() => userStore.email);
-const userPlan = computed(() => userStore.userPlan);
+const userPlan = computed(() => userStore.userPlan) as ComputedRef<{
+    created_at: string | null;
+    features: Json;
+    id: string;
+    max_pins: number;
+    name: string;
+    stripe_id: string | null;
+  } | null>;
 
 const router = useRouter();
 const activeTab = ref('preferences');
@@ -231,17 +238,31 @@ const teamForm = ref({
 });
 
 const inviteEmail = ref('');
-const teamMembers = ref([]);
+const teamMembers = ref<TeamMember[]>([]);
+type TeamMember = {
+  user_id: string;
+  name: string;
+  email: string;
+  role: string;
+};
 
 // Organization data
 const orgName = ref('');
-const selectedTeam = ref('');
-const teams = ref([]);
-const orgMembers = ref([]);
+const selectedTeam = ref<string>("");
+const teams = ref<string[]>([]);
+const orgMembers = ref<OrgMember[]>([]);
+type OrgMember = {
+  user_id: string;
+  name: string;
+  email: string;
+  team: string;
+  role: string;
+  id: string;
+};
 
 // Computed properties
-const isTeamPlan = computed(() => userPlan?.name === 'team' || userPlan?.name === 'enterprise');
-const isEnterprisePlan = computed(() => userPlan?.name === 'enterprise');
+const isTeamPlan = computed(() => userPlan.value?.name === 'team' || userPlan.value?.name === 'enterprise');
+const isEnterprisePlan = computed(() => userPlan.value?.name === 'enterprise');
 const showTeamTab = computed(() => isTeamPlan.value);
 const hasTeam = computed(() => teamMembers.value.length > 0);
 
@@ -267,17 +288,19 @@ const handleTeamSubmit = async () => {
   try {
     if (selectedTeamId.value) {
       // Update existing team
-      await teamUtils.updateTeam(selectedTeamId.value, { name: teamForm.value.name });
+      // todo add team creation/update logic to backend and call here
+      // await teamUtils.updateTeam(selectedTeamId.value, { name: teamForm.value.name });
     } else {
+      // todo add team creation/update logic to backend and call here
       // Create new team
-      await teamUtils.createTeam(
-        userId,
-        userPlan.id,
-        teamForm.value.name
-      );
+      // await teamUtils.createTeam(
+      //   userId,
+      //   userPlan.id,
+      //   teamForm.value.name
+      // );
     }
     showTeamModal.value = false;
-    loadTeamData();
+    // loadTeamData();
   } catch (error) {
     console.error('Error managing team:', error);
   }
@@ -285,39 +308,44 @@ const handleTeamSubmit = async () => {
 
 const handleInvite = async () => {
   try {
-    await membershipUtils.addMember(inviteEmail.value, selectedTeamId.value, 'team', 'member');
+    // todo add membership creation/update logic to backend and call here
+    // await membershipUtils.addMember(inviteEmail.value, selectedTeamId.value, 'team', 'member');
     showInviteModal.value = false;
-    loadTeamData();
+    // loadTeamData();
   } catch (error) {
     console.error('Error inviting member:', error);
   }
 };
 
 const updateMemberRole = async (userId: string, newRole: string) => {
-  try {
-    await membershipUtils.updateMemberRole(userId, selectedTeamId.value, newRole);
-    loadTeamData();
-  } catch (error) {
-    console.error('Error updating member role:', error);
-  }
+  // try {
+  //   // todo add membership creation/update logic to backend and call here
+  //   // await membershipUtils.updateMemberRole(userId, selectedTeamId.value, newRole);
+  //   // loadTeamData();
+  // } catch (error) {
+  //   console.error('Error updating member role:', error);
+  // }
 };
 
 const removeMember = async (userId: string) => {
-  try {
-    await membershipUtils.removeMember(userId, selectedTeamId.value);
-    loadTeamData();
-  } catch (error) {
-    console.error('Error removing member:', error);
-  }
+  // try {
+  //   // todo add membership creation/update logic to backend and call here
+  //   // await membershipUtils.removeMember(userId, selectedTeamId.value);
+  //   // loadTeamData();
+  // } catch (error) {
+  //   console.error('Error removing member:', error);
+  // }
 };
 
 const loadTeamData = async () => {
   try {
-    const userTeams = await teamUtils.getUserTeams(userId);
+    if(!userId.value) return;
+    const userTeams = await teamUtils.getUserTeams(userId.value);
     if (userTeams.length > 0) {
-      selectedTeamId.value = userTeams[0].id;
-      const members = await teamUtils.getTeamMembers(selectedTeamId.value);
-      teamMembers.value = members;
+      selectedTeamId.value = userTeams[0].teams?.id || "";
+      // todo add team creation/update logic to backend and call here
+      // const members = await teamUtils.getTeamMembers(selectedTeamId.value);
+      // teamMembers.value = members;
     }
   } catch (error) {
     console.error('Error loading team data:', error);
