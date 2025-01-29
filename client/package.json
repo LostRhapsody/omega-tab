@@ -14,7 +14,7 @@
     "type-check": "vue-tsc --build",
     "tailwind:watch": "tailwindcss -i ./src/assets/css/main.css -o ./src/assets/css/tailwind.css --watch",
     "tailwind:build": "tailwindcss -i ./src/assets/css/main.css -o ./src/assets/css/tailwind.css --minify",
-    "dev:all": "run-p dev tailwind:watch",
+    "dev:all": "biome check run-p dev tailwind:watch",
     "build:all": "NODE_ENV=production run-s tailwind:build \"build-only --mode production --minify\""
   },
   "dependencies": {
