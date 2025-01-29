@@ -11,21 +11,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref } from "vue";
 
 const loading = ref(false);
-const response = ref('');
+const response = ref("");
 
 async function testBackend() {
-  loading.value = true;
-  try {
-    const res = await fetch('http://localhost:3000/hello');
-    response.value = await res.text();
-  } catch (err) {
-    console.error('Error:', err);
-    response.value = 'Error connecting to backend';
-  } finally {
-    loading.value = false;
-  }
+	loading.value = true;
+	try {
+		const res = await fetch("http://localhost:3000/hello");
+		response.value = await res.text();
+	} catch (err) {
+		console.error("Error:", err);
+		response.value = "Error connecting to backend";
+	} finally {
+		loading.value = false;
+	}
 }
 </script>

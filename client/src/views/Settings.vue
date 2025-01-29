@@ -202,13 +202,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, type ComputedRef } from 'vue';
-import { useRouter } from 'vue-router';
-import type { Features } from '../types/Features';
-import { useUserStore } from '../stores/user';
+import { type ComputedRef, computed, ref } from "vue";
+import { useRouter } from "vue-router";
+import { useUserStore } from "../stores/user";
+import type { Features } from "../types/Features";
 
 // In Settings.vue setup
-const userStore = useUserStore()
+const userStore = useUserStore();
 
 const userId = computed(() => userStore.userId);
 const firstName = computed(() => userStore.firstName);
@@ -216,144 +216,148 @@ const lastName = computed(() => userStore.lastName);
 const fullName = computed(() => `${firstName.value} ${lastName.value}`);
 const email = computed(() => userStore.email);
 const userPlan = computed(() => userStore.userPlan) as ComputedRef<{
-    created_at: string | null;
-    features: Features;
-    id: string;
-    max_pins: number;
-    name: string;
-    stripe_id: string | null;
-  } | null>;
+	created_at: string | null;
+	features: Features;
+	id: string;
+	max_pins: number;
+	name: string;
+	stripe_id: string | null;
+} | null>;
 
 const router = useRouter();
-const activeTab = ref('preferences');
+const activeTab = ref("preferences");
 const showTeamModal = ref(false);
 const showInviteModal = ref(false);
-const selectedTeamId = ref('');
-const memberSearch = ref('');
+const selectedTeamId = ref("");
+const memberSearch = ref("");
 
 // Team management data
 const teamForm = ref({
-  name: '',
+	name: "",
 });
 
-const inviteEmail = ref('');
+const inviteEmail = ref("");
 const teamMembers = ref<TeamMember[]>([]);
 type TeamMember = {
-  user_id: string;
-  name: string;
-  email: string;
-  role: string;
+	user_id: string;
+	name: string;
+	email: string;
+	role: string;
 };
 
 // Organization data
-const orgName = ref('');
+const orgName = ref("");
 const selectedTeam = ref<string>("");
 const teams = ref<string[]>([]);
 const orgMembers = ref<OrgMember[]>([]);
 type OrgMember = {
-  user_id: string;
-  name: string;
-  email: string;
-  team: string;
-  role: string;
-  id: string;
+	user_id: string;
+	name: string;
+	email: string;
+	team: string;
+	role: string;
+	id: string;
 };
 
 // Computed properties
-const isTeamPlan = computed(() => userPlan.value?.name === 'team' || userPlan.value?.name === 'enterprise');
-const isEnterprisePlan = computed(() => userPlan.value?.name === 'enterprise');
+const isTeamPlan = computed(
+	() =>
+		userPlan.value?.name === "team" || userPlan.value?.name === "enterprise",
+);
+const isEnterprisePlan = computed(() => userPlan.value?.name === "enterprise");
 const showTeamTab = computed(() => isTeamPlan.value);
 const hasTeam = computed(() => teamMembers.value.length > 0);
 
 const settings = ref({
-  searchHistory: false,
-  autocompleteSuggestions: false,
-  jiraIntegration: false,
-  confluenceIntegration: false,
+	searchHistory: false,
+	autocompleteSuggestions: false,
+	jiraIntegration: false,
+	confluenceIntegration: false,
 });
 
 const filteredOrgMembers = computed(() => {
-  if (!memberSearch.value) return orgMembers.value;
-  const search = memberSearch.value.toLowerCase();
-  return orgMembers.value.filter(member =>
-    member.name.toLowerCase().includes(search) ||
-    member.email.toLowerCase().includes(search) ||
-    member.team.toLowerCase().includes(search)
-  );
+	if (!memberSearch.value) return orgMembers.value;
+	const search = memberSearch.value.toLowerCase();
+	return orgMembers.value.filter(
+		(member) =>
+			member.name.toLowerCase().includes(search) ||
+			member.email.toLowerCase().includes(search) ||
+			member.team.toLowerCase().includes(search),
+	);
 });
 
 // Methods
 const handleTeamSubmit = async () => {
-  try {
-    if (selectedTeamId.value) {
-      // Update existing team
-      // todo add team creation/update logic to backend and call here
-      // await teamUtils.updateTeam(selectedTeamId.value, { name: teamForm.value.name });
-    } else {
-      // todo add team creation/update logic to backend and call here
-      // Create new team
-      // await teamUtils.createTeam(
-      //   userId,
-      //   userPlan.id,
-      //   teamForm.value.name
-      // );
-    }
-    showTeamModal.value = false;
-    // loadTeamData();
-  } catch (error) {
-    console.error('Error managing team:', error);
-  }
+	try {
+		if (selectedTeamId.value) {
+			// Update existing team
+			// todo add team creation/update logic to backend and call here
+			// await teamUtils.updateTeam(selectedTeamId.value, { name: teamForm.value.name });
+		} else {
+			// todo add team creation/update logic to backend and call here
+			// Create new team
+			// await teamUtils.createTeam(
+			//   userId,
+			//   userPlan.id,
+			//   teamForm.value.name
+			// );
+		}
+		showTeamModal.value = false;
+		// loadTeamData();
+	} catch (error) {
+		console.error("Error managing team:", error);
+	}
 };
 
 const handleInvite = async () => {
-  try {
-    // todo add membership creation/update logic to backend and call here
-    // await membershipUtils.addMember(inviteEmail.value, selectedTeamId.value, 'team', 'member');
-    showInviteModal.value = false;
-    // loadTeamData();
-  } catch (error) {
-    console.error('Error inviting member:', error);
-  }
+	try {
+		// todo add membership creation/update logic to backend and call here
+		// await membershipUtils.addMember(inviteEmail.value, selectedTeamId.value, 'team', 'member');
+		showInviteModal.value = false;
+		// loadTeamData();
+	} catch (error) {
+		console.error("Error inviting member:", error);
+	}
 };
 
 const updateMemberRole = async (userId: string, newRole: string) => {
-  // try {
-  //   // todo add membership creation/update logic to backend and call here
-  //   // await membershipUtils.updateMemberRole(userId, selectedTeamId.value, newRole);
-  //   // loadTeamData();
-  // } catch (error) {
-  //   console.error('Error updating member role:', error);
-  // }
+	// try {
+	//   // todo add membership creation/update logic to backend and call here
+	//   // await membershipUtils.updateMemberRole(userId, selectedTeamId.value, newRole);
+	//   // loadTeamData();
+	// } catch (error) {
+	//   console.error('Error updating member role:', error);
+	// }
 };
 
 const removeMember = async (userId: string) => {
-  // try {
-  //   // todo add membership creation/update logic to backend and call here
-  //   // await membershipUtils.removeMember(userId, selectedTeamId.value);
-  //   // loadTeamData();
-  // } catch (error) {
-  //   console.error('Error removing member:', error);
-  // }
+	// try {
+	//   // todo add membership creation/update logic to backend and call here
+	//   // await membershipUtils.removeMember(userId, selectedTeamId.value);
+	//   // loadTeamData();
+	// } catch (error) {
+	//   console.error('Error removing member:', error);
+	// }
 };
 
 const loadTeamData = async () => {
-  try {
-    if(!userId.value) return;
-      // todo add team creation/update logic to backend and call here
-    // const userTeams = await teamUtils.getUserTeams(userId.value);
-    // if (userTeams.length > 0) {
-      // selectedTeamId.value = userTeams[0].teams?.id || "";
-      // todo add team creation/update logic to backend and call here
-      // const members = await teamUtils.getTeamMembers(selectedTeamId.value);
-      // teamMembers.value = members;
-    // }
-  } catch (error) {
-    console.error('Error loading team data:', error);
-  }
+	try {
+		if (!userId.value) return;
+		// todo add team creation/update logic to backend and call here
+		// const userTeams = await teamUtils.getUserTeams(userId.value);
+		// if (userTeams.length > 0) {
+		// selectedTeamId.value = userTeams[0].teams?.id || "";
+		// todo add team creation/update logic to backend and call here
+		// const members = await teamUtils.getTeamMembers(selectedTeamId.value);
+		// teamMembers.value = members;
+		// }
+	} catch (error) {
+		console.error("Error loading team data:", error);
+	}
 };
 
 const contactSales = () => {
-  window.location.href = 'mailto:sales@example.com';
+	window.location.href = "mailto:sales@example.com";
 };
 </script>
 

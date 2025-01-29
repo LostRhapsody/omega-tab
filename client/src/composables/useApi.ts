@@ -1,46 +1,48 @@
 // composables/useApi.ts
-import { ref } from 'vue'
+import { ref } from "vue";
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 export function useApi() {
-  const loading = ref(false)
-  const error = ref<Error | null>(null)
+	const loading = ref(false);
+	const error = ref<Error | null>(null);
 
-  async function api<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    loading.value = true
-    error.value = null
+	async function api<T>(
+		endpoint: string,
+		options: RequestInit = {},
+	): Promise<T> {
+		loading.value = true;
+		error.value = null;
 
-    try {
-      const response = await fetch(`${API_URL}${endpoint}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          // Add any default headers here
-        },
-        ...options,
-      })
+		try {
+			const response = await fetch(`${API_URL}${endpoint}`, {
+				headers: {
+					"Content-Type": "application/json",
+					// Add any default headers here
+				},
+				...options,
+			});
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
 
-      const text = await response.text();
+			const text = await response.text();
 
-      return text ? JSON.parse(text) : null;
+			return text ? JSON.parse(text) : null;
+		} catch (e) {
+			error.value = e as Error;
+			throw e;
+		} finally {
+			loading.value = false;
+		}
+	}
 
-    } catch (e) {
-      error.value = e as Error
-      throw e
-    } finally {
-      loading.value = false
-    }
-  }
-
-  return {
-    api,
-    loading,
-    error
-  }
+	return {
+		api,
+		loading,
+		error,
+	};
 }
 
 // examples

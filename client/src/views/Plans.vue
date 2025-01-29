@@ -162,29 +162,28 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
-import StripeCheckout from '../components/StripeCheckout.vue';
+import { ref } from "vue";
+import { useRouter } from "vue-router";
+import StripeCheckout from "../components/StripeCheckout.vue";
 
 const router = useRouter();
 const showCheckout = ref(false);
 const selectedPlan = ref({
-  id: '',
-  name: '',
-  price: 0
+	id: "",
+	name: "",
+	price: 0,
 });
 const PlusPlanUrl = import.meta.env.VITE_PLUS_PLAN_URL;
 const TeamPlanUrl = import.meta.env.VITE_TEAM_PLAN_URL;
 
 const handleBack = () => {
-  router.go(-1);
+	router.go(-1);
 };
 
 const handleUpgrade = (plan: { id: string; name: string; price: number }) => {
-  selectedPlan.value = plan;
-  showCheckout.value = true;
+	selectedPlan.value = plan;
+	showCheckout.value = true;
 };
-
 </script>
 
 <style scoped>

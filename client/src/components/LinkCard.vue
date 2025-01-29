@@ -1,29 +1,32 @@
 <!-- ToolLink.vue -->
 <script setup lang="ts">
-import { defineProps, ref, computed } from 'vue'
+import { computed, defineProps, ref } from "vue";
 
 interface Props {
-  icon?: string
-  title: string
-  description: string
-  link: string
-  index: number
-  shortcut: string
-  onDelete: () => void
-  onEdit: () => void
+	icon?: string;
+	title: string;
+	description: string;
+	link: string;
+	index: number;
+	shortcut: string;
+	onDelete: () => void;
+	onEdit: () => void;
 }
 
-const props = defineProps<Props>()
-const isMdiIcon = computed(() => props.icon?.startsWith('mdi-'))
-const snackbar = ref(false)
+const props = defineProps<Props>();
+const isMdiIcon = computed(() => props.icon?.startsWith("mdi-"));
+const snackbar = ref(false);
 
 const copyToClipboard = (text: string) => {
-  navigator.clipboard.writeText(text).then(() => {
-    snackbar.value = true
-  }).catch(err => {
-    console.error('Failed to copy: ', err);
-  });
-}
+	navigator.clipboard
+		.writeText(text)
+		.then(() => {
+			snackbar.value = true;
+		})
+		.catch((err) => {
+			console.error("Failed to copy: ", err);
+		});
+};
 </script>
 
 <template>

@@ -21,14 +21,14 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, onMounted, onUnmounted, ref } from 'vue';
-import LinkCard from './LinkCard.vue';
-import AddLinkCard from './AddLinkCard.vue';
-import type { Tables } from '../types/Database';
-import { useApi } from '../composables/useApi';
-import EditLinkModal from './EditLinkModal.vue';
-type Link = Tables<'links'>;
-const  { api } = useApi();
+import { defineProps, onMounted, onUnmounted, ref } from "vue";
+import { useApi } from "../composables/useApi";
+import type { Tables } from "../types/Database";
+import AddLinkCard from "./AddLinkCard.vue";
+import EditLinkModal from "./EditLinkModal.vue";
+import LinkCard from "./LinkCard.vue";
+type Link = Tables<"links">;
+const { api } = useApi();
 
 const ctrl = "ctrl";
 const alt = "alt";
@@ -36,84 +36,98 @@ const showEditModal = ref(false);
 const editingLink = ref<Link | undefined>();
 
 const props = defineProps<{
-  tools: Link[];
-  docs: Link[];
-  canAddLinks?: boolean;
-  userId: string | null;
-  maxPins: number;
-  isPlanFree: boolean;
+	tools: Link[];
+	docs: Link[];
+	canAddLinks?: boolean;
+	userId: string | null;
+	maxPins: number;
+	isPlanFree: boolean;
 }>();
 
 const emit = defineEmits<{
-  (e: 'toolAdded', tool: Link): void;
-  (e: 'docAdded', doc: Link): void;
-  (e: 'linkDeleted', type: string, index: number): void;
+	(e: "toolAdded", tool: Link): void;
+	(e: "docAdded", doc: Link): void;
+	(e: "linkDeleted", type: string, index: number): void;
 }>();
 
 const handleNewTool = (tool: Link) => {
-  emit('toolAdded', tool);
+	emit("toolAdded", tool);
 };
 
 const handleNewDoc = (doc: Link) => {
-  emit('docAdded', doc);
+	emit("docAdded", doc);
 };
 
 const handleDeleteLink = async (type: string, index: number) => {
-  if (type === 'tool') {
-    if (confirm(`Are you sure you want to delete the link "${props.tools[index].title}"?`)) {
-      await api(`/link/${props.tools[index].id}`, { method: 'DELETE'});
-      emit('linkDeleted', 'tool', index); // Emit event
-    }
-  } else {
-    if (confirm(`Are you sure you want to delete the link "${props.docs[index].title}"?`)) {
-      await api(`/link/${props.docs[index].id}`, { method: 'DELETE'});
-      emit('linkDeleted', 'doc', index); // Emit event
-    }
-  }
+	if (type === "tool") {
+		if (
+			confirm(
+				`Are you sure you want to delete the link "${props.tools[index].title}"?`,
+			)
+		) {
+			await api(`/link/${props.tools[index].id}`, { method: "DELETE" });
+			emit("linkDeleted", "tool", index); // Emit event
+		}
+	} else {
+		if (
+			confirm(
+				`Are you sure you want to delete the link "${props.docs[index].title}"?`,
+			)
+		) {
+			await api(`/link/${props.docs[index].id}`, { method: "DELETE" });
+			emit("linkDeleted", "doc", index); // Emit event
+		}
+	}
 };
 
 const handleEditLink = (link: Link) => {
-  editingLink.value = link;
-  showEditModal.value = true;
+	editingLink.value = link;
+	showEditModal.value = true;
 };
 
 const handleLinkUpdated = async (updatedLink: Link) => {
-  const index = updatedLink.column_type === 'tools'
-    ? props.tools.findIndex(t => t.id === updatedLink.id)
-    : props.docs.findIndex(d => d.id === updatedLink.id);
+	const index =
+		updatedLink.column_type === "tools"
+			? props.tools.findIndex((t) => t.id === updatedLink.id)
+			: props.docs.findIndex((d) => d.id === updatedLink.id);
 
-  if (index !== -1) {
-
-    if (updatedLink.column_type === 'tools') {
-      // Preserve order_index from original array position
-      props.tools[index] = { ...updatedLink, order_index: props.tools[index].order_index };
-    } else {
-      props.docs[index] = { ...updatedLink, order_index: props.docs[index].order_index };
-    }
-    showEditModal.value = false;
-  }
+	if (index !== -1) {
+		if (updatedLink.column_type === "tools") {
+			// Preserve order_index from original array position
+			props.tools[index] = {
+				...updatedLink,
+				order_index: props.tools[index].order_index,
+			};
+		} else {
+			props.docs[index] = {
+				...updatedLink,
+				order_index: props.docs[index].order_index,
+			};
+		}
+		showEditModal.value = false;
+	}
 };
 
 const handleKeydown = (event: KeyboardEvent) => {
-  if (event.ctrlKey) {
-    const index = Number.parseInt(event.key) - 1;
-    if (index >= 0 && index < props.tools.length) {
-      window.open(props.tools[index].url, '_blank');
-    }
-  } else if (event.altKey) {
-    const index = Number.parseInt(event.key) - 1;
-    if (index >= 0 && index < props.docs.length) {
-      window.open(props.docs[index].url, '_blank');
-    }
-  }
+	if (event.ctrlKey) {
+		const index = Number.parseInt(event.key) - 1;
+		if (index >= 0 && index < props.tools.length) {
+			window.open(props.tools[index].url, "_blank");
+		}
+	} else if (event.altKey) {
+		const index = Number.parseInt(event.key) - 1;
+		if (index >= 0 && index < props.docs.length) {
+			window.open(props.docs[index].url, "_blank");
+		}
+	}
 };
 
 onMounted(() => {
-  window.addEventListener('keydown', handleKeydown);
+	window.addEventListener("keydown", handleKeydown);
 });
 
 onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeydown);
+	window.removeEventListener("keydown", handleKeydown);
 });
 </script>
 

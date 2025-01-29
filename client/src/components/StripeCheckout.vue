@@ -25,72 +25,74 @@
 </template>
 
 <script setup lang="ts">
-import { ref, defineProps, defineEmits, computed } from 'vue';
-import { loadStripe } from '@stripe/stripe-js';
+import { loadStripe } from "@stripe/stripe-js";
+import { computed, defineEmits, defineProps, ref } from "vue";
 
 const props = defineProps<{
-  modelValue: boolean;
-  planId: string;
-  planName: string;
-  price: number;
+	modelValue: boolean;
+	planId: string;
+	planName: string;
+	price: number;
 }>();
 
-const emit = defineEmits(['update:modelValue']);
+const emit = defineEmits(["update:modelValue"]);
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 const loading = ref(false);
 const showDialog = computed({
-  get: () => props.modelValue,
-  set: (value) => emit('update:modelValue', value)
+	get: () => props.modelValue,
+	set: (value) => emit("update:modelValue", value),
 });
 
-
 const closeDialog = () => {
-  showDialog.value = false;
-  emit('update:modelValue', false);
+	showDialog.value = false;
+	emit("update:modelValue", false);
 };
 
 const formatPrice = (price: number) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD'
-  }).format(price);
+	return new Intl.NumberFormat("en-US", {
+		style: "currency",
+		currency: "USD",
+	}).format(price);
 };
 
 const handleCheckout = async () => {
-  loading.value = true;
+	loading.value = true;
 
-  try {
-    const stripe = await stripePromise;
-    if (!stripe) throw new Error('Stripe failed to load');
+	try {
+		const stripe = await stripePromise;
+		if (!stripe) throw new Error("Stripe failed to load");
 
-    // Create checkout session on your backend
-    const response = await fetch('http://localhost:3000/api/create-checkout-session', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        plan_id: props.planId,
-      }),
-    });
+		// Create checkout session on your backend
+		const response = await fetch(
+			"http://localhost:3000/api/create-checkout-session",
+			{
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					plan_id: props.planId,
+				}),
+			},
+		);
 
-    const session = await response.json();
+		const session = await response.json();
 
-    // Redirect to Stripe Checkout
-    const { error } = await stripe.redirectToCheckout({
-      sessionId: session.id,
-    });
+		// Redirect to Stripe Checkout
+		const { error } = await stripe.redirectToCheckout({
+			sessionId: session.id,
+		});
 
-    if (error) {
-      console.error('Error:', error);
-      // Handle the error and show user feedback
-    }
-  } catch (e) {
-    console.error('Checkout error:', e);
-    // Handle error and show user feedback
-  } finally {
-    loading.value = false;
-  }
+		if (error) {
+			console.error("Error:", error);
+			// Handle the error and show user feedback
+		}
+	} catch (e) {
+		console.error("Checkout error:", e);
+		// Handle error and show user feedback
+	} finally {
+		loading.value = false;
+	}
 };
 </script>

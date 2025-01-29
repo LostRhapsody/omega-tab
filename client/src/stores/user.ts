@@ -1,43 +1,43 @@
-import { defineStore } from 'pinia'
-import type { Tables } from '../types/Database'
-import type { Subscription } from '@/types/Subscription'
+import type { Subscription } from "@/types/Subscription";
+import { defineStore } from "pinia";
+import type { Tables } from "../types/Database";
 
 interface UserState {
-  userId: string | null
-  firstName: string | null
-  lastName: string | null
-  email: string | null
-  userPlan: Subscription | null
+	userId: string | null;
+	firstName: string | null;
+	lastName: string | null;
+	email: string | null;
+	userPlan: Subscription | null;
 }
 
-export const useUserStore = defineStore('user', {
-  state: (): UserState => ({
-    userId: null,
-    firstName: null,
-    lastName: null,
-    email: null,
-    userPlan: null
-  }),
+export const useUserStore = defineStore("user", {
+	state: (): UserState => ({
+		userId: null,
+		firstName: null,
+		lastName: null,
+		email: null,
+		userPlan: null,
+	}),
 
-  actions: {
-    setUserId(userId: string) {
-      this.userId = userId
-    },
+	actions: {
+		setUserId(userId: string) {
+			this.userId = userId;
+		},
 
-    setFirstName(firstname: string) {
-      this.firstName = firstname
-    },
+		setFirstName(firstname: string) {
+			this.firstName = firstname;
+		},
 
-    setLastName(lastName: string) {
-      this.lastName = lastName
-    },
+		setLastName(lastName: string) {
+			this.lastName = lastName;
+		},
 
-    setEmail(email: string) {
-      this.email = email
-    },
+		setEmail(email: string) {
+			this.email = email;
+		},
 
-    setPlan(plan: Subscription) {
-      this.userPlan = plan;
-    }
-  }
-})
+		setPlan(plan: Subscription) {
+			this.userPlan = plan;
+		},
+	},
+});

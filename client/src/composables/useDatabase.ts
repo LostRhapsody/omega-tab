@@ -105,89 +105,88 @@ export const linkUtils = {
 };
 
 export const teamUtils = {
-  async getUserTeams(userId: string) {
-    const { data, error } = await supabase
-      .from('user_memberships')
-      .select('entity_id, role')
-      .eq('user_id', userId)
-      .eq('entity_type', 'team');
+	async getUserTeams(userId: string) {
+		const { data, error } = await supabase
+			.from("user_memberships")
+			.select("entity_id, role")
+			.eq("user_id", userId)
+			.eq("entity_type", "team");
 
-    if (error) throw error;
+		if (error) throw error;
 
-    const teamIds = data.map(m => m.entity_id);
-    const { data: teams, error: teamsError } = await supabase
-      .from('teams')
-      .select('id, name, organization_id')
-      .in('id', teamIds);
+		const teamIds = data.map((m) => m.entity_id);
+		const { data: teams, error: teamsError } = await supabase
+			.from("teams")
+			.select("id, name, organization_id")
+			.in("id", teamIds);
 
-    if (teamsError) throw teamsError;
+		if (teamsError) throw teamsError;
 
-    return data.map(membership => ({
-      entity_id: membership.entity_id,
-      role: membership.role,
-			organization_id: teams.find(t => t.id === membership.entity_id)?.organization_id,
-      teams: teams.find(t => t.id === membership.entity_id)
-    }));
-  },
+		return data.map((membership) => ({
+			entity_id: membership.entity_id,
+			role: membership.role,
+			organization_id: teams.find((t) => t.id === membership.entity_id)
+				?.organization_id,
+			teams: teams.find((t) => t.id === membership.entity_id),
+		}));
+	},
 
-  async getTeamMembers(teamId: string) {
-    const { data, error } = await supabase
-      .from('user_memberships')
-      .select(`
+	async getTeamMembers(teamId: string) {
+		const { data, error } = await supabase
+			.from("user_memberships")
+			.select(`
         user_id,
         role,
         users (
           email
         )
       `)
-      .eq('entity_id', teamId)
-      .eq('entity_type', 'team');
+			.eq("entity_id", teamId)
+			.eq("entity_type", "team");
 
-    if (error) throw error;
-    return data.map(d => ({
-      user_id: d.user_id,
-      email: d.users?.email || '',
-      role: d.role
-    }));
-  },
+		if (error) throw error;
+		return data.map((d) => ({
+			user_id: d.user_id,
+			email: d.users?.email || "",
+			role: d.role,
+		}));
+	},
 
 	// function to create a team
 	async createTeam(
 		currentUserId: string,
 		selectedPlanId: string,
 		teamName: string,
-		organizationId?: string
+		organizationId?: string,
 	) {
-		const { data: teamId, error } = await supabase
-		.rpc('create_team', {
+		const { data: teamId, error } = await supabase.rpc("create_team", {
 			team_name: teamName,
 			owner_id: currentUserId,
 			plan_id: selectedPlanId,
-			org_id: organizationId // optional
+			org_id: organizationId, // optional
 		});
 	},
 
+	async updateTeam(
+		teamId: string,
+		updates: Partial<Omit<Team, "id" | "created_at">>,
+	) {
+		const { data, error } = await supabase
+			.from("teams")
+			.update(updates)
+			.eq("id", teamId)
+			.select()
+			.single();
 
-  async updateTeam(teamId: string, updates: Partial<Omit<Team, 'id' | 'created_at'>>) {
-    const { data, error } = await supabase
-      .from('teams')
-      .update(updates)
-      .eq('id', teamId)
-      .select()
-      .single();
+		if (error) throw error;
+		return data;
+	},
 
-    if (error) throw error;
-    return data;
-  },
+	async deleteTeam(teamId: string) {
+		const { error } = await supabase.from("teams").delete().eq("id", teamId);
 
-  async deleteTeam(teamId: string) {
-    const { error } = await supabase
-      .from('teams')
-      .delete()
-      .eq('id', teamId);
-
-    if (error) throw error;
-  }
+		if (error) throw error;
+	},
 };
 
 export const membershipUtils = {
@@ -197,7 +196,6 @@ export const membershipUtils = {
 		entityType: "team" | "organization",
 		role: string,
 	) {
-
 		const membership = {
 			user_id: userId,
 			entity_id: entityId,
@@ -376,54 +374,52 @@ export const subscriptionUtils = {
 
 	async createSubscription(
 		entityId: string,
-		entityType: 'user' | 'team' | 'organization',
+		entityType: "user" | "team" | "organization",
 		planId: string,
 		stripeSubscriptionId: string,
-		currentPeriodEnd: string
+		currentPeriodEnd: string,
 	) {
 		const { data, error } = await supabase
-			.from('subscriptions')
+			.from("subscriptions")
 			.insert({
 				entity_id: entityId,
 				entity_type: entityType,
 				plan_id: planId,
 				stripe_subscription_id: stripeSubscriptionId,
 				current_period_end: currentPeriodEnd,
-				status: 'active'
+				status: "active",
 			})
 			.select()
 			.single();
 
 		if (error) throw error;
 		return data;
-	}
+	},
 };
 
 export const userUtils = {
-  async createUserIfNotExists(id: string, email: string) {
-    const { data: existingUser } = await supabase
-      .from('users')
-      .select('id')
-      .eq('id', id)
-      .single();
+	async createUserIfNotExists(id: string, email: string) {
+		const { data: existingUser } = await supabase
+			.from("users")
+			.select("id")
+			.eq("id", id)
+			.single();
 
-    if (!existingUser) {
-      const { error } = await supabase
-        .from('users')
-        .insert({ id, email });
+		if (!existingUser) {
+			const { error } = await supabase.from("users").insert({ id, email });
 
-      if (error) throw error;
-    }
-  },
+			if (error) throw error;
+		}
+	},
 
-  async getUserByEmail(email: string) {
-    const { data, error } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', email)
-      .single();
+	async getUserByEmail(email: string) {
+		const { data, error } = await supabase
+			.from("users")
+			.select("id")
+			.eq("email", email)
+			.single();
 
-    if (error) throw error;
-    return data;
-  }
+		if (error) throw error;
+		return data;
+	},
 };

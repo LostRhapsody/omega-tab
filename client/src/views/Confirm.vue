@@ -63,9 +63,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { useApi } from '../composables/useApi';
+import { onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
+import { useApi } from "../composables/useApi";
 
 const router = useRouter();
 const { api } = useApi();
@@ -75,33 +75,33 @@ const error = ref(false);
 const showSnackbar = ref(false);
 
 const confirmSubscription = async () => {
-  try {
-    isLoading.value = true;
-    error.value = false;
+	try {
+		isLoading.value = true;
+		error.value = false;
 
-    await api('/confirm', {
-      method: 'POST',
-      body: JSON.stringify({ email: 'evan.robertson77@gmail.com' }) // Replace with actual email
-    });
+		await api("/confirm", {
+			method: "POST",
+			body: JSON.stringify({ email: "evan.robertson77@gmail.com" }), // Replace with actual email
+		});
 
-    isLoading.value = false;
-    showSnackbar.value = true;
-  } catch (err) {
-    console.error('Error confirming subscription:', err);
-    error.value = true;
-    isLoading.value = false;
-  }
+		isLoading.value = false;
+		showSnackbar.value = true;
+	} catch (err) {
+		console.error("Error confirming subscription:", err);
+		error.value = true;
+		isLoading.value = false;
+	}
 };
 
 const retryConfirmation = () => {
-  confirmSubscription();
+	confirmSubscription();
 };
 
 const goToHome = () => {
-  router.push('/');
+	router.push("/");
 };
 
 onMounted(() => {
-  confirmSubscription();
+	confirmSubscription();
 });
 </script>

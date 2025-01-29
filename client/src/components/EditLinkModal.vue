@@ -50,19 +50,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
-import {useApi} from '@/composables/useApi';
-import type { Tables } from '../types/Database';
-type Link = Tables<'links'>;
+import { useApi } from "@/composables/useApi";
+import { ref, watch } from "vue";
+import type { Tables } from "../types/Database";
+type Link = Tables<"links">;
 
 const props = defineProps<{
-    modelValue: boolean;
-    link?: Link;
+	modelValue: boolean;
+	link?: Link;
 }>();
 
 const emit = defineEmits<{
-    (e: 'update:modelValue', value: boolean): void;
-    (e: 'linkUpdated', link: Link): void;
+	(e: "update:modelValue", value: boolean): void;
+	(e: "linkUpdated", link: Link): void;
 }>();
 
 const isModalOpen = ref(props.modelValue);
@@ -70,84 +70,90 @@ const isLoading = ref(false);
 const form = ref<HTMLFormElement | null>(null);
 
 const formData = ref({
-    url: '',
-    title: '',
-    description: ''
+	url: "",
+	title: "",
+	description: "",
 });
 
-watch(() => props.modelValue, (newValue) => {
-    isModalOpen.value = newValue;
-    if (newValue && props.link) {
-        formData.value = {
-            url: props.link.url,
-            title: props.link.title,
-            description: props.link.description || ''
-        };
-    }
-});
+watch(
+	() => props.modelValue,
+	(newValue) => {
+		isModalOpen.value = newValue;
+		if (newValue && props.link) {
+			formData.value = {
+				url: props.link.url,
+				title: props.link.title,
+				description: props.link.description || "",
+			};
+		}
+	},
+);
 
-watch(() => isModalOpen.value, (newValue) => {
-    emit('update:modelValue', newValue);
-});
+watch(
+	() => isModalOpen.value,
+	(newValue) => {
+		emit("update:modelValue", newValue);
+	},
+);
 
 const validateUrl = (url: string): boolean | string => {
-    try {
-        new URL(url);
-        return true;
-    } catch {
-        return 'Please enter a valid URL';
-    }
+	try {
+		new URL(url);
+		return true;
+	} catch {
+		return "Please enter a valid URL";
+	}
 };
 
 const closeModal = () => {
-    isModalOpen.value = false;
-    resetForm();
+	isModalOpen.value = false;
+	resetForm();
 };
 
 const resetForm = () => {
-    formData.value = {
-        url: '',
-        title: '',
-        description: ''
-    };
-    if (form.value) {
-        form.value.resetValidation();
-    }
+	formData.value = {
+		url: "",
+		title: "",
+		description: "",
+	};
+	if (form.value) {
+		form.value.resetValidation();
+	}
 };
 
 const handleSubmit = async () => {
-    if (!form.value || !props.link) return;
+	if (!form.value || !props.link) return;
 
-    const { valid } = await form.value.validate();
-    if (!valid) return;
+	const { valid } = await form.value.validate();
+	if (!valid) return;
 
-    try {
-        isLoading.value = true;
-        const { api } = useApi();
-        const response = await api('/link', {
-            method: 'PUT',
-            body: JSON.stringify({
-                id: props.link.id,
-                url: formData.value.url,
-                title: formData.value.title || new URL(formData.value.url).hostname,
-                description: formData.value.description,
-            })
-        });
-        const updatedLink = {
-            ...props.link,
-            url: formData.value.url,
-            title: formData.value.title || new URL(formData.value.url).hostname,
-            description: formData.value.description,
-        };
+	try {
+		isLoading.value = true;
+		const { api } = useApi();
+		const response = await api("/link", {
+			method: "PUT",
+			body: JSON.stringify({
+				id: props.link.id,
+				url: formData.value.url,
+				title: formData.value.title || new URL(formData.value.url).hostname,
+				description: formData.value.description,
+			}),
+		});
+		const updatedLink = {
+			...props.link,
+			url: formData.value.url,
+			title: formData.value.title || new URL(formData.value.url).hostname,
+			description: formData.value.description,
+		};
 
-        if (updatedLink) {
-            emit('linkUpdated', updatedLink as Link);
-        }
-        closeModal();
-    } catch (error) {
-        console.error('Error updating link:', error);
-    } finally {
-        isLoading.value = false;
-    }
+		if (updatedLink) {
+			emit("linkUpdated", updatedLink as Link);
+		}
+		closeModal();
+	} catch (error) {
+		console.error("Error updating link:", error);
+	} finally {
+		isLoading.value = false;
+	}
 };
 </script>

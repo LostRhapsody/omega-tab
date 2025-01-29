@@ -1,9 +1,9 @@
+import type { Subscription, SubscriptionResponse } from "@/types/Subscription";
+import { Clerk } from "@clerk/clerk-js";
 // src/router/index.ts
 import { createRouter, createWebHistory } from "vue-router";
-import { Clerk } from "@clerk/clerk-js";
-import { useUserStore } from "../stores/user";
 import { useApi } from "../composables/useApi";
-import type { Subscription, SubscriptionResponse } from "@/types/Subscription";
+import { useUserStore } from "../stores/user";
 
 const router = createRouter({
 	history: createWebHistory(),
@@ -51,13 +51,15 @@ const router = createRouter({
 						userStore.setFirstName(clerk.user.firstName || "");
 						userStore.setLastName(clerk.user.lastName || "");
 						userStore.setEmail(email);
-						const subscriptionData = await api("/confirm", {
+						const subscriptionData = (await api("/confirm", {
 							method: "POST",
 							body: JSON.stringify({
 								email: email,
 							}),
-						}) as SubscriptionResponse;
-						const userPlan: Subscription = await api(`/plan/${subscriptionData.plan_id}`);
+						})) as SubscriptionResponse;
+						const userPlan: Subscription = await api(
+							`/plan/${subscriptionData.plan_id}`,
+						);
 						userStore.setPlan(userPlan);
 						next();
 					} else {

@@ -83,310 +83,349 @@
 </template>
 
 <script setup lang="ts">
-  import { ref, computed, onMounted, watch, defineProps } from 'vue';
-  import { useTheme } from 'vuetify';
-  import Fuse from 'fuse.js'
-  import type { FuseResult } from 'fuse.js';
-  import type { Tables } from '../types/Database';
-  type Link = Tables<'links'>;
+import Fuse from "fuse.js";
+import type { FuseResult } from "fuse.js";
+import { computed, defineProps, onMounted, ref, watch } from "vue";
+import { useTheme } from "vuetify";
+import type { Tables } from "../types/Database";
+type Link = Tables<"links">;
 
-  import { debounce } from 'lodash';
+import { debounce } from "lodash";
 
-  interface Props {
-    tools: Link[];
-    docs: Link[];
-  }
+interface Props {
+	tools: Link[];
+	docs: Link[];
+}
 
-  interface HistoryItem {
-    query: string;
-    timestamp: number;
-    engine: string;
-  }
+interface HistoryItem {
+	query: string;
+	timestamp: number;
+	engine: string;
+}
 
-  const MAX_STORED_HISTORY = 100;  // Maximum number of items to store
-  const MAX_DISPLAYED_HISTORY = 5; // Maximum number of items to display
-  const STORAGE_KEY = 'search_history';
+const MAX_STORED_HISTORY = 100; // Maximum number of items to store
+const MAX_DISPLAYED_HISTORY = 5; // Maximum number of items to display
+const STORAGE_KEY = "search_history";
 
+const props = defineProps<Props>();
 
-  const props = defineProps<Props>()
+const searchQuery = ref("");
 
-  const searchQuery = ref('');
+// Add these to your existing refs
+const searchHistory = ref<string[]>([]);
+const showHistory = ref(false);
 
-  // Add these to your existing refs
-  const searchHistory = ref<string[]>([]);
-  const showHistory = ref(false);
+const searchInput = ref<HTMLElement | null>(null);
+const searchEngines = [
+	{
+		icon: "mdi-google",
+		name: "Google",
+		url: "https://www.google.com/search?q=",
+	},
+	{
+		icon: "mdi-microsoft-bing",
+		name: "Bing",
+		url: "https://www.bing.com/search?q=",
+	},
+	{
+		icon: "icons/perplexity.png",
+		name: "Perplexity",
+		url: "https://www.perplexity.ai/search?q=",
+	},
+];
 
-  const searchInput = ref<HTMLElement | null>(null);
-  const searchEngines = [
-    { icon: 'mdi-google', name: 'Google', url: 'https://www.google.com/search?q=' },
-    { icon: 'mdi-microsoft-bing', name: 'Bing', url: 'https://www.bing.com/search?q=' },
-    { icon: 'icons/perplexity.png', name: 'Perplexity', url: 'https://www.perplexity.ai/search?q=' }
-  ];
+const selectedEngine = ref(
+	localStorage.getItem("defaultSearchEngine") || searchEngines[0].url,
+);
 
-  const selectedEngine = ref(localStorage.getItem('defaultSearchEngine') || searchEngines[0].url);
+const placeholder = computed(() => {
+	const engineName = searchEngines.find(
+		(engine) => engine.url === selectedEngine.value,
+	)?.name;
+	return `Search ${engineName}...`;
+});
 
-  const placeholder = computed(() => {
-    const engineName = searchEngines.find(engine => engine.url === selectedEngine.value)?.name;
-    return `Search ${engineName}...`;
-  });
+// Update the loadSearchHistory function
+const loadSearchHistory = () => {
+	try {
+		const stored = localStorage.getItem(STORAGE_KEY);
+		if (stored) {
+			const parsed: HistoryItem[] = JSON.parse(stored);
+			// Sort by timestamp and get just the queries
+			searchHistory.value = parsed
+				.sort((a, b) => b.timestamp - a.timestamp)
+				.map((item) => item.query)
+				.slice(0, MAX_STORED_HISTORY);
+		}
+	} catch (error) {
+		console.error("Error loading search history:", error);
+		searchHistory.value = [];
+	}
+};
 
-  // Update the loadSearchHistory function
-  const loadSearchHistory = () => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed: HistoryItem[] = JSON.parse(stored);
-        // Sort by timestamp and get just the queries
-        searchHistory.value = parsed
-          .sort((a, b) => b.timestamp - a.timestamp)
-          .map(item => item.query)
-          .slice(0, MAX_STORED_HISTORY);
-      }
-    } catch (error) {
-      console.error('Error loading search history:', error);
-      searchHistory.value = [];
-    }
-  };
+const addToHistory = (query: string) => {
+	if (!query || !query.trim() || isCSQuery.value) return;
 
-  const addToHistory = (query: string) => {
-    if (!query || !query.trim() || isCSQuery.value) return;
+	try {
+		const stored = localStorage.getItem(STORAGE_KEY);
+		const history: HistoryItem[] = stored ? JSON.parse(stored) : [];
 
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      const history: HistoryItem[] = stored ? JSON.parse(stored) : [];
+		// Remove any existing entry with the same query
+		const filtered = history.filter(
+			(item) => item.query.toLowerCase() !== query.toLowerCase(),
+		);
 
-      // Remove any existing entry with the same query
-      const filtered = history.filter(item =>
-        item.query.toLowerCase() !== query.toLowerCase()
-      );
+		// Add new entry
+		filtered.unshift({
+			query,
+			timestamp: Date.now(),
+			engine: selectedEngine.value,
+		});
 
-      // Add new entry
-      filtered.unshift({
-        query,
-        timestamp: Date.now(),
-        engine: selectedEngine.value
-      });
+		// Keep only MAX_STORED_HISTORY items
+		const trimmed = filtered.slice(0, MAX_STORED_HISTORY);
 
-      // Keep only MAX_STORED_HISTORY items
-      const trimmed = filtered.slice(0, MAX_STORED_HISTORY);
+		// Save to localStorage
+		localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
 
-      // Save to localStorage
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+		// Update the reactive history
+		searchHistory.value = trimmed.map((item) => item.query);
+	} catch (error) {
+		console.error("Error saving to search history:", error);
+	}
+};
 
-      // Update the reactive history
-      searchHistory.value = trimmed.map(item => item.query);
-    } catch (error) {
-      console.error('Error saving to search history:', error);
-    }
-  };
+// Add function to get filtered history results
+const getFilteredHistory = computed(() => {
+	if (!searchQuery.value) {
+		// When empty, show most recent items
+		return searchHistory.value.slice(0, MAX_DISPLAYED_HISTORY).map((item) => ({
+			item,
+			score: 0,
+		}));
+	}
 
-  // Add function to get filtered history results
-  const getFilteredHistory = computed(() => {
-    if (!searchQuery.value) {
-      // When empty, show most recent items
-      return searchHistory.value
-        .slice(0, MAX_DISPLAYED_HISTORY)
-        .map(item => ({
-          item,
-          score: 0
-        }));
-    }
+	// Use fuzzy search when there's input
+	return historyFuse.value
+		.search(searchQuery.value)
+		.slice(0, MAX_DISPLAYED_HISTORY);
+});
 
-    // Use fuzzy search when there's input
-    return historyFuse.value
-      .search(searchQuery.value)
-      .slice(0, MAX_DISPLAYED_HISTORY);
-  });
+const clearHistory = (query: string) => {
+	searchHistory.value = [];
+	localStorage.removeItem(STORAGE_KEY);
+};
 
-  const clearHistory = (query: string) => {
-    searchHistory.value = [];
-    localStorage.removeItem(STORAGE_KEY)
-  }
+// Modify your existing performSearch function
+const performSearch = () => {
+	if (searchQuery.value.trim()) {
+		const searchUrl =
+			selectedEngine.value + encodeURIComponent(searchQuery.value);
+		window.open(searchUrl, "_blank");
+		addToHistory(searchQuery.value); // Add this line
+		searchQuery.value = "";
+	}
+};
 
-  // Modify your existing performSearch function
-  const performSearch = () => {
-    if (searchQuery.value.trim()) {
-      const searchUrl = selectedEngine.value + encodeURIComponent(searchQuery.value);
-      window.open(searchUrl, '_blank');
-      addToHistory(searchQuery.value); // Add this line
-      searchQuery.value = '';
-    }
-  };
+// Add these event handlers
+const handleFocus = () => {
+	if (!searchQuery.value) {
+		showHistory.value = true;
+	}
+};
 
-  // Add these event handlers
-  const handleFocus = () => {
-    if (!searchQuery.value) {
-      showHistory.value = true;
-    }
-  };
+const handleBlur = () => {
+	// Small delay to allow for clicking history items
+	setTimeout(() => {
+		showHistory.value = false;
+	}, 200);
+};
 
-  const handleBlur = () => {
-    // Small delay to allow for clicking history items
-    setTimeout(() => {
-      showHistory.value = false;
-    }, 200);
-  };
+const selectHistoryItem = (query: string) => {
+	searchQuery.value = query;
+	showHistory.value = false;
+	performSearch();
+};
 
-  const selectHistoryItem = (query: string) => {
-    searchQuery.value = query;
-    showHistory.value = false;
-    performSearch();
-  };
+const isCSQuery = computed(() => {
+	const result = /^(CS|ERP|WMS|RD)-\d{3,6}$/i.test(searchQuery.value);
+	console.log("isCSQuery:", result);
+	return result;
+});
 
-  const isCSQuery = computed(() => {
-    const result = /^(CS|ERP|WMS|RD)-\d{3,6}$/i.test(searchQuery.value);
-    console.log('isCSQuery:', result);
-    return result;
-  });
+// Replace the isCompleteURI computed property with this optimized version
+const isCompleteURI = computed(() => {
+	// Early return for empty strings or strings without dots
+	if (!searchQuery.value || !searchQuery.value.includes(".")) {
+		return false;
+	}
 
-  // Replace the isCompleteURI computed property with this optimized version
-  const isCompleteURI = computed(() => {
-    // Early return for empty strings or strings without dots
-    if (!searchQuery.value || !searchQuery.value.includes('.')) {
-      return false;
-    }
+	try {
+		// Use URL constructor for validation instead of regex
+		new URL(
+			searchQuery.value.startsWith("http")
+				? searchQuery.value
+				: `https://${searchQuery.value}`,
+		);
+		return true;
+	} catch {
+		return false;
+	}
+});
 
-    try {
-      // Use URL constructor for validation instead of regex
-      new URL(searchQuery.value.startsWith('http') ? searchQuery.value : `https://${searchQuery.value}`);
-      return true;
-    } catch {
-      return false;
-    }
-  });
+const jiraLink = computed(
+	() => `https://atlassian.net/browse/${searchQuery.value}`,
+);
 
-  const jiraLink = computed(() => `https://atlassian.net/browse/${searchQuery.value}`);
+const confluenceLink = computed(
+	() => `https://atlassian.net/wiki/search?text="${searchQuery.value}"`,
+);
 
-  const confluenceLink = computed(() => `https://atlassian.net/wiki/search?text="${searchQuery.value}"`);
+const pillLinks = [
+	{ text: "ERP", link: "https://erp.com" },
+	{ text: "WMS", link: "https://wms.com" },
+	{ text: "B2B", link: "https://b2b.com" },
+	{ text: "B2C", link: "https://b2c.com" },
+	{ text: "Compiler", link: "https://compiler.com" },
+];
 
-  const pillLinks = [
-    { text: 'ERP', link: 'https://erp.com' },
-    { text: 'WMS', link: 'https://wms.com' },
-    { text: 'B2B', link: 'https://b2b.com' },
-    { text: 'B2C', link: 'https://b2c.com' },
-    { text: 'Compiler', link: 'https://compiler.com' },
-  ];
+const focusedIndex = ref(-1);
 
-  const focusedIndex = ref(-1);
+const handleKeydown = (event: KeyboardEvent) => {
+	const historyLength = getFilteredHistory.value.length;
+	const fuzzyLength = fuzzyResults.value.length;
+	const totalItems = historyLength + fuzzyLength;
 
-  const handleKeydown = (event: KeyboardEvent) => {
-    const historyLength = getFilteredHistory.value.length;
-    const fuzzyLength = fuzzyResults.value.length;
-    const totalItems = historyLength + fuzzyLength;
+	if (totalItems > 0) {
+		switch (event.key) {
+			case "ArrowDown":
+				event.preventDefault();
+				focusedIndex.value = (focusedIndex.value + 1) % totalItems;
+				break;
+			case "ArrowUp":
+				event.preventDefault();
+				focusedIndex.value = (focusedIndex.value - 1 + totalItems) % totalItems;
+				break;
+			case "Enter":
+				event.preventDefault();
+				if (focusedIndex.value >= 0) {
+					if (focusedIndex.value < historyLength) {
+						// Handle history item selection
+						selectHistoryItem(
+							getFilteredHistory.value[focusedIndex.value].item,
+						);
+					} else {
+						// Handle fuzzy result selection
+						const fuzzyIndex = focusedIndex.value - historyLength;
+						window.open(fuzzyResults.value[fuzzyIndex].item.url, "_blank");
+						searchQuery.value = "";
+					}
+				}
+				return;
+		}
+	}
+	// Handle CS ticket queries
+	else if (isCSQuery.value) {
+		switch (event.key) {
+			case "ArrowDown":
+				event.preventDefault();
+				focusedIndex.value = (focusedIndex.value + 1) % (pillLinks.length + 3);
+				break;
+			case "ArrowUp":
+				event.preventDefault();
+				focusedIndex.value =
+					(focusedIndex.value - 1 + (pillLinks.length + 3)) %
+					(pillLinks.length + 3);
+				break;
+			case "Enter":
+				event.preventDefault();
+				if (focusedIndex.value === 0) {
+					window.open(jiraLink.value, "_blank");
+				} else if (
+					focusedIndex.value >= 2 &&
+					focusedIndex.value < pillLinks.length + 2
+				) {
+					window.open(pillLinks[focusedIndex.value - 2].link, "_blank");
+				} else if (focusedIndex.value === pillLinks.length + 2) {
+					window.open(confluenceLink.value, "_blank");
+				}
+				searchQuery.value = ""; // Clear the search after opening
+				return; // Prevent further processing
+		}
+	}
+	// Handle complete URI
+	else if (isCompleteURI.value && event.key === "Enter") {
+		event.preventDefault();
+		window.open(
+			searchQuery.value.startsWith("http")
+				? searchQuery.value
+				: `https://${searchQuery.value}`,
+			"_blank",
+		);
+		searchQuery.value = "";
+		return;
+	}
+};
 
-    if (totalItems > 0) {
-      switch (event.key) {
-        case 'ArrowDown':
-          event.preventDefault();
-          focusedIndex.value = (focusedIndex.value + 1) % totalItems;
-          break;
-        case 'ArrowUp':
-          event.preventDefault();
-          focusedIndex.value = (focusedIndex.value - 1 + totalItems) % totalItems;
-          break;
-        case 'Enter':
-          event.preventDefault();
-          if (focusedIndex.value >= 0) {
-            if (focusedIndex.value < historyLength) {
-              // Handle history item selection
-              selectHistoryItem(getFilteredHistory.value[focusedIndex.value].item);
-            } else {
-              // Handle fuzzy result selection
-              const fuzzyIndex = focusedIndex.value - historyLength;
-              window.open(fuzzyResults.value[fuzzyIndex].item.url, '_blank');
-              searchQuery.value = '';
-            }
-          }
-          return;
-      }
-    }
-    // Handle CS ticket queries
-    else if (isCSQuery.value) {
-      switch (event.key) {
-        case 'ArrowDown':
-          event.preventDefault();
-          focusedIndex.value = (focusedIndex.value + 1) % (pillLinks.length + 3);
-          break;
-        case 'ArrowUp':
-          event.preventDefault();
-          focusedIndex.value = (focusedIndex.value - 1 + (pillLinks.length + 3)) % (pillLinks.length + 3);
-          break;
-        case 'Enter':
-          event.preventDefault();
-          if (focusedIndex.value === 0) {
-            window.open(jiraLink.value, '_blank');
-          } else if (focusedIndex.value >= 2 && focusedIndex.value < pillLinks.length + 2) {
-            window.open(pillLinks[focusedIndex.value - 2].link, '_blank');
-          } else if (focusedIndex.value === pillLinks.length + 2) {
-            window.open(confluenceLink.value, '_blank');
-          }
-          searchQuery.value = ''; // Clear the search after opening
-          return; // Prevent further processing
-      }
-    }
-    // Handle complete URI
-    else if (isCompleteURI.value && event.key === 'Enter') {
-      event.preventDefault();
-      window.open(searchQuery.value.startsWith('http') ? searchQuery.value : `https://${searchQuery.value}`, '_blank');
-      searchQuery.value = '';
-      return;
-    }
-  };
+const updateSelectedEngine = () => {
+	localStorage.setItem("defaultSearchEngine", selectedEngine.value);
+};
 
-  const updateSelectedEngine = () => {
-    localStorage.setItem('defaultSearchEngine', selectedEngine.value);
-  };
+const theme = useTheme();
 
-  const theme = useTheme();
+onMounted(() => {
+	if (searchInput.value) {
+		searchInput.value.focus();
+	}
+	loadSearchHistory();
+});
 
-  onMounted(() => {
-    if (searchInput.value) {
-      searchInput.value.focus();
-    }
-    loadSearchHistory();
-  });
+// Fuzzy search setup
+const fuse = new Fuse<Link>([...props.tools, ...props.docs], {
+	keys: ["title", "description"],
+	threshold: 0.3,
+	findAllMatches: false,
+});
 
-  // Fuzzy search setup
-  const fuse = new Fuse<Link>([...props.tools, ...props.docs], {
-    keys: ['title', 'description'],
-    threshold: 0.3,
-    findAllMatches: false,
-  });
+// A new Fuse instance for history search
+const historyFuse = computed(
+	() =>
+		new Fuse(searchHistory.value, {
+			threshold: 0.3,
+			findAllMatches: true,
+			// Including fields that help match both start of string and anywhere in string
+			includeScore: true,
+			keys: [
+				{
+					name: "query",
+					weight: 2,
+				},
+				{
+					name: "queryLower",
+					weight: 1,
+				},
+			],
+		}),
+);
 
-  // A new Fuse instance for history search
-  const historyFuse = computed(() => new Fuse(searchHistory.value, {
-    threshold: 0.3,
-    findAllMatches: true,
-    // Including fields that help match both start of string and anywhere in string
-    includeScore: true,
-    keys: [{
-      name: 'query',
-      weight: 2
-    }, {
-      name: 'queryLower',
-      weight: 1
-    }]
-  }));
+const fuzzyResults = ref<FuseResult<Link>[]>([]);
 
-  const fuzzyResults = ref<FuseResult<Link>[]>([]);
+// Create a debounced search function
+const debouncedFuzzySearch = debounce((query: string) => {
+	if (query.trim()) {
+		fuzzyResults.value = fuse.search(query).slice(0, 3);
+	} else {
+		fuzzyResults.value = [];
+	}
+}, 100); // 100ms delay
 
-  // Create a debounced search function
-  const debouncedFuzzySearch = debounce((query: string) => {
-    if (query.trim()) {
-      fuzzyResults.value = fuse.search(query).slice(0, 3);
-    } else {
-      fuzzyResults.value = [];
-    }
-  }, 100); // 100ms delay
-
-  watch(searchQuery, (newQuery) => {
-    if (!isCSQuery.value && !isCompleteURI.value) {
-      debouncedFuzzySearch(newQuery);
-    } else {
-      fuzzyResults.value = [];
-    }
-  });
-
+watch(searchQuery, (newQuery) => {
+	if (!isCSQuery.value && !isCompleteURI.value) {
+		debouncedFuzzySearch(newQuery);
+	} else {
+		fuzzyResults.value = [];
+	}
+});
 </script>
 
 <style>

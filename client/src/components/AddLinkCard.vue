@@ -49,167 +49,171 @@
 </template>
 
 <script setup lang="ts">
-    import { ref,computed } from 'vue';
-    import {useApi} from '../composables/useApi';
-    import type { Tables } from '../types/Database';
-    import {useRouter} from 'vue-router';
-    type Link = Tables<'links'>;
+import { computed, ref } from "vue";
+import { useRouter } from "vue-router";
+import { useApi } from "../composables/useApi";
+import type { Tables } from "../types/Database";
+type Link = Tables<"links">;
 
-    type formData = {
-        url: string;
-        title: string;
-        description: string;
-    };
+type formData = {
+	url: string;
+	title: string;
+	description: string;
+};
 
-    const props = defineProps<{
-        columnType: 'tools' | 'docs';
-        tools: Link[];
-        docs: Link[];
-        userId: string | null;
-        maxPins: number;
-        isPlanFree: boolean;
-    }>();
+const props = defineProps<{
+	columnType: "tools" | "docs";
+	tools: Link[];
+	docs: Link[];
+	userId: string | null;
+	maxPins: number;
+	isPlanFree: boolean;
+}>();
 
-    const emit = defineEmits<(e: 'linkAdded', link: Link) => void>();
+const emit = defineEmits<(e: "linkAdded", link: Link) => void>();
 
-    const router = useRouter();
-    const isModalOpen = ref(false);
-    const isLoading = ref(false);
-    const hover = ref(false);
-    const form = ref<HTMLFormElement | null>(null);
+const router = useRouter();
+const isModalOpen = ref(false);
+const isLoading = ref(false);
+const hover = ref(false);
+const form = ref<HTMLFormElement | null>(null);
 
-    const formData = ref({
-        url: '',
-        title: '',
-        description: ''
-    });
+const formData = ref({
+	url: "",
+	title: "",
+	description: "",
+});
 
-    const isAtMaxPins = computed(() => {
-       return props.tools.length + props.docs.length >= props.maxPins;
-    });
+const isAtMaxPins = computed(() => {
+	return props.tools.length + props.docs.length >= props.maxPins;
+});
 
-    const handleClick = () => {
-    if (isAtMaxPins.value) {
-        router.push('/plans');
-        return;
-    }
-    openModal();
-    };
+const handleClick = () => {
+	if (isAtMaxPins.value) {
+		router.push("/plans");
+		return;
+	}
+	openModal();
+};
 
+const openModal = () => {
+	const totalPins = props.tools.length + props.docs.length;
+	if (totalPins >= props.maxPins) {
+		// Use Vuetify's built-in snackbar or alert system
+		alert(
+			`You've reached your maximum number of pins (${props.maxPins}). Please upgrade your plan for more.`,
+		);
+		return;
+	}
+	isModalOpen.value = true;
+};
 
-    const openModal = () => {
-        const totalPins = props.tools.length + props.docs.length;
-        if (totalPins >= props.maxPins) {
-            // Use Vuetify's built-in snackbar or alert system
-            alert(`You've reached your maximum number of pins (${props.maxPins}). Please upgrade your plan for more.`);
-            return;
-        }
-        isModalOpen.value = true;
-    };
+const closeModal = () => {
+	isModalOpen.value = false;
+	resetForm();
+};
 
-    const closeModal = () => {
-        isModalOpen.value = false;
-        resetForm();
-    };
+const resetForm = () => {
+	formData.value = {
+		url: "",
+		title: "",
+		description: "",
+	};
+	if (form.value) {
+		form.value.resetValidation();
+	}
+};
 
-    const resetForm = () => {
-        formData.value = {
-            url: '',
-            title: '',
-            description: ''
-        };
-        if (form.value) {
-            form.value.resetValidation();
-        }
-    };
+const validateUrl = (url: string): boolean | string => {
+	try {
+		new URL(url);
+		return true;
+	} catch {
+		return "Please enter a valid URL";
+	}
+};
 
-    const validateUrl = (url: string): boolean | string => {
-        try {
-            new URL(url);
-            return true;
-        } catch {
-            return 'Please enter a valid URL';
-        }
-    };
+const fetchMetadata = async (url: string) => {
+	return { favicon: null };
+	// biome-ignore lint/correctness/noUnreachable: <explanation>
+	try {
+		const response = await fetch(
+			`/api/metadata?url=${encodeURIComponent(url)}`,
+		);
+		const data = await response.json();
 
-    const fetchMetadata = async (url: string) => {
-        return {favicon:null};
-        // biome-ignore lint/correctness/noUnreachable: <explanation>
-        try {
-            const response = await fetch(`/api/metadata?url=${encodeURIComponent(url)}`);
-            const data = await response.json();
+		if (!formData.value.title && data.title) {
+			formData.value.title = data.title;
+		}
+		if (!formData.value.description && data.description) {
+			formData.value.description = data.description;
+		}
 
-            if (!formData.value.title && data.title) {
-                formData.value.title = data.title;
-            }
-            if (!formData.value.description && data.description) {
-                formData.value.description = data.description;
-            }
+		return {
+			favicon: data.favicon || null,
+		};
+	} catch (error) {
+		console.error("Error fetching metadata:", error);
+		return { favicon: null };
+	}
+};
 
-            return {
-                favicon: data.favicon || null
-            };
-        } catch (error) {
-            console.error('Error fetching metadata:', error);
-            return { favicon: null };
-        }
-    };
+const saveToSupabase = async (linkData: Omit<Link, "id" | "created_at">) => {
+	if (!props.userId) return;
+	const link = {
+		...linkData,
+		owner_id: props.userId,
+		owner_type: "user",
+		order_index:
+			props.columnType === "tools" ? props.tools.length : props.docs.length,
+	};
 
-    const saveToSupabase = async (linkData: Omit<Link, 'id' | 'created_at'>) => {
-        if(!props.userId) return;
-        const link = {
-            ...linkData,
-            owner_id: props.userId,
-            owner_type: 'user',
-            order_index: props.columnType === 'tools' ? props.tools.length : props.docs.length
-        };
+	const { api } = useApi();
+	const updatedLink: { link: Link; message: string } = await api("/link", {
+		method: "POST",
+		body: JSON.stringify({
+			url: link.url,
+			title: link.title || new URL(formData.value.url).hostname,
+			description: link.description,
+			next_order_index: link.order_index,
+			owner_id: link.owner_id,
+			owner_type: link.owner_type,
+			column_type: link.column_type,
+		}),
+	});
 
-        const { api } = useApi();
-        const updatedLink: {link: Link, message: string} = await api('/link', {
-            method: 'POST',
-            body: JSON.stringify({
-                url: link.url,
-                title: link.title || new URL(formData.value.url).hostname,
-                description: link.description,
-                next_order_index: link.order_index,
-                owner_id: link.owner_id,
-                owner_type: link.owner_type,
-                column_type: link.column_type
-            })
-        });
+	return updatedLink.link;
+};
 
-        return updatedLink.link;
-    };
+const handleSubmit = async () => {
+	if (!form.value) return;
 
-    const handleSubmit = async () => {
-        if (!form.value) return;
+	const { valid } = await form.value.validate();
+	if (!valid) return;
 
-        const { valid } = await form.value.validate();
-        if (!valid) return;
+	try {
+		isLoading.value = true;
+		const metadata = await fetchMetadata(formData.value.url);
+		console.log(metadata);
 
-        try {
-            isLoading.value = true;
-            const metadata = await fetchMetadata(formData.value.url);
-            console.log(metadata);
+		const linkData: Omit<Link, "id" | "created_at"> = {
+			title: formData.value.title || new URL(formData.value.url).hostname,
+			description: formData.value.description,
+			url: formData.value.url,
+			icon: metadata.favicon,
+			order_index: 0,
+			owner_id: "",
+			owner_type: "",
+			column_type: props.columnType,
+		};
 
-            const linkData: Omit<Link, 'id' | 'created_at'> = {
-                title: formData.value.title || new URL(formData.value.url).hostname,
-                description: formData.value.description,
-                url: formData.value.url,
-                icon: metadata.favicon,
-                order_index: 0,
-                owner_id: '',
-                owner_type: '',
-                column_type: props.columnType
-            };
-
-            const savedLink = await saveToSupabase(linkData);
-            if (savedLink) emit('linkAdded', savedLink);
-            closeModal();
-        } catch (error) {
-            console.error('Error saving link:', error);
-        } finally {
-            isLoading.value = false;
-        }
-    };
+		const savedLink = await saveToSupabase(linkData);
+		if (savedLink) emit("linkAdded", savedLink);
+		closeModal();
+	} catch (error) {
+		console.error("Error saving link:", error);
+	} finally {
+		isLoading.value = false;
+	}
+};
 </script>
