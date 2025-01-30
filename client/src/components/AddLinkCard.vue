@@ -66,9 +66,11 @@
 <script setup lang="ts">
 	import { computed, ref } from "vue";
 	import { useRouter } from "vue-router";
-	import { useApi } from "../composables/useApi";
-	import type { Tables } from "../types/Database";
-	type Link = Tables<"links">;
+	import { useLinksStore } from "../stores/links";
+	import { useUserStore } from "../stores/user";
+	import type {CreateLinkRequest, Link} from "../types/Link";
+	const linksStore = useLinksStore();
+	const userStore = useUserStore();
 
 	type formData = {
 		url: string;
@@ -84,8 +86,6 @@
 		maxPins: number;
 		isPlanFree: boolean;
 	}>();
-
-	const emit = defineEmits<(e: "linkAdded", link: Link) => void>();
 
 	const router = useRouter();
 	const isModalOpen = ref(false);
@@ -148,58 +148,6 @@
 		}
 	};
 
-	const fetchMetadata = async (url: string) => {
-		return { favicon: null };
-		// biome-ignore lint/correctness/noUnreachable: <explanation>
-		try {
-			const response = await fetch(
-				`/api/metadata?url=${encodeURIComponent(url)}`,
-			);
-			const data = await response.json();
-
-			if (!formData.value.title && data.title) {
-				formData.value.title = data.title;
-			}
-			if (!formData.value.description && data.description) {
-				formData.value.description = data.description;
-			}
-
-			return {
-				favicon: data.favicon || null,
-			};
-		} catch (error) {
-			console.error("Error fetching metadata:", error);
-			return { favicon: null };
-		}
-	};
-
-	const saveToSupabase = async (linkData: Omit<Link, "id" | "created_at">) => {
-		if (!props.userId) return;
-		const link = {
-			...linkData,
-			owner_id: props.userId,
-			owner_type: "user",
-			order_index:
-				props.columnType === "tools" ? props.tools.length : props.docs.length,
-		};
-
-		const { api } = useApi();
-		const updatedLink: { link: Link; message: string } = await api("/link", {
-			method: "POST",
-			body: JSON.stringify({
-				url: link.url,
-				title: link.title || new URL(formData.value.url).hostname,
-				description: link.description,
-				next_order_index: link.order_index,
-				owner_id: link.owner_id,
-				owner_type: link.owner_type,
-				column_type: link.column_type,
-			}),
-		});
-
-		return updatedLink.link;
-	};
-
 	const handleSubmit = async () => {
 		if (!form.value) return;
 
@@ -208,22 +156,25 @@
 
 		try {
 			isLoading.value = true;
-			const metadata = await fetchMetadata(formData.value.url);
-			console.log(metadata);
 
-			const linkData: Omit<Link, "id" | "created_at"> = {
+			if(!userStore.userId) {
+				console.error("User not logged in");
+				return;
+			}
+			
+			const linkData: CreateLinkRequest = {
 				title: formData.value.title || new URL(formData.value.url).hostname,
 				description: formData.value.description,
 				url: formData.value.url,
-				icon: metadata.favicon,
-				order_index: 0,
-				owner_id: "",
-				owner_type: "",
+				next_order_index: 
+					props.columnType === "tools" ? linksStore.toolLinks.length + 1 : linksStore.docLinks.length + 1,
+				owner_id: userStore.userId,
+				owner_type: "user",
 				column_type: props.columnType,
 			};
 
-			const savedLink = await saveToSupabase(linkData);
-			if (savedLink) emit("linkAdded", savedLink);
+			const savedLink = await linksStore.postLink(linkData);			
+			if(!savedLink) console.error("Error saving link");
 			closeModal();
 		} catch (error) {
 			console.error("Error saving link:", error);

@@ -24,9 +24,9 @@
       <!-- Rest of the template remains unchanged -->
 
       <SearchBar :tools="tools" :docs="docs" />
-      <LinkColumns v-if="userPlan" :tools="tools" :docs="docs" :userId="userId" :maxPins="userPlan.max_pins"
-        :canAddLinks="canShowAddLink" @tool-added="handleToolAdded" @doc-added="handleDocAdded"
-        @link-deleted="handleDeleteLink" :isPlanFree="userPlan.name === 'free'" />
+      <LinkColumns :tools="toolLinks" :docs="docLinks" :userId="userId"
+        :maxPins="userStore.userPlan?.max_pins || 6" :canAddLinks="canShowAddLink"
+        @link-deleted="handleDeleteLink" :isPlanFree="userStore.userPlan?.name === 'free'" />
       <v-dialog v-model="showHelpDialog" max-width="900px">
         <v-card>
           <v-card-title class="headline">Help</v-card-title>
@@ -112,12 +112,15 @@
   import LandingPage from "../components/LandingPage.vue";
   import LinkColumns from "../components/LinkColumns.vue";
   import SearchBar from "../components/SearchBar.vue";
-  import { useApi } from "../composables/useApi";
   import { useUserStore } from "../stores/user";
+  import { useLinksStore } from "../stores/links";
+  import { storeToRefs } from "pinia";
   const userStore = useUserStore();
+  const linksStore = useLinksStore();
+  // Convert store properties to refs for reactivity
+  const { toolLinks, docLinks } = storeToRefs(linksStore)
 
   // Initialize services
-  const { api } = useApi();
   const router = useRouter();
   const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
   const clerk = new Clerk(clerkPubKey);
@@ -128,16 +131,11 @@
   const isLoading = ref(true);
   const showSignIn = ref(false);
   const showHelpDialog = ref(false);
-  const selectedTeamId = ref<string>("");
-  const isOrganization = ref(false);
 
   // User and data state
   const userId = ref<string | null>(null);
   const userPlan = ref<Subscription | null>(null);
   const currentRole = ref("member");
-  const userTeams = ref<
-    Array<{ id: string; name: string; role: string; organization_id: string }>
-  >([]);
   const tools = ref<Link[]>([]);
   const docs = ref<Link[]>([]);
 
@@ -157,19 +155,19 @@
   );
 
   const canShowAddLink = computed(() => {
-    if (userPlan.value?.name === "free" || userPlan.value?.name === "plus") {
+    if (userStore.userPlan?.name === "free" || userStore.userPlan?.name === "plus") {
       return true;
     }
 
     if (
-      userPlan.value?.name === "team" &&
+      userStore.userPlan?.name === "team" &&
       (currentRole.value === "admin" || currentRole.value === "owner")
     ) {
       return true;
     }
 
     if (
-      userPlan.value?.name === "enterprise" &&
+      userStore.userPlan?.name === "enterprise" &&
       (currentRole.value === "admin" || currentRole.value === "owner")
     ) {
       return true;
@@ -177,17 +175,6 @@
 
     return false;
   });
-
-  // Event handlers
-  const handleToolAdded = (tool: Link) => {
-    tools.value.push(tool);
-    tools.value.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
-  };
-
-  const handleDocAdded = (doc: Link) => {
-    docs.value.push(doc);
-    docs.value.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
-  };
 
   const handleDeleteLink = (type: string, index: number) => {
     console.log("Deleting link", type, index);
@@ -216,63 +203,6 @@
     });
   };
 
-  // API interaction methods
-  const loadUserData = async () => {
-    try {
-      if (!clerk.user?.emailAddresses[0]) {
-        throw new Error("No user email found");
-      }
-
-      // Get subscription status from backend
-      const subscriptionData = (await api("/confirm", {
-        method: "POST",
-        body: JSON.stringify({
-          email: userStore.email,
-        }),
-      })) as SubscriptionResponse;
-
-      // Load user plan data
-      const userPlanData: Subscription = await api(
-        `/plan/${subscriptionData.plan_id}`,
-      );
-      userPlan.value = userPlanData;
-
-      // Set user plan in store
-      userStore.setPlan(userPlan.value);
-
-      // Load user links
-      const linksData: Link[] = await api(`/user/${clerk.user.id}/links`);
-      if (linksData !== undefined)
-        for (const link of linksData) {
-          if (link.column_type === "tools") {
-            handleToolAdded(link);
-          } else {
-            handleDocAdded(link);
-          }
-        }
-
-      // Load user teams
-      // const { data: teamsData } = await api(`/teams/${clerk.user.id}`);
-      // userTeams.value = teamsData.map((t: any) => ({
-      //   id: t.entity_id,
-      //   name: t.teams?.name || '',
-      //   role: t.role,
-      //   organization_id: t.teams?.organization_id || ''
-      // })).filter((t: any) => t.role === 'admin' || t.role === 'owner');
-
-      // Update organization status
-      // isOrganization.value = userTeams.value.some(team => team.organization_id.length > 0);
-
-      // Set current role if teams exist
-      if (userTeams.value[0]) {
-        currentRole.value = userTeams.value[0].role;
-      }
-    } catch (error) {
-      console.error("Error loading user data:", error);
-      // Handle error appropriately
-    }
-  };
-
   // Lifecycle hooks
   onMounted(async () => {
     isLoading.value = true;
@@ -282,17 +212,30 @@
       isLoggedIn.value = !!clerk.user;
 
       if (isLoggedIn.value && clerk.user) {
-        clerkUser = {
-          id: clerk.user.id,
-          firstName: clerk.user.firstName || "",
-          lastName: clerk.user.lastName || "",
-          email: clerk.user.emailAddresses[0].emailAddress,
-        };
-        const gotUser = await userStore.fetchUserData(clerkUser);
+        let gotUser = false;
+        try {
+
+          // pass clerk data to fetch user data
+          gotUser = await userStore.fetchUserData({
+            id: clerk.user.id,
+            firstName: clerk.user.firstName || "",
+            lastName: clerk.user.lastName || "",
+            email: clerk.user.emailAddresses[0].emailAddress,
+          });
+
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+        }
         if (!gotUser) {
           throw new Error("Error fetching user data");
         }
-        await loadUserData();
+
+        // this is def not gonna happen but for type errors
+        if (!userStore.userId) {
+          throw new Error("User ID not found");
+        }
+        linksStore.fetchLinks(userStore.userId);
+
       }
     } catch (error) {
       console.error("Error during initialization:", error);
@@ -301,7 +244,7 @@
       isLoading.value = false;
     }
 
-    // Mount Clerk user button if logged in
+    // Mount Clerk user button if logged in (has nothing to do with user data above)
     if (isLoggedIn.value) {
       nextTick(() => {
         const userButtonDiv = document.getElementById("user-button");

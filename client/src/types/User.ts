@@ -14,6 +14,8 @@ export type UserState = {
   lastName: string | null;
   email: string | null;
   userPlan: Subscription | null;
+  isLoading: boolean;
+  error: string | null;
 };
 
 // this is the "Clerk" User type, i.e. the data we get from Clerk

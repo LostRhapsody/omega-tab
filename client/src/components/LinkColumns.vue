@@ -6,7 +6,7 @@
 				:description="tool.description ?? ''" :link="tool.url" :index="index" :shortcut="ctrl" class="mb-2"
 				:onDelete="() => handleDeleteLink('tool', index)" :onEdit="() => handleEditLink(tools[index])" />
 			<AddLinkCard v-if="canAddLinks" :columnType="'tools'" :tools="props.tools" :docs="props.docs"
-				:userId="props.userId" :maxPins="props.maxPins" @linkAdded="handleNewTool" :isPlanFree="isPlanFree" />
+				:userId="props.userId" :maxPins="props.maxPins" :isPlanFree="isPlanFree" />
 		</div>
 		<div>
 			<h2 class="text-xl">Docs</h2>
@@ -14,7 +14,7 @@
 				:description="doc.description ?? ''" :link="doc.url" :index="index" :shortcut="alt" class="mb-2"
 				:onDelete="() => handleDeleteLink('doc', index)" :onEdit="() => handleEditLink(docs[index])" />
 			<AddLinkCard v-if="canAddLinks" :columnType="'docs'" :tools="props.tools" :docs="props.docs"
-				:userId="props.userId" :maxPins="props.maxPins" @linkAdded="handleNewDoc" :isPlanFree="isPlanFree" />
+				:userId="props.userId" :maxPins="props.maxPins" :isPlanFree="isPlanFree" />
 		</div>
 	</div>
 	<EditLinkModal v-model="showEditModal" :link="editingLink" @linkUpdated="handleLinkUpdated" />
@@ -44,19 +44,7 @@
 		isPlanFree: boolean;
 	}>();
 
-	const emit = defineEmits<{
-		(e: "toolAdded", tool: Link): void;
-		(e: "docAdded", doc: Link): void;
-		(e: "linkDeleted", type: string, index: number): void;
-	}>();
-
-	const handleNewTool = (tool: Link) => {
-		emit("toolAdded", tool);
-	};
-
-	const handleNewDoc = (doc: Link) => {
-		emit("docAdded", doc);
-	};
+	const emit = defineEmits<(e: "linkDeleted", type: string, index: number) => void>();
 
 	const handleDeleteLink = async (type: string, index: number) => {
 		if (type === "tool") {

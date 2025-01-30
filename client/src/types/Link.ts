@@ -10,3 +10,13 @@ export type Link = {
   description: string | null;
   column_type: string;
 };
+
+export type CreateLinkRequest = {
+  url: string,
+  description: string | null,
+  title: string,
+  next_order_index: number,
+  owner_type: string,
+  owner_id: string,
+  column_type: string,
+}

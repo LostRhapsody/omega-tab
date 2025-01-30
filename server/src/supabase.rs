@@ -121,18 +121,6 @@ impl Supabase {
         users.pop().ok_or_else(|| anyhow::anyhow!("404"))
     }
 
-    pub async fn get_user_by_email(&self, email: &str) -> Result<User> {
-        let response = self
-            .client
-            .get(format!("{}/rest/v1/users?email=eq.{}", self.url, email))
-            .headers(self.build_headers()?)
-            .send()
-            .await?;
-
-        let mut users: Vec<User> = response.json().await?;
-        users.pop().ok_or_else(|| anyhow::anyhow!("User not found"))
-    }
-
     pub async fn get_plan_by_stripe_id(&self, stripe_id: &str) -> Result<Plan> {
         let response = self
             .client
@@ -153,7 +141,7 @@ impl Supabase {
         // error back, we can just check that and handle it correctly, not
         // send a second request
         // Check if user exists
-        let existing_user = self.get_user_by_email(&user.email).await;
+        let existing_user = self.get_user(&user.id).await;
         if existing_user.is_ok() {
             return Err(anyhow::anyhow!("409"));
         }
@@ -318,7 +306,7 @@ impl Supabase {
             let links: Vec<Link> = response.json().await?;
             Ok(links)
         } else {
-            Err(anyhow::anyhow!("Failed to get links: {}", response.status()))
+            Err(anyhow::anyhow!("500"))
         }
     }
 
@@ -548,7 +536,7 @@ impl Supabase {
             .await?;
 
         let mut plans: Vec<Plan> = response.json().await?;
-        plans.pop().ok_or_else(|| anyhow::anyhow!("Plan not found"))
+        plans.pop().ok_or_else(|| anyhow::anyhow!("404"))
     }
 
     // Subscriptions

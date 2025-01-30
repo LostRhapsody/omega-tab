@@ -22,11 +22,6 @@ pub struct SubscriptionResponse {
     current_period_end: i64,
 }
 
-#[derive(Deserialize)]
-pub struct CustomerRequest {
-    email: String,
-}
-
 #[derive(Serialize)]
 pub struct CustomerResponse {
     session_id: String,
@@ -86,7 +81,7 @@ async fn main() {
 
     let app = Router::new()
         // confirm subscription
-        .route("/confirm", post(confirm_handler))
+        .route("/confirm/{user_email}/{user_id}", get( move | path | confirm_handler(path)))
         // create and update links
         .route("/link", post(create_link).put(update_link))
         // read links
@@ -134,10 +129,48 @@ async fn create_user_handler(
     }
 }
 
+/// Handles the confirmation of a user's subscription status.
+///
+/// This function performs the following steps:
+/// 1. Retrieves the Stripe customer associated with the provided email.
+/// 2. Retrieves the Stripe subscription associated with the customer.
+/// 3. Checks if the subscription is active.
+/// 4. Retrieves the corresponding Supabase plan based on the Stripe product ID.
+/// 5. Verifies and updates the user's subscription record in Supabase.
+/// 6. Verifies and creates the user's membership record in Supabase if it doesn't exist.
+///
+/// # Arguments
+///
+/// * `Path((user_email, user_id))` - A tuple containing the user's email and user ID.
+/// * sent to the server as  /confirm/{user_email}/{user_id}
+///
+/// # Returns
+///
+/// * `Result<Json<SubscriptionResponse>, StatusCode>` - A JSON response containing the subscription details or an error status code.
+/// * If no subscription is found, the function returns a free plan ID and a current period end of 0.
+///
+/// # Errors
+///
+/// This function returns an appropriate `StatusCode` in case of errors:
+/// * `StatusCode::INTERNAL_SERVER_ERROR` - If there is an internal server error.
+/// * `StatusCode::NOT_FOUND` - If the user is not found in Supabase.
+/// * `StatusCode::BAD_REQUEST` - If there is a conflict with the existing subscription.
+///
+/// # Example
+///
+/// ```rust
+/// let response = confirm_handler(Path(("user@example.com".to_string(), "user_id".to_string()))).await;
+/// match response {
+///     Ok(json) => println!("Subscription confirmed: {:?}", json),
+///     Err(status) => println!("Error confirming subscription: {:?}", status),
+/// }
+/// ```
 async fn confirm_handler(
-    Json(payload): Json<CustomerRequest>,
+    Path((user_email, user_id)): Path<(String, String)>,
 ) -> Result<Json<SubscriptionResponse>, StatusCode> {
-    println!("Confirming email: {}", payload.email);
+
+    println!("Confirming email: {}", user_email);
+
     let free_plan_id = std::env::var("FREE_PLAN_ID").expect("FREE_PLAN_ID must be set");
 
     // Initialize Supabase client
@@ -150,7 +183,7 @@ async fn confirm_handler(
     println!("Initialized Supabase client");
     println!("Getting customer from Stripe");
     // Get Stripe customer - if one has not been created, they have not subscribed
-    let customer = match StripeClient::get_customer(&payload.email).await {
+    let customer = match StripeClient::get_customer(&user_email).await {
         Some(customer) => customer,
         None => {
             return Ok(Json(SubscriptionResponse {
@@ -201,20 +234,20 @@ async fn confirm_handler(
         .id();
 
     println!("Got product id: {}", product_id);
-    // Verify user record
-    let user = match supabase.get_user_by_email(&payload.email).await {
-        Ok(user) => {
-            println!("Found existing user: {:?}", user);
-            user
-        }
-        Err(_) => {
-            println!(
-                "User not found, can't create new user for: {} because signup was supposed to be done through Clerk",
-                payload.email
-            );
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    };
+
+    let user = supabase
+        .get_user(&user_id)
+        .await
+        .map_err(|e| match e.to_string().as_str() {
+            "404" => {
+                println!(
+                    "User not found, can't create new user for: {} because signup was supposed to be done through Clerk",
+                    user_email
+                );
+                StatusCode::NOT_FOUND
+            }
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+    })?;
 
     // Get corresponding Supabase plan
     let supabase_plan = supabase
@@ -342,7 +375,7 @@ async fn links_handler(
 
 async fn create_link(
     Json(payload): Json<CreateLinkRequest>,
-) -> Result<Json<CreateLinkResponse>, StatusCode> {
+) -> Result<(StatusCode, Json<supabase::Link>), StatusCode> {
     let supabase = Supabase::new(
         std::env::var("SUPABASE_URL").expect("SUPABASE_URL must be set"),
         std::env::var("SUPABASE_KEY").expect("SUPABASE_KEY must be set"),
@@ -367,10 +400,7 @@ async fn create_link(
         return Err(StatusCode::INTERNAL_SERVER_ERROR);
     }
 
-    Ok(Json(CreateLinkResponse {
-        link: link,
-        message: "Link created successfully".to_string(),
-    }))
+    Ok((StatusCode::CREATED, Json(link)))
 }
 
 async fn update_link(
@@ -434,7 +464,10 @@ async fn plan_handler(Path(plan_id): Path<String>) -> Result<Json<supabase::Plan
     let plan = supabase
         .get_plan(&plan_id)
         .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        .map_err(|e| match e.to_string().as_str() {
+            "404" => StatusCode::NOT_FOUND,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        })?;
 
     Ok(Json(plan))
 }
@@ -451,7 +484,7 @@ async fn get_user_handler(Path(user_id): Path<String>) -> Result<Json<supabase::
         .await
         .map_err(|e| match e.to_string().as_str() {
             "404" => StatusCode::NOT_FOUND,
-            _ => StatusCode::INTERNAL_SERVER_ERROR
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
         })?;
 
     Ok(Json(user))
