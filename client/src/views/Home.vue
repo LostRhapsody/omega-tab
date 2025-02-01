@@ -104,8 +104,7 @@
 
 <script setup lang="ts">
   import type { Link } from "@/types/Link";
-  import type { Subscription, SubscriptionResponse } from "@/types/Subscription";
-  import type { ClerkUser } from "@/types/User";
+  import type { Subscription } from "@/types/Subscription";
   import { Clerk } from "@clerk/clerk-js";
   import { computed, nextTick, onMounted, ref } from "vue";
   import { useRouter } from "vue-router";
@@ -124,7 +123,6 @@
   const router = useRouter();
   const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
   const clerk = new Clerk(clerkPubKey);
-  let clerkUser: ClerkUser;
 
   // State management
   const isLoggedIn = ref(false);
