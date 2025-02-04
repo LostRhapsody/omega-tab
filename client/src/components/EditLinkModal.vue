@@ -91,12 +91,8 @@ watch(
 );
 
 const validateUrl = (url: string): boolean | string => {
-	try {
-		new URL(url);
-		return true;
-	} catch {
-		return "Please enter a valid URL";
-	}
+	const urlPattern = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/;
+	return urlPattern.test(url) ? true : "Please enter a valid URL";
 };
 
 const closeModal = () => {

@@ -15,6 +15,7 @@ use std::collections::HashMap;
 use stripe_client::StripeClient;
 use supabase::Supabase;
 use tower_http::cors::{Any, CorsLayer};
+use reqwest::header::{HeaderMap, HeaderValue, USER_AGENT};
 
 #[derive(Serialize)]
 pub struct SubscriptionResponse {
@@ -42,7 +43,7 @@ pub struct CreateUserResponse {
 pub struct CreateLinkRequest {
     url: String,
     description: Option<String>,
-    title: String,
+    title: Option<String>,
     next_order_index: i32,
     owner_type: String,
     owner_id: String,
@@ -68,6 +69,13 @@ pub struct UpdateLinkRequest {
 #[derive(Serialize)]
 pub struct UpdateLinkResponse {
     message: String,
+}
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct Metadata {
+    title: Option<String>,
+    description: Option<String>,
+    favicon: Option<String>,
 }
 
 #[tokio::main]
@@ -386,13 +394,41 @@ async fn create_link(
     )
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+    let url = if !payload.url.starts_with("https://") {
+        format!("https://{}", payload.url)
+    } else {
+        payload.url
+    };
+
+    let metadata = get_metadata(&url).await.map_err(|e| {
+        println!("Error getting metadata: {:?}", e);
+    }).unwrap_or_else(|_| Metadata {
+        title: Some(url.clone()),
+        description: None,
+        favicon: None,
+    });
+
+    let title = if payload.title.as_deref() == Some("") {
+        metadata.title.unwrap_or_else(|| "".to_string())
+    } else {
+        payload.title.unwrap_or_else(|| metadata.title.unwrap().clone())
+    };
+
+    let favicon = metadata.favicon.unwrap_or_else(|| "".to_string());
+
+    let description = if payload.description.as_deref() == Some("") {
+        metadata.description.unwrap_or_else(|| "".to_string())
+    } else {
+        payload.description.unwrap_or_else(|| metadata.description.unwrap().clone())
+    };
+
     let link = supabase::Link {
         id: uuid::Uuid::new_v4().to_string(),
-        url: payload.url,
-        description: payload.description,
+        url: url,
+        description: Some(description),
         created_at: Utc::now().to_rfc3339(),
-        title: payload.title,
-        icon: None,
+        title: title,
+        icon: Some(favicon),
         order_index: payload.next_order_index,
         owner_type: payload.owner_type,
         owner_id: payload.owner_id,
@@ -609,4 +645,37 @@ async fn cancel_handler(
 
     return Ok(StatusCode::OK)
 
+}
+
+async fn get_metadata(url: &str) -> Result<Metadata, StatusCode> {
+    let mut headers = HeaderMap::new();
+    headers.insert(USER_AGENT, HeaderValue::from_static("Mozilla/5.0 (compatible; BetterNewTab_Bot/1.0; +http://betternewtab.com/bot)"));
+
+    let client = reqwest::Client::builder()
+        .default_headers(headers)
+        .build()
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let response = client.get(url).send().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    if !response.status().is_success() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    let document = response.text().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let document = scraper::Html::parse_document(&document);
+
+    let title_selector = scraper::Selector::parse("title").unwrap();
+    let title = document.select(&title_selector).next().map(|t| t.inner_html());
+
+    let description_selector = scraper::Selector::parse("meta[name='description']").unwrap();
+    let description = document.select(&description_selector).next().and_then(|d| d.value().attr("content")).map(|d| d.to_string());
+
+    let favicon = Some(format!("{}/favicon.ico", url.trim_end_matches('/')));
+
+    Ok(Metadata {
+        title,
+        description,
+        favicon,
+    })
 }

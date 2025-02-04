@@ -15,3 +15,4 @@ reqwest = {version = "0.12.12", features = ["json"] }
 anyhow = "1.0.93"
 uuid = { version = "1.12.1", features = ["v4"] }
 chrono = "0.4.39"
+scraper = "0.22.0"
