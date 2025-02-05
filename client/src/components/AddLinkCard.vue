@@ -52,12 +52,30 @@
 					</span>
 				</div>
 				<v-spacer></v-spacer>
-				<v-btn color="grey-darken-1" variant="text" @click="closeModal">
-					Cancel
-				</v-btn>
-				<v-btn color="primary" variant="text" :loading="isLoading" @click="handleSubmit">
-					Add Link
-				</v-btn>
+				<div class="grid grid-rows-2 gap-4">
+					<div>
+						<v-btn color="grey-darken-1" variant="text" @click="closeModal">
+							Cancel
+						</v-btn>
+						<v-btn color="primary" variant="text" :loading="isLoading" @click="handleSubmit">
+							Add Link
+						</v-btn>
+					</div>
+					<div class="flex justify-end">
+						<v-tooltip location="left" :z-index="1000" max-width="300">
+							<template v-slot:activator="{ props }">
+								<v-btn v-bind="props">
+									<v-icon size="x-large" icon="mdi-help-circle-outline" class="text-gray-500" />
+								</v-btn>
+							</template>
+							<span>
+								<span class="kbd">+Plus Feature</span><br/>
+								If title and description are left blank, <strong>Better New Tab</strong> attempts to them this, along
+								with an icon, from the URL's website.
+							</span>
+						</v-tooltip>
+					</div>
+				</div>
 			</v-card-actions>
 		</v-card>
 	</v-dialog>
@@ -68,7 +86,7 @@
 	import { useRouter } from "vue-router";
 	import { useLinksStore } from "../stores/links";
 	import { useUserStore } from "../stores/user";
-	import type {CreateLinkRequest, Link} from "../types/Link";
+	import type { CreateLinkRequest, Link } from "../types/Link";
 	const linksStore = useLinksStore();
 	const userStore = useUserStore();
 
@@ -153,24 +171,24 @@
 		try {
 			isLoading.value = true;
 
-			if(!userStore.userId) {
+			if (!userStore.userId) {
 				console.error("User not logged in");
 				return;
 			}
-			
+
 			const linkData: CreateLinkRequest = {
 				title: formData.value.title,
 				description: formData.value.description,
 				url: formData.value.url,
-				next_order_index: 
+				next_order_index:
 					props.columnType === "tools" ? linksStore.toolLinks.length + 1 : linksStore.docLinks.length + 1,
 				owner_id: userStore.userId,
 				owner_type: "user",
 				column_type: props.columnType,
 			};
 
-			const savedLink = await linksStore.postLink(linkData);			
-			if(!savedLink) console.error("Error saving link");
+			const savedLink = await linksStore.postLink(linkData);
+			if (!savedLink) console.error("Error saving link");
 			closeModal();
 		} catch (error) {
 			console.error("Error saving link:", error);

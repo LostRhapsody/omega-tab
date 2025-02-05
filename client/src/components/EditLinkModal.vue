@@ -34,12 +34,31 @@
 					</span>
 				</div>
 				<v-spacer></v-spacer>
-				<v-btn color="grey-darken-1" variant="text" @click="closeModal">
-					Cancel
-				</v-btn>
-				<v-btn color="primary" variant="text" :loading="isLoading" @click="handleSubmit">
-					Save Changes
-				</v-btn>
+				<div class="grid grid-rows-2 gap-4">
+					<div>
+						<v-btn color="grey-darken-1" variant="text" @click="closeModal">
+							Cancel
+						</v-btn>
+						<v-btn color="primary" variant="text" :loading="isLoading" @click="handleSubmit">
+							Add Link
+						</v-btn>
+					</div>
+					<div class="flex justify-end">
+						<v-tooltip location="left" :z-index="1000" max-width="300">
+							<template v-slot:activator="{ props }">
+								<v-btn v-bind="props">
+									<v-icon size="x-large" icon="mdi-help-circle-outline" class="text-gray-500" />
+								</v-btn>
+							</template>
+							<span>
+								<span class="kbd">+Plus Feature</span><br/>
+								<strong>Better New Tab</strong> will not attempt to fetch the title or description from the URL when editing a link.
+								<br/><br/>
+								Add a new link to see this feature in action.
+							</span>
+						</v-tooltip>
+					</div>
+				</div>
 			</v-card-actions>
 		</v-card>
 	</v-dialog>
