@@ -271,13 +271,16 @@ onMounted(async () => {
       let gotUser = false;
       try {
 
-        // pass clerk data to fetch user data
-        gotUser = await userStore.fetchUserData({
-          id: clerk.user.id,
-          firstName: clerk.user.firstName || "",
-          lastName: clerk.user.lastName || "",
-          email: clerk.user.emailAddresses[0].emailAddress,
-        });
+        // if user store is already initialized, no need to fetch user data
+        if (!userStore.userId) {
+          // pass clerk data to fetch user data
+          gotUser = await userStore.fetchUserData({
+            id: clerk.user.id,
+            firstName: clerk.user.firstName || "",
+            lastName: clerk.user.lastName || "",
+            email: clerk.user.emailAddresses[0].emailAddress,
+          });
+        } else gotUser = true;
 
       } catch (error) {
         console.error("Error fetching user data:", error);
