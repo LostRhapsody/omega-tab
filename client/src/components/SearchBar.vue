@@ -1,517 +1,537 @@
 <template>
 	<div class="mt-16 mx-16">
-		<v-row class="align-center">
-			<v-col cols="9">
-				<!-- <v-text-field v-model="searchQuery" :label="placeholder" hide-details
-					@keyup.enter="performSearch" @keydown="handleKeydown" @mouseover="focusedIndex = -1"
-					prepend-inner-icon="mdi-magnify" ref="searchInput" @focus="handleFocus" @blur="handleBlur"/> -->
-				<input v-model="searchQuery" :placeholder="placeholder" type="search" 
-					@keyup.enter="performSearch" @keydown="handleKeydown" @mouseover="focusedIndex = -1"
-					ref="searchInput" @focus="handleFocus" @blur="handleBlur" class="focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:outline-none searchBar"/>
-				<div v-if="fuzzyResults.length || (getFilteredHistory.length && searchQuery)"
-					class="dropdown-menu">
-					<!-- History Section -->
-					<!-- <div v-if="getFilteredHistory.length" class="section-container">
-						<div class="section-header">
-							<span>Recent Searches</span>
-							<v-btn variant="text" density="compact" size="small" @click="clearHistory">
-								Clear
-							</v-btn>
-						</div>
-						<div v-for="(result, index) in getFilteredHistory" :key="result.item" class="dropdown-item history-item"
-							:class="{ focused: focusedIndex === index }" @mouseover="focusedIndex = index"
-							@click="selectHistoryItem(result.item)">
-							<v-icon icon="mdi-history" size="small" class="mr-2" />
-							{{ result.item }}
-						</div>
-						<v-divider v-if="fuzzyResults.length" class="my-2"></v-divider>
-					</div>					 -->
-					<div>
-						<!-- Tool section -->
-						<div v-for="(result, index) in fuzzyResults" :key="result.item.title" class="dropdown-item"
-							:class="{ focused: focusedIndex === index }" @mouseover="focusedIndex = index">
-							<div>{{ result.item.title }}</div>
-							<a :href="result.item.url" target="_blank">{{ result.item.description }} <v-icon icon="mdi-link" /></a>
-						</div>
+		<!-- <v-text-field v-model="searchQuery" :label="placeholder" hide-details
+			@keyup.enter="performSearch" @keydown="handleKeydown" @mouseover="focusedIndex = -1"
+			prepend-inner-icon="mdi-magnify" ref="searchInput" @focus="handleFocus" @blur="handleBlur"/> -->
+		<div class="searchBarContainer">
+			<v-container>
+				<v-row>
+					<v-col>
+						<input v-model="searchQuery" :placeholder="placeholder" type="search"
+							@keyup.enter="performSearch" @keydown="handleKeydown" @mouseover="focusedIndex = -1"
+							ref="searchInput" @focus="handleFocus" @blur="handleBlur"
+							class="focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:outline-none searchBar mt-0" />
+					</v-col>
+				</v-row>
+				<v-row>
+					<v-col>
+						<v-row class="flex justify-between">
+							<v-col cols="3 flex justify-start">
+								<v-select v-model="selectedEngine" :items="searchEngines" item-title="name"
+									item-value="url" variant="solo-inverted" hide-details
+									@update:modelValue="updateSelectedEngine">
+									<!-- For the selected value display -->
+									<template v-slot:selection="{ item }">
+										{{ item.raw.name }}
+									</template>
+
+									<!-- For each item in the dropdown -->
+									<template v-slot:item="{ props, item }">
+										<v-list-item v-bind="props">
+											<template v-slot:prepend>
+												<div class="d-flex align-center">
+													<v-icon v-if="item.raw.icon.startsWith('mdi-')"
+														:icon="item.raw.icon" size="36" class="mr-2" />
+													<img v-else :src="item.raw.icon" :alt="item.raw.name"
+														class="custom-icon" />
+												</div>
+											</template>
+										</v-list-item>
+									</template>
+								</v-select>
+							</v-col>
+							<v-col cols="3" class="flex justify-end items-end">
+								<v-btn icon="mdi-magnify" @click="performSearch">
+								</v-btn>
+							</v-col>
+						</v-row>
+					</v-col>
+				</v-row>
+				<div v-if="fuzzyResults.length || (getFilteredHistory.length && searchQuery)" class="dropdown-menu">
+				<div>
+					<!-- Tool section -->
+					<div v-for="(result, index) in fuzzyResults" :key="result.item.title" class="dropdown-item"
+						:class="{ focused: focusedIndex === index }" @mouseover="focusedIndex = index">
+						<div>{{ result.item.title }}</div>
+						<a :href="result.item.url" target="_blank">{{ result.item.description }} <v-icon
+								icon="mdi-link" /></a>
 					</div>
 				</div>
-			</v-col>
-			<v-col cols="3">
-				<v-select v-model="selectedEngine" :items="searchEngines" item-title="name" item-value="url" variant="plain"
-					hide-details @update:modelValue="updateSelectedEngine">
-					<!-- For the selected value display -->
-					<template v-slot:selection="{ item }">
-						{{ item.raw.name }}
-					</template>
-
-					<!-- For each item in the dropdown -->
-					<template v-slot:item="{ props, item }">
-						<v-list-item v-bind="props">
-							<template v-slot:prepend>
-								<div class="d-flex align-center">
-									<v-icon v-if="item.raw.icon.startsWith('mdi-')" :icon="item.raw.icon" size="36" class="mr-2" />
-									<img v-else :src="item.raw.icon" :alt="item.raw.name" class="custom-icon" />
-								</div>
-							</template>
-						</v-list-item>
-					</template>
-				</v-select>
-			</v-col>
-		</v-row>
+			</div>
+			</v-container>
+		</div>
 	</div>
 </template>
 
 <script setup lang="ts">
-// imports
-import Fuse from "fuse.js";
-import type { FuseResult } from "fuse.js";
-import { computed, defineProps, onMounted, onUnmounted, ref, watch } from "vue";
-import type { Link } from "../types/Link";
-import { debounce } from "lodash";
-import { searchEngines } from "../data/SearchEngines";
-import { useLinksStore } from "../stores/links";
+	// imports
+	import Fuse from "fuse.js";
+	import type { FuseResult } from "fuse.js";
+	import { computed, defineProps, onMounted, onUnmounted, ref, watch } from "vue";
+	import type { Link } from "../types/Link";
+	import { debounce } from "lodash";
+	import { searchEngines } from "../data/SearchEngines";
+	import { useLinksStore } from "../stores/links";
+	import { storeToRefs } from "pinia";
 
-interface HistoryItem {
-	query: string;
-	timestamp: number;
-	engine: string;
-}
-
-// consts and refs
-const MAX_STORED_HISTORY = 100; // Maximum number of items to store
-const MAX_DISPLAYED_HISTORY = 5; // Maximum number of items to display
-const STORAGE_KEY = "search_history";
-const linksStore = useLinksStore();
-const searchQuery = ref("");
-const searchHistory = ref<string[]>([]);
-const showHistory = ref(false);
-const searchInput = ref<HTMLElement | null>(null);
-const selectedEngine = ref(
-	localStorage.getItem("defaultSearchEngine") || searchEngines[0].url,
-);
-const focusedIndex = ref(-1);
-// Fuzzy search setup
-const fuse = new Fuse<Link>(linksStore.links, {
-	keys: ["title", "description", "url"],
-	threshold: 0.1,
-	findAllMatches: false,
-});
-const fuzzyResults = ref<FuseResult<Link>[]>([]);
-
-// computed properties
-const placeholder = computed(() => {
-	const engineName = searchEngines.find(
-		(engine) => engine.url === selectedEngine.value,
-	)?.name;
-	return `Search ${engineName}...`;
-});
-
-// Add function to get filtered history results
-const getFilteredHistory = computed(() => {
-	if (!searchQuery.value) {
-		// When empty, show most recent items
-		return searchHistory.value.slice(0, MAX_DISPLAYED_HISTORY).map((item) => ({
-			item,
-			score: 0,
-		}));
+	interface HistoryItem {
+		query: string;
+		timestamp: number;
+		engine: string;
 	}
 
-	// Use fuzzy search when there's input
-	return historyFuse.value
-		.search(searchQuery.value)
-		.slice(0, MAX_DISPLAYED_HISTORY);
-});
+	// consts and refs
+	const MAX_STORED_HISTORY = 100; // Maximum number of items to store
+	const MAX_DISPLAYED_HISTORY = 5; // Maximum number of items to display
+	const STORAGE_KEY = "search_history";
+	const linksStore = useLinksStore();
+	const { links } = storeToRefs(linksStore)
+	const searchQuery = ref("");
+	const searchHistory = ref<string[]>([]);
+	const showHistory = ref(false);
+	const searchInput = ref<HTMLElement | null>(null);
+	const selectedEngine = ref(
+		localStorage.getItem("defaultSearchEngine") || searchEngines[0].url,
+	);
+	const focusedIndex = ref(-1);
+	const fuseInstance = ref<Fuse<Link> | null>(null);
 
+	// Fuzzy search setup
+	const fuse = new Fuse<Link>(links.value, {
+		keys: ["title", "description", "url"],
+		threshold: 0.1,
+		findAllMatches: false,
+	});
+	const fuzzyResults = ref<FuseResult<Link>[]>([]);
 
-// Replace the isCompleteURI computed property with this optimized version
-const isCompleteURI = computed(() => {
-	// Early return for empty strings or strings without dots
-	if (!searchQuery.value || !searchQuery.value.includes(".")) {
-		return false;
-	}
+	// computed properties
+	const placeholder = computed(() => {
+		const engineName = searchEngines.find(
+			(engine) => engine.url === selectedEngine.value,
+		)?.name;
+		return `Search ${engineName}...`;
+	});
 
-	try {
-		// Use URL constructor for validation instead of regex
-		new URL(
-			searchQuery.value.startsWith("http")
-				? searchQuery.value
-				: `https://${searchQuery.value}`,
-		);
-		return true;
-	} catch {
-		return false;
-	}
-});
-
-const jiraLink = computed(
-	() => `https://atlassian.net/browse/${searchQuery.value}`,
-);
-
-const confluenceLink = computed(
-	() => `https://atlassian.net/wiki/search?text="${searchQuery.value}"`,
-);
-
-// A new Fuse instance for history search
-const historyFuse = computed(
-	() =>
-		new Fuse(searchHistory.value, {
-			threshold: 0.3,
-			findAllMatches: true,
-			// Including fields that help match both start of string and anywhere in string
-			includeScore: true,
-			keys: [
-				{
-					name: "query",
-					weight: 2,
-				},
-				{
-					name: "queryLower",
-					weight: 1,
-				},
-			],
-		}),
-);
-
-// functions
-const loadSearchHistory = () => {
-	try {
-		const stored = localStorage.getItem(STORAGE_KEY);
-		if (stored) {
-			const parsed: HistoryItem[] = JSON.parse(stored);
-			// Sort by timestamp and get just the queries
-			searchHistory.value = parsed
-				.sort((a, b) => b.timestamp - a.timestamp)
-				.map((item) => item.query)
-				.slice(0, MAX_STORED_HISTORY);
-		}
-	} catch (error) {
-		console.error("Error loading search history:", error);
-		searchHistory.value = [];
-	}
-};
-
-const addToHistory = (query: string) => {
-	if (!query || !query.trim()) return;
-
-	try {
-		const stored = localStorage.getItem(STORAGE_KEY);
-		const history: HistoryItem[] = stored ? JSON.parse(stored) : [];
-
-		// Remove any existing entry with the same query
-		const filtered = history.filter(
-			(item) => item.query.toLowerCase() !== query.toLowerCase(),
-		);
-
-		// Add new entry
-		filtered.unshift({
-			query,
-			timestamp: Date.now(),
-			engine: selectedEngine.value,
+	const initializeFuse = (data: Link[]) => {
+		fuseInstance.value = new Fuse(data, {
+			keys: ["title", "description", "url"],
+			threshold: 0.1,
+			findAllMatches: false,
 		});
-
-		// Keep only MAX_STORED_HISTORY items
-		const trimmed = filtered.slice(0, MAX_STORED_HISTORY);
-
-		// Save to localStorage
-		localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
-
-		// Update the reactive history
-		searchHistory.value = trimmed.map((item) => item.query);
-	} catch (error) {
-		console.error("Error saving to search history:", error);
 	}
-};
 
-const clearHistory = (query: string) => {
-	searchHistory.value = [];
-	localStorage.removeItem(STORAGE_KEY);
-};
+	watch(links, (newData) => {
+		console.log("links", links);
+		console.log("newData", newData);
+		if (newData?.length) {
+    		initializeFuse(newData);
+  		}
+	}, { immediate: true });
 
-// Modify your existing performSearch function
-const performSearch = () => {
-	if (searchQuery.value.trim()) {
-		// If there are fuzzy results, open the first result's URL
-		if (fuzzyResults.value.length > 0) {
-			window.open(fuzzyResults.value[0].item.url, "_blank");
-		} else {
-			// Otherwise perform normal search
-			const searchUrl = selectedEngine.value + encodeURIComponent(searchQuery.value);
-			window.open(searchUrl, "_blank");
+	// Add function to get filtered history results
+	const getFilteredHistory = computed(() => {
+		if (!searchQuery.value) {
+			// When empty, show most recent items
+			return searchHistory.value.slice(0, MAX_DISPLAYED_HISTORY).map((item) => ({
+				item,
+				score: 0,
+			}));
 		}
-		addToHistory(searchQuery.value);
-		searchQuery.value = "";
-	}
-};
 
-// Add these event handlers
-const handleFocus = () => {
-	if (!searchQuery.value) {
-		showHistory.value = true;
-	}
-};
+		// Use fuzzy search when there's input
+		return historyFuse.value
+			.search(searchQuery.value)
+			.slice(0, MAX_DISPLAYED_HISTORY);
+	});
 
-const handleBlur = () => {
-	// Small delay to allow for clicking history items
-	setTimeout(() => {
+	const validateUrl = (url: string): boolean => {
+		const urlPattern = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/;
+		return urlPattern.test(url);
+	};
+
+	// Replace the isCompleteURI computed property with this optimized version
+	const isCompleteURI = computed(() => {
+		// Early return for empty strings or strings without dots
+		if (!searchQuery.value || !searchQuery.value.includes(".")) {
+			return false;
+		}
+
+		if(validateUrl(searchQuery.value)) {
+			return true;
+		} 
+
+		return false;
+		
+	});
+
+	const jiraLink = computed(
+		() => `https://atlassian.net/browse/${searchQuery.value}`,
+	);
+
+	const confluenceLink = computed(
+		() => `https://atlassian.net/wiki/search?text="${searchQuery.value}"`,
+	);
+
+	// A new Fuse instance for history search
+	const historyFuse = computed(
+		() =>
+			new Fuse(searchHistory.value, {
+				threshold: 0.3,
+				findAllMatches: true,
+				// Including fields that help match both start of string and anywhere in string
+				includeScore: true,
+				keys: [
+					{
+						name: "query",
+						weight: 2,
+					},
+					{
+						name: "queryLower",
+						weight: 1,
+					},
+				],
+			}),
+	);
+
+	// functions
+	const loadSearchHistory = () => {
+		try {
+			const stored = localStorage.getItem(STORAGE_KEY);
+			if (stored) {
+				const parsed: HistoryItem[] = JSON.parse(stored);
+				// Sort by timestamp and get just the queries
+				searchHistory.value = parsed
+					.sort((a, b) => b.timestamp - a.timestamp)
+					.map((item) => item.query)
+					.slice(0, MAX_STORED_HISTORY);
+			}
+		} catch (error) {
+			console.error("Error loading search history:", error);
+			searchHistory.value = [];
+		}
+	};
+
+	const addToHistory = (query: string) => {
+		if (!query || !query.trim()) return;
+
+		try {
+			const stored = localStorage.getItem(STORAGE_KEY);
+			const history: HistoryItem[] = stored ? JSON.parse(stored) : [];
+
+			// Remove any existing entry with the same query
+			const filtered = history.filter(
+				(item) => item.query.toLowerCase() !== query.toLowerCase(),
+			);
+
+			// Add new entry
+			filtered.unshift({
+				query,
+				timestamp: Date.now(),
+				engine: selectedEngine.value,
+			});
+
+			// Keep only MAX_STORED_HISTORY items
+			const trimmed = filtered.slice(0, MAX_STORED_HISTORY);
+
+			// Save to localStorage
+			localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+
+			// Update the reactive history
+			searchHistory.value = trimmed.map((item) => item.query);
+		} catch (error) {
+			console.error("Error saving to search history:", error);
+		}
+	};
+
+	const clearHistory = (query: string) => {
+		searchHistory.value = [];
+		localStorage.removeItem(STORAGE_KEY);
+	};
+
+	// Modify your existing performSearch function
+	const performSearch = () => {
+		if (searchQuery.value.trim()) {
+			// If there are fuzzy results, open the first result's URL
+			if (fuzzyResults.value.length > 0) {
+				window.open(fuzzyResults.value[0].item.url, "_blank");
+			} else {
+				// Otherwise perform normal search
+				const searchUrl = selectedEngine.value + encodeURIComponent(searchQuery.value);
+				window.open(searchUrl, "_blank");
+			}
+			addToHistory(searchQuery.value);
+			searchQuery.value = "";
+		}
+	};
+
+	// Add these event handlers
+	const handleFocus = () => {
+		if (!searchQuery.value) {
+			showHistory.value = true;
+		}
+	};
+
+	const handleBlur = () => {
+		// Small delay to allow for clicking history items
+		setTimeout(() => {
+			showHistory.value = false;
+		}, 200);
+	};
+
+	const selectHistoryItem = (query: string) => {
+		searchQuery.value = query;
 		showHistory.value = false;
-	}, 200);
-};
+		performSearch();
+	};
 
-const selectHistoryItem = (query: string) => {
-	searchQuery.value = query;
-	showHistory.value = false;
-	performSearch();
-};
+	const handleKeydown = (event: KeyboardEvent) => {
+		const historyLength = getFilteredHistory.value.length;
+		const fuzzyLength = fuzzyResults.value.length;
+		const totalItems = historyLength + fuzzyLength;
 
-const handleKeydown = (event: KeyboardEvent) => {
-	const historyLength = getFilteredHistory.value.length;
-	const fuzzyLength = fuzzyResults.value.length;
-	const totalItems = historyLength + fuzzyLength;
-
-	if (totalItems > 0) {
-		switch (event.key) {
-			case "ArrowDown":
-				event.preventDefault();
-				focusedIndex.value = (focusedIndex.value + 1) % totalItems;
-				break;
-			case "ArrowUp":
-				event.preventDefault();
-				focusedIndex.value = (focusedIndex.value - 1 + totalItems) % totalItems;
-				break;
-			case "Enter":
-				event.preventDefault();
-				if (focusedIndex.value >= 0) {
-					if (focusedIndex.value < historyLength) {
-						// Handle history item selection
-						selectHistoryItem(
-							getFilteredHistory.value[focusedIndex.value].item,
-						);
-					} else {
-						// Handle fuzzy result selection
-						const fuzzyIndex = focusedIndex.value - historyLength;
-						window.open(fuzzyResults.value[fuzzyIndex].item.url, "_blank");
-						searchQuery.value = "";
+		if (totalItems > 0) {
+			switch (event.key) {
+				case "ArrowDown":
+					event.preventDefault();
+					focusedIndex.value = (focusedIndex.value + 1) % totalItems;
+					break;
+				case "ArrowUp":
+					event.preventDefault();
+					focusedIndex.value = (focusedIndex.value - 1 + totalItems) % totalItems;
+					break;
+				case "Enter":
+					event.preventDefault();
+					if (focusedIndex.value >= 0) {
+						if (focusedIndex.value < historyLength) {
+							// Handle history item selection
+							selectHistoryItem(
+								getFilteredHistory.value[focusedIndex.value].item,
+							);
+						} else {
+							// Handle fuzzy result selection
+							const fuzzyIndex = focusedIndex.value - historyLength;
+							window.open(fuzzyResults.value[fuzzyIndex].item.url, "_blank");
+							searchQuery.value = "";
+						}
 					}
-				}
-				return;
+					return;
+			}
 		}
-	}
-	// Handle CS ticket queries
-	// else if (isCSQuery.value) {
-	// 	switch (event.key) {
-	// 		case "ArrowDown":
-	// 			event.preventDefault();
-	// 			focusedIndex.value = (focusedIndex.value + 1) % (pillLinks.length + 3);
-	// 			break;
-	// 		case "ArrowUp":
-	// 			event.preventDefault();
-	// 			focusedIndex.value =
-	// 				(focusedIndex.value - 1 + (pillLinks.length + 3)) %
-	// 				(pillLinks.length + 3);
-	// 			break;
-	// 		case "Enter":
-	// 			event.preventDefault();
-	// 			if (focusedIndex.value === 0) {
-	// 				window.open(jiraLink.value, "_blank");
-	// 			} else if (
-	// 				focusedIndex.value >= 2 &&
-	// 				focusedIndex.value < pillLinks.length + 2
-	// 			) {
-	// 				window.open(pillLinks[focusedIndex.value - 2].link, "_blank");
-	// 			} else if (focusedIndex.value === pillLinks.length + 2) {
-	// 				window.open(confluenceLink.value, "_blank");
-	// 			}
-	// 			searchQuery.value = ""; // Clear the search after opening
-	// 			return; // Prevent further processing
-	// 	}
-	// }
-	// Handle complete URI
-	else if (isCompleteURI.value && event.key === "Enter") {
+		// Handle CS ticket queries
+		// else if (isCSQuery.value) {
+		// 	switch (event.key) {
+		// 		case "ArrowDown":
+		// 			event.preventDefault();
+		// 			focusedIndex.value = (focusedIndex.value + 1) % (pillLinks.length + 3);
+		// 			break;
+		// 		case "ArrowUp":
+		// 			event.preventDefault();
+		// 			focusedIndex.value =
+		// 				(focusedIndex.value - 1 + (pillLinks.length + 3)) %
+		// 				(pillLinks.length + 3);
+		// 			break;
+		// 		case "Enter":
+		// 			event.preventDefault();
+		// 			if (focusedIndex.value === 0) {
+		// 				window.open(jiraLink.value, "_blank");
+		// 			} else if (
+		// 				focusedIndex.value >= 2 &&
+		// 				focusedIndex.value < pillLinks.length + 2
+		// 			) {
+		// 				window.open(pillLinks[focusedIndex.value - 2].link, "_blank");
+		// 			} else if (focusedIndex.value === pillLinks.length + 2) {
+		// 				window.open(confluenceLink.value, "_blank");
+		// 			}
+		// 			searchQuery.value = ""; // Clear the search after opening
+		// 			return; // Prevent further processing
+		// 	}
+		// }
+		// Handle complete URI
+		else if (isCompleteURI.value && event.key === "Enter") {
+			event.preventDefault();
+			window.open(
+				searchQuery.value.startsWith("http")
+					? searchQuery.value
+					: `https://${searchQuery.value}`,
+				"_blank",
+			);
+			searchQuery.value = "";
+			return;
+		}
+	};
+
+	const updateSelectedEngine = () => {
+		localStorage.setItem("defaultSearchEngine", selectedEngine.value);
+	};
+
+	// Create a debounced search function
+	const debouncedFuzzySearch = debounce(async (query: string) => {
+		if(!fuseInstance.value || !query.trim()) {
+			fuzzyResults.value = [];
+			return;
+		}
+		fuzzyResults.value = fuseInstance.value.search(query).slice(0, 3);
+	}, 10); // 100ms delay
+
+	// Add event listener for ctrl+arrow keys to cycle through search engines
+	const handleSearchEngineHotkeys = (event: KeyboardEvent) => {
+		if (!event.ctrlKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return;
+
 		event.preventDefault();
-		window.open(
-			searchQuery.value.startsWith("http")
-				? searchQuery.value
-				: `https://${searchQuery.value}`,
-			"_blank",
-		);
-		searchQuery.value = "";
-		return;
-	}
-};
+		const currentIndex = searchEngines.findIndex(engine => engine.url === selectedEngine.value);
+		let newIndex: number;
 
-const updateSelectedEngine = () => {
-	localStorage.setItem("defaultSearchEngine", selectedEngine.value);
-};
+		if (event.key === 'ArrowUp') {
+			newIndex = (currentIndex - 1 + searchEngines.length) % searchEngines.length;
+		} else {
+			newIndex = (currentIndex + 1) % searchEngines.length;
+		}
 
-// Create a debounced search function
-const debouncedFuzzySearch = debounce((query: string) => {
-	if (query.trim()) {
-		fuzzyResults.value = fuse.search(query).slice(0, 3);
-	} else {
-		fuzzyResults.value = [];
-	}
-}, 10); // 100ms delay
+		selectedEngine.value = searchEngines[newIndex].url;
+		updateSelectedEngine();
+	};
 
-// Add event listener for ctrl+arrow keys to cycle through search engines
-const handleSearchEngineHotkeys = (event: KeyboardEvent) => {
-	if (!event.ctrlKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return;
+	// watch, mount, and unmount
+	watch(searchQuery, (newQuery) => {
+		if (!isCompleteURI.value) {
+			debouncedFuzzySearch(newQuery);
+		} else {
+			fuzzyResults.value = [];
+		}
+	});
 
-	event.preventDefault();
-	const currentIndex = searchEngines.findIndex(engine => engine.url === selectedEngine.value);
-	let newIndex: number;
-
-	if (event.key === 'ArrowUp') {
-		newIndex = (currentIndex - 1 + searchEngines.length) % searchEngines.length;
-	} else {
-		newIndex = (currentIndex + 1) % searchEngines.length;
-	}
-
-	selectedEngine.value = searchEngines[newIndex].url;
-	updateSelectedEngine();
-};
-
-// watch, mount, and unmount
-watch(searchQuery, (newQuery) => {
-	if (!isCompleteURI.value) {
-		debouncedFuzzySearch(newQuery);
-	} else {
-		fuzzyResults.value = [];
-	}
-});
-
-onMounted(() => {
-	if (searchInput.value) {
-		searchInput.value.focus();
-	}
-	loadSearchHistory();
-	window.addEventListener('keydown', handleSearchEngineHotkeys);
-});
+	onMounted(() => {
+		if (searchInput.value) {
+			searchInput.value.focus();
+		}
+		loadSearchHistory();
+		window.addEventListener('keydown', handleSearchEngineHotkeys);
+	});
 
 
-onUnmounted(() => {
-	window.removeEventListener('keydown', handleSearchEngineHotkeys);
-});
+	onUnmounted(() => {
+		window.removeEventListener('keydown', handleSearchEngineHotkeys);
+	});
 </script>
 
 <style scoped>
 
-.v-field__input,
-.v-field__prepend-inner,
-.v-field__append-inner {
-	padding: 0px !important;
-	display: flex;
-	align-items: center !important;
-	padding-right: 4px !important;
-}
+	.v-field__input,
+	.v-field__prepend-inner,
+	.v-field__append-inner {
+		padding: 0px !important;
+		display: flex;
+		align-items: center !important;
+		padding-right: 4px !important;
+	}
 
-.dropdown-menu {
-	border-radius: 8px;
-	padding: 1rem;
-	margin-top: 0.5rem;
-}
+	.dropdown-menu {
+		border-radius: 8px;
+		padding: 1rem;
+		margin-top: 0.5rem;
+	}
 
-.dropdown-item {
-	margin-bottom: 1rem;
-	color: var(--color-text);
-	padding: 4px;
-}
+	.dropdown-item {
+		margin-bottom: 1rem;
+		color: var(--color-text);
+		padding: 4px;
+	}
 
-.dropdown-item a {
-	color: var(--color-text);
-	text-decoration: underline;
-}
+	.dropdown-item a {
+		color: var(--color-text);
+		text-decoration: underline;
+	}
 
-.pill-links {
-	display: flex;
-	gap: 0.5rem;
-}
+	.pill-links {
+		display: flex;
+		gap: 0.5rem;
+	}
 
-.pill {
-	background: black;
-	border-radius: 16px;
-	padding: 0.25rem 0.5rem;
-	color: var(--color-text);
-	text-decoration: none;
-}
+	.pill {
+		background: black;
+		border-radius: 16px;
+		padding: 0.25rem 0.5rem;
+		color: var(--color-text);
+		text-decoration: none;
+	}
 
-.pill:hover {
-	background: #d0d0d0;
-}
+	.pill:hover {
+		background: #d0d0d0;
+	}
 
-.focused,
-.focused a {
-	background-color: whitesmoke;
-	color: black !important;
-	border-radius: 12px;
-}
+	.focused,
+	.focused a {
+		background-color: whitesmoke;
+		color: black !important;
+		border-radius: 12px;
+	}
 
-.custom-icon {
-	width: 36px;
-	height: 36px;
-	margin-right: 8px;
-	vertical-align: middle;
-}
+	.custom-icon {
+		width: 36px;
+		height: 36px;
+		margin-right: 8px;
+		vertical-align: middle;
+	}
 
-.history-header {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	padding: 0.5rem;
-	color: var(--color-text);
-	opacity: 0.7;
-}
+	.history-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 0.5rem;
+		color: var(--color-text);
+		opacity: 0.7;
+	}
 
-.history-item {
-	display: flex;
-	align-items: center;
-	padding: 0.5rem;
-	cursor: pointer;
-	transition: background-color 0.2s;
-}
+	.history-item {
+		display: flex;
+		align-items: center;
+		padding: 0.5rem;
+		cursor: pointer;
+		transition: background-color 0.2s;
+	}
 
-.history-item:hover {
-	background-color: rgba(128, 128, 128, 0.1);
-}
+	.history-item:hover {
+		background-color: rgba(128, 128, 128, 0.1);
+	}
 
-.searchBar {
-	display: flex;
-	align-items: center;
-	padding: 0.75rem;
-	border: 1px solid var(--color-border);
-	border-radius: 4px;
-	background-color: var(--color-background);
-	transition: border-color 0.2s, box-shadow 0.2s;
-	width: 100%;
-	margin-top: 1rem;
-}
+	.searchBar {
+		display: flex;
+		align-items: center;
+		padding: 0.75rem;
+		background-color: var(--color-background);
+		width: 100%;
+		margin-top: 1rem;
+	}
 
-.searchBar:hover {
-	border-color: var(--color-border-hover);
-}
+	.searchBar input {
+		flex: 1;
+		border: none;
+		outline: none;
+		padding: 0.75rem;
+		background-color: transparent;
+		color: var(--color-text);
+	}
 
-.searchBar:focus-within, .searchBar:focus-visible {
-	border-color: var(--color-border-hover);
-	box-shadow: 0 0 8px rgba(0, 123, 255, 0.25);
-}
+	.searchBar button {
+		background: none;
+		border: none;
+		cursor: pointer;
+		padding: 0.75rem;
+		color: var(--color-text);
+	}
 
-.searchBar input {
-	flex: 1;
-	border: none;
-	outline: none;
-	padding: 0.75rem;
-	background-color: transparent;
-	color: var(--color-text);
-}
+	.searchBar button:hover {
+		color: var(--color-text-hover);
+	}
 
-.searchBar button {
-	background: none;
-	border: none;
-	cursor: pointer;
-	padding: 0.75rem;
-	color: var(--color-text);
-}
+	.searchBarContainer {
+		border: #808080 1px solid;
+		border-radius: 1em;
+		transition: border-color 0.3s ease, box-shadow 0.3s ease;
+	}
 
-.searchBar button:hover {
-	color: var(--color-text-hover);
-}
+	.searchBarContainer:focus-within {
+		border: #b4b4b4 1px solid;
+		box-shadow: 0 2px 10px 1px rgb(255 255 255 / 21%);
+	}
 </style>
