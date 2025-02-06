@@ -18,6 +18,7 @@ use std::collections::HashMap;
 use stripe_client::StripeClient;
 use supabase::Supabase;
 use tower_http::cors::{Any, CorsLayer};
+use tracing_subscriber::prelude::*;
 
 #[derive(Serialize)]
 pub struct SubscriptionResponse {
@@ -64,8 +65,33 @@ pub struct SuggestionResponse {
     suggestions: Vec<brave::Suggestion>,
 }
 
-#[tokio::main]
-async fn main() {
+fn main() {    
+
+    let _guard = sentry::init(("https://dacfc75c4bbf7f8a70134067d078c21a@o4508773394153472.ingest.us.sentry.io/4508773395857408", sentry::ClientOptions {
+        release: sentry::release_name!(),
+
+        // 1.0 is send 100% of traces to Sentry, 0.2 is 20%, etc.
+        traces_sample_rate: 1.0,
+
+        ..sentry::ClientOptions::default()
+    }));
+
+    tracing_subscriber::Registry::default()
+        .with(sentry::integrations::tracing::layer())
+        .init();
+
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(async {
+            runtime().await;
+        });
+}
+
+async fn runtime() {
+    tracing::info!("Starting request");
+
     dotenv().ok();
 
     let cors = CorsLayer::new()
@@ -108,6 +134,7 @@ async fn main() {
     println!("Server running on http://0.0.0.0:3000");
 
     axum::serve(listener, app).await.unwrap();
+    tracing::info!("Ending request");
 }
 
 async fn create_user_handler(
@@ -117,7 +144,10 @@ async fn create_user_handler(
         std::env::var("SUPABASE_URL").expect("SUPABASE_URL must be set"),
         std::env::var("SUPABASE_KEY").expect("SUPABASE_KEY must be set"),
     )
-    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    .map_err(|e| {
+        tracing::error!("Error initializing Supabase client: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     let user = supabase::User {
         id: payload.user_id,
@@ -170,10 +200,21 @@ async fn create_user_handler(
 ///     Err(status) => println!("Error confirming subscription: {:?}", status),
 /// }
 /// ```
+#[tracing::instrument]
 async fn confirm_handler(
     Path((user_email, user_id)): Path<(String, String)>,
 ) -> Result<Json<SubscriptionResponse>, StatusCode> {
     println!("Confirming email: {}", user_email);
+
+    // todo - put this everywhere somehow lol
+    sentry::configure_scope(|scope| {
+        scope.set_user(Some(sentry::User {
+            email: Some(user_email.clone()),
+            id: Some(user_id.clone()),            
+            ..Default::default()
+        }));
+        scope.set_tag("http.method", "GET");
+    });
 
     let free_plan_id = std::env::var("FREE_PLAN_ID").expect("FREE_PLAN_ID must be set");
 
@@ -702,8 +743,9 @@ async fn get_metadata(url: &str) -> Result<Metadata, StatusCode> {
     })
 }
 
-async fn suggest_handler(Path(query): Path<String>) -> Result<Json<SuggestionResponse>, StatusCode> {
-
+async fn suggest_handler(
+    Path(query): Path<String>,
+) -> Result<Json<SuggestionResponse>, StatusCode> {
     println!("Suggesting: {}", query);
 
     let brave = Brave::new(
@@ -715,13 +757,10 @@ async fn suggest_handler(Path(query): Path<String>) -> Result<Json<SuggestionRes
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    let response = brave
-        .get_suggestions(&query)
-        .await
-        .map_err(|e| {
-            println!("Error getting suggestions: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    let response = brave.get_suggestions(&query).await.map_err(|e| {
+        println!("Error getting suggestions: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     Ok(Json(SuggestionResponse {
         suggestions: response.results,
