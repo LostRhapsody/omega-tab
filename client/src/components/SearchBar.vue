@@ -62,6 +62,10 @@
 							@mouseover="focusedIndex = index">
 							<a variant="plain" @click="() => suggestionHandler(suggestion.query)">{{ suggestion.query }}</a>
 						</div>
+						<div v-if="autoSuggestions.length">
+							<v-divider class="mb-2" />
+							<em>Suggestions POWERED BY BRAVE</em>
+						</div>
 					</div>
 				</div>
 			</v-container>
@@ -75,13 +79,13 @@ import Fuse from "fuse.js";
 import type { FuseResult } from "fuse.js";
 import { computed, defineProps, onMounted, onUnmounted, ref, watch } from "vue";
 import type { Link } from "../types/Link";
-import type { Suggestions } from "@/types/Suggestion";
+import type { Suggestions, SuggestionsResponse } from "@/types/Suggestion";
 import { debounce } from "lodash";
 import { searchEngines } from "../data/SearchEngines";
 import { useLinksStore } from "../stores/links";
 import { storeToRefs } from "pinia";
 import { API } from "../constants/api";
-const AUTO_SUGGEST_ON = import.meta.env.VITE_AUTO_SUGGEST_ON;
+const AUTO_SUGGEST_ON = import.meta.env.VITE_AUTO_SUGGEST_ON === 'true';
 
 interface HistoryItem {
 	query: string;
@@ -417,9 +421,9 @@ const getSuggestions = async (query: string) => {
 	if(!AUTO_SUGGEST_ON) return;
 	try {
 		const response = await fetch(API.SUGGEST(query));
-		autoSuggestions.value = await response.json();
+		const suggestionResponse = await response.json() as SuggestionsResponse;
 		// todo make this type safer
-		autoSuggestions.value = autoSuggestions.value.suggestions;
+		autoSuggestions.value = suggestionResponse.suggestions;
 	} catch (error) {
 		console.error("Error fetching suggestion:", error);
 	}
@@ -432,6 +436,10 @@ const suggestionHandler = (suggestion: string) => {
 
 // watch, mount, and unmount
 watch(searchQuery, async (newQuery) => {
+	// if you type more stuff, reset the focused index, 
+	// so we don't have the wrong thing selected by accident
+	focusedIndex.value = -1;
+
 	// Run height adjustment when text changes
 	adjustHeight();
 
@@ -502,7 +510,6 @@ onUnmounted(() => {
 
 .dropdown-item a {
 	color: var(--color-text);
-	text-decoration: underline;
 }
 
 .pill-links {
