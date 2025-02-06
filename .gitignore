@@ -31,3 +31,4 @@ coverage
 tailwind.css
 
 server/target/*
+.env.sentry-build-plugin

@@ -1,3 +1,4 @@
+import { sentryVitePlugin } from "@sentry/vite-plugin";
 import { fileURLToPath, URL } from 'node:url'
 
 import { defineConfig } from 'vite'
@@ -18,10 +19,19 @@ export default defineConfig({
       algorithm: 'gzip',
       ext: '.gz',
     }),
+    sentryVitePlugin({
+      org: "better-new-tab",
+      project: "betternewtab-vue"
+    })
   ],
+
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
   },
+
+  build: {
+    sourcemap: true
+  }
 })

@@ -20,5 +20,5 @@ export const searchEngines: SearchEngine[] = [
     icon: "icons/brave.svg",
     name: "Brave",
     url: "https://search.brave.com/search?q=",
-  }
+  },
 ];
