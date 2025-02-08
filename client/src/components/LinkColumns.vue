@@ -16,8 +16,8 @@
 			<AddLinkCard v-if="canAddLinks" :columnType="'docs'" :tools="props.tools" :docs="props.docs"
 				:userId="props.userId" :maxPins="props.maxPins" :isPlanFree="isPlanFree" />
 		</div>
+		<EditLinkModal v-model="showEditModal" :link="editingLink" />
 	</div>
-	<EditLinkModal v-model="showEditModal" :link="editingLink" />
 </template>
 
 <script setup lang="ts">

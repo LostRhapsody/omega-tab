@@ -167,11 +167,6 @@ const getFilteredHistory = computed(() => {
 		.slice(0, MAX_DISPLAYED_HISTORY);
 });
 
-const validateUrl = (url: string): boolean => {
-	const urlPattern = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/;
-	return urlPattern.test(url);
-};
-
 // Replace the isCompleteURI computed property with this optimized version
 const isCompleteURI = computed(() => {
 	// Early return for empty strings or strings without dots
@@ -179,7 +174,7 @@ const isCompleteURI = computed(() => {
 		return false;
 	}
 
-	if (validateUrl(searchQuery.value)) {
+	if (linksStore.validateUrl(searchQuery.value)) {
 		return true;
 	}
 
@@ -331,7 +326,7 @@ const handleKeydown = (event: KeyboardEvent) => {
 						selectHistoryItem(
 							getFilteredHistory.value[focusedIndex.value].item,
 						);
-					} 
+					}
 					// handle the auto suggestions
 					else if (focusedIndex.value < historyLength + suggestionsLength) {
 						suggestionHandler(autoSuggestions.value[focusedIndex.value - historyLength].query);
@@ -439,7 +434,7 @@ const suggestionHandler = (suggestion: string) => {
 
 // watch, mount, and unmount
 watch(searchQuery, async (newQuery) => {
-	// if you type more stuff, reset the focused index, 
+	// if you type more stuff, reset the focused index,
 	// so we don't have the wrong thing selected by accident
 	focusedIndex.value = -1;
 

@@ -1,84 +1,86 @@
 <!-- AddLinkCard.vue -->
 <template>
-	<div v-if="!isAtMaxPins || (isAtMaxPins && isPlanFree)" @click="handleClick"
-		class="group cursor-pointer border-2 rounded-lg p-4 transition-all duration-300 flex flex-col items-center justify-center space-y-2"
-		:class="[
-			isAtMaxPins
-				? 'border-amber-500 bg-amber-50 hover:bg-amber-100'
-				: 'border-dashed hover:border-primary border-gray-300'
-		]" @mouseenter="hover = true" @mouseleave="hover = false">
-		<v-icon :color="isAtMaxPins ? 'amber-darken-2' : (hover ? 'primary' : 'grey')" size="24">
-			{{ isAtMaxPins ? 'mdi-arrow-up-circle' : 'mdi-plus' }}
-		</v-icon>
-		<span :class="isAtMaxPins ? 'text-amber-700' : (hover ? 'text-primary' : 'text-grey')">
-			{{ isAtMaxPins ? 'Upgrade for more pins' : 'Add new link' }}
-		</span>
+	<div>
+		<div v-if="!isAtMaxPins || (isAtMaxPins && isPlanFree)" @click="handleClick"
+			class="group cursor-pointer border-2 rounded-lg p-4 transition-all duration-300 flex flex-col items-center justify-center space-y-2"
+			:class="[
+				isAtMaxPins
+					? 'border-amber-500 bg-amber-50 hover:bg-amber-100'
+					: 'border-dashed hover:border-primary border-gray-300'
+			]" @mouseenter="hover = true" @mouseleave="hover = false">
+			<v-icon :color="isAtMaxPins ? 'amber-darken-2' : (hover ? 'primary' : 'grey')" size="24">
+				{{ isAtMaxPins ? 'mdi-arrow-up-circle' : 'mdi-plus' }}
+			</v-icon>
+			<span :class="isAtMaxPins ? 'text-amber-700' : (hover ? 'text-primary' : 'text-grey')">
+				{{ isAtMaxPins ? 'Upgrade for more pins' : 'Add new link' }}
+			</span>
+		</div>
+
+		<v-dialog v-model="isModalOpen" width="500">
+			<v-card>
+				<v-card-title>Add New Link</v-card-title>
+
+				<v-card-text>
+					<v-form @submit.prevent="handleSubmit" ref="form">
+						<v-text-field v-model="formData.url" :rules="[v => !!v || 'URL is required', linksStore.validateUrl]"
+							label="URL" required type="url" @keyup.enter="handleSubmit"></v-text-field>
+
+						<v-text-field @keyup.enter="(e: Event) => { e.preventDefault(); handleSubmit() }"
+							v-model="formData.title" label="Title"></v-text-field>
+
+						<v-textarea @keydown.enter.prevent="(e: KeyboardEvent) => {
+							if (e.shiftKey && e.target !== null) {
+								(e.target as HTMLTextAreaElement).value += '\n'
+							} else {
+								handleSubmit()
+							}
+						}" v-model="formData.description" label="Description" rows="3"></v-textarea>
+					</v-form>
+					<p></p>
+				</v-card-text>
+
+
+				<v-card-actions>
+					<div class="text-xs text-gray-500 grid grid-cols-3 gap-2 ps-4 pb-4">
+						<span class="col-span-1 text-start">Submit:</span>
+						<span class="col-span-2">
+							<span class="kbd">enter<v-icon size="18">mdi-keyboard-return</v-icon></span>
+						</span>
+						<span class="col-span-1 text-start">New line:</span>
+						<span class="col-span-2">
+							<span class="kbd">shift<v-icon size="18">mdi-arrow-up</v-icon></span> + <span
+								class="kbd">enter<v-icon size="18">mdi-keyboard-return</v-icon></span>
+						</span>
+					</div>
+					<v-spacer></v-spacer>
+					<div class="grid grid-rows-2 gap-4">
+						<div>
+							<v-btn color="grey-darken-1" variant="text" @click="closeModal">
+								Cancel
+							</v-btn>
+							<v-btn color="primary" variant="text" :loading="isLoading" @click="handleSubmit">
+								Add Link
+							</v-btn>
+						</div>
+						<div class="flex justify-end">
+							<v-tooltip location="left" :z-index="1000" max-width="300">
+								<template v-slot:activator="{ props }">
+									<v-btn v-bind="props">
+										<v-icon size="x-large" icon="mdi-help-circle-outline" class="text-gray-500" />
+									</v-btn>
+								</template>
+								<span>
+									<span class="kbd">+Plus Feature</span><br/>
+									If title and description are left blank, <strong>Better New Tab</strong> attempts to them this, along
+									with an icon, from the URL's website.
+								</span>
+							</v-tooltip>
+						</div>
+					</div>
+				</v-card-actions>
+			</v-card>
+		</v-dialog>
 	</div>
-
-	<v-dialog v-model="isModalOpen" width="500">
-		<v-card>
-			<v-card-title>Add New Link</v-card-title>
-
-			<v-card-text>
-				<v-form @submit.prevent="handleSubmit" ref="form">
-					<v-text-field v-model="formData.url" :rules="[v => !!v || 'URL is required', validateUrl]"
-						label="URL" required type="url" @keyup.enter="handleSubmit"></v-text-field>
-
-					<v-text-field @keyup.enter="(e: Event) => { e.preventDefault(); handleSubmit() }"
-						v-model="formData.title" label="Title"></v-text-field>
-
-					<v-textarea @keydown.enter.prevent="(e: KeyboardEvent) => {
-						if (e.shiftKey && e.target !== null) {
-							(e.target as HTMLTextAreaElement).value += '\n'
-						} else {
-							handleSubmit()
-						}
-					}" v-model="formData.description" label="Description" rows="3"></v-textarea>
-				</v-form>
-				<p></p>
-			</v-card-text>
-
-
-			<v-card-actions>
-				<div class="text-xs text-gray-500 grid grid-cols-3 gap-2 ps-4 pb-4">
-					<span class="col-span-1 text-start">Submit:</span>
-					<span class="col-span-2">
-						<span class="kbd">enter<v-icon size="18">mdi-keyboard-return</v-icon></span>
-					</span>
-					<span class="col-span-1 text-start">New line:</span>
-					<span class="col-span-2">
-						<span class="kbd">shift<v-icon size="18">mdi-arrow-up</v-icon></span> + <span
-							class="kbd">enter<v-icon size="18">mdi-keyboard-return</v-icon></span>
-					</span>
-				</div>
-				<v-spacer></v-spacer>
-				<div class="grid grid-rows-2 gap-4">
-					<div>
-						<v-btn color="grey-darken-1" variant="text" @click="closeModal">
-							Cancel
-						</v-btn>
-						<v-btn color="primary" variant="text" :loading="isLoading" @click="handleSubmit">
-							Add Link
-						</v-btn>
-					</div>
-					<div class="flex justify-end">
-						<v-tooltip location="left" :z-index="1000" max-width="300">
-							<template v-slot:activator="{ props }">
-								<v-btn v-bind="props">
-									<v-icon size="x-large" icon="mdi-help-circle-outline" class="text-gray-500" />
-								</v-btn>
-							</template>
-							<span>
-								<span class="kbd">+Plus Feature</span><br/>
-								If title and description are left blank, <strong>Better New Tab</strong> attempts to them this, along
-								with an icon, from the URL's website.
-							</span>
-						</v-tooltip>
-					</div>
-				</div>
-			</v-card-actions>
-		</v-card>
-	</v-dialog>
 </template>
 
 <script setup lang="ts">
@@ -155,11 +157,6 @@
 		if (form.value) {
 			form.value.resetValidation();
 		}
-	};
-
-	const validateUrl = (url: string): boolean | string => {
-		const urlPattern = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/;
-		return urlPattern.test(url) ? true : "Please enter a valid URL";
 	};
 
 	const handleSubmit = async () => {

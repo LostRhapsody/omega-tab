@@ -5,7 +5,7 @@
 
 			<v-card-text>
 				<v-form @submit.prevent="handleSubmit" ref="form">
-					<v-text-field v-model="formData.url" :rules="[v => !!v || 'URL is required', validateUrl]" label="URL"
+					<v-text-field v-model="formData.url" :rules="[v => !!v || 'URL is required', linkStore.validateUrl]" label="URL"
 						required type="url" @keyup.enter="handleSubmit"></v-text-field>
 
 					<v-text-field v-model="formData.title" label="Title"
@@ -108,11 +108,6 @@ watch(
 		emit("update:modelValue", newValue);
 	},
 );
-
-const validateUrl = (url: string): boolean | string => {
-	const urlPattern = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/;
-	return urlPattern.test(url) ? true : "Please enter a valid URL";
-};
 
 const closeModal = () => {
 	isModalOpen.value = false;

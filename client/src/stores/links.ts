@@ -157,5 +157,10 @@ export const useLinksStore = defineStore("links", {
         typeof obj.column_type === "string"
       );
     },
+
+    validateUrl(url: string): boolean | string {
+      const urlPattern = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?(\?.*)?$/;
+      return urlPattern.test(url) ? true : "Please enter a valid URL";
+    },
   },
 });

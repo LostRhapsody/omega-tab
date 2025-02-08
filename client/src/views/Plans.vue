@@ -156,17 +156,13 @@
       </div>
     </div>
   </div>
-  <StripeCheckout v-model="showCheckout" :plan-id="selectedPlan.id" :plan-name="selectedPlan.name"
-    :price="selectedPlan.price" />
 </template>
 
 <script setup lang="ts">
   import { ref } from "vue";
   import { useRouter } from "vue-router";
-  import StripeCheckout from "../components/StripeCheckout.vue";
 
   const router = useRouter();
-  const showCheckout = ref(false);
   const selectedPlan = ref({
     id: "",
     name: "",
@@ -177,11 +173,6 @@
 
   const handleBack = () => {
     router.go(-1);
-  };
-
-  const handleUpgrade = (plan: { id: string; name: string; price: number }) => {
-    selectedPlan.value = plan;
-    showCheckout.value = true;
   };
 </script>
 
