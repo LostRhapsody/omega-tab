@@ -263,7 +263,7 @@
     </v-dialog>
 
     <!-- Feedback Form -->
-    <Feedback v-model="showFeedbackDialog" @update:modelValue="handleFeedbackDialogClose"/>
+    <Feedback v-model="showFeedbackDialog" @update:modelValue="handleFeedbackDialogClose" cancelSubscription="true"/>
   </div>
 </template>
 

@@ -130,6 +130,8 @@
     </div>
   </v-container>
 
+  <Feedback v-model="showFeedbackDialog" @update:modelValue="handleFeedbackDialogClose" :cancelSubscription="false"/>
+
   <div class="fixed bottom-4 right-4">
     <v-menu location="top">
       <template v-slot:activator="{ props }">
@@ -160,9 +162,25 @@
             Help Center
           </v-list-item-title>
         </v-list-item>
+        <v-list-item @click="showFeedbackDialog = true">
+          <v-list-item-title>
+            <v-icon icon="mdi-comment-quote-outline" />
+            Send Feedback
+          </v-list-item-title>
+        </v-list-item>
       </v-list>
     </v-menu>
   </div>
+
+  <v-dialog v-model="showFeedbackMessageDialog" max-width="500px">
+    <v-card>
+      <v-card-title class="headline">{{ feedbackMessageTitle }}</v-card-title>
+      <v-card-text>{{ feedbackMessage }}</v-card-text>
+      <v-card-actions>
+        <v-btn variant="tonal" @click="showFeedbackMessageDialog = false">Close</v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 
 </template>
 <script setup lang="ts">
@@ -173,13 +191,17 @@
   import LandingPage from "../components/LandingPage.vue";
   import LinkColumns from "../components/LinkColumns.vue";
   import SearchBar from "../components/SearchBar.vue";
+  import Feedback from "../components/Feedback.vue";
   import { useUserStore } from "../stores/user";
   import { useLinksStore } from "../stores/links";
+  import { useFeedbackStore } from "../stores/feedback";
   import { storeToRefs } from "pinia";
   import { searchEngines } from "../data/SearchEngines";
+  import { API } from "../constants/api";
 
   const userStore = useUserStore();
   const linksStore = useLinksStore();
+  const feedbackStore = useFeedbackStore();
   // Convert store properties to refs for reactivity
   const { toolLinks, docLinks } = storeToRefs(linksStore)
   const { links } = storeToRefs(linksStore)
@@ -194,6 +216,10 @@
   const isLoading = ref(true);
   const showSignIn = ref(false);
   const showHelpDialog = ref(false);
+  const showFeedbackDialog = ref(false);
+  const showFeedbackMessageDialog = ref(false);
+  const feedbackMessageTitle = ref("");
+  const feedbackMessage = ref("");
 
   // User and data state
   const userId = ref<string | null>(null);
@@ -272,6 +298,50 @@
   const handleShowKeyboardShortcuts = (event: KeyboardEvent) => {
     if (event.key === "?") {
       showHelpDialog.value = true;
+    }
+  };
+
+  const handleFeedbackDialogClose = async (value: boolean) => {
+    console.log("Feedback dialog closed", value);
+    // only want to run this on close (meaning value is false)
+    if(value) return;
+
+    showFeedbackDialog.value = value;
+    if(!userStore.userId) return;
+    if(!userStore.email) return;
+
+    try {
+      const response = await fetch(API.FEEDBACK(userStore.userId, userStore.email), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          reasons: feedbackStore.reasons,
+          feedback_comment: feedbackStore.feedbackComment,
+        }),
+      });
+
+      switch (response.status) {
+        case 200:
+          feedbackMessageTitle.value = "Thank You!";
+          feedbackMessage.value = "Your feedback has been submitted successfully.";
+          break;
+        case 429:
+          feedbackMessageTitle.value = "Too Many Requests";
+          feedbackMessage.value = "Feedback already submitted today, please wait 24 hours before submitting again.";
+          break;
+        default:
+          feedbackMessageTitle.value = "Error";
+          feedbackMessage.value = "An unknown error occurred.";
+          break;
+      }
+    } catch (error) {
+      feedbackMessageTitle.value = "Error";
+      feedbackMessage.value = "An unknown error occurred.";
+    } finally {
+      showFeedbackMessageDialog.value = true;
+      feedbackStore.clearFeedback();
     }
   };
 

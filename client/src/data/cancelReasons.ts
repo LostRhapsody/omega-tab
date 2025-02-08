@@ -1,5 +1,5 @@
 export const cancelReasons = [
-  { label: "Better New Tab Is Not The High Quality Experience I Expected", value: "low_quality" },
+  { label: "It's Not The High Quality Experience I Expected", value: "low_quality" },
   { label: "Key Features I Need Are Missing", value: "missing_features" },
   { label: "I Switched to Another Service", value: "switched_service" },
   { label: "Better New Tab Is Too Complex", value: "too_complex" },

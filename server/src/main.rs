@@ -1,4 +1,5 @@
 mod brave;
+mod resend;
 mod stripe_client;
 mod supabase;
 
@@ -9,6 +10,7 @@ use axum::{
     Router,
 };
 use brave::Brave;
+use resend::ResendClient;
 use chrono::{TimeZone, Utc};
 use dotenv::dotenv;
 use reqwest::header::{HeaderMap, HeaderValue, USER_AGENT};
@@ -129,6 +131,7 @@ async fn runtime() {
         .route("/user/{user_id}", get(move |path| get_user_handler(path)))
         // get suggestion
         .route("/suggest/{query}", get(move |path| suggest_handler(path)))
+        .route("/feedback/{user_id}/{user_email}", post(feedback_handler))
         .layer(cors);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
@@ -771,4 +774,52 @@ async fn suggest_handler(
     Ok(Json(SuggestionResponse {
         suggestions: response.results,
     }))
+}
+
+async fn feedback_handler(
+    Path((user_id, user_email)): Path<(String, String)>,
+    Json(payload): Json<FeedbackRequest>,
+) -> Result<StatusCode, StatusCode> {
+    println!("Feedback for user: {}", user_id);
+
+    let supabase = Supabase::new(
+        std::env::var("SUPABASE_URL").expect("SUPABASE_URL must be set"),
+        std::env::var("SUPABASE_KEY").expect("SUPABASE_KEY must be set"),
+    )
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Check if the user has sent feedback in the last 24 hours
+    let can_send_feedback = supabase.check_feedback_timestamp(&user_id).await.map_err(|e| {
+        println!("Error checking feedback timestamp: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    if !can_send_feedback {
+        return Err(StatusCode::TOO_MANY_REQUESTS);
+    }
+
+    let resend_service = ResendClient::new();
+
+    let customer_support_email = std::env::var("CUSTOMER_SUPPORT_EMAIL").expect("CUSTOMER_SUPPORT_EMAIL must be set");
+
+    let email_body = format!(
+        "<p>Feedback from user: {} | {}<br/><br/>Reasons: {:?}<br/><br/>Feedback: {}</p>",
+        user_id, user_email, payload.reasons, payload.feedback_comment.unwrap_or_else(|| "".to_string())
+    );
+
+    let subject = format!("Feedback from: {}", user_email);
+
+    resend_service.send_email(&customer_support_email, &subject, &email_body).await.map_err(|e| {
+        println!("Error sending email: {:?}", e);
+        tracing::error!("Error sending email: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    // Create a feedback timestamp record
+    supabase.create_feedback_timestamp(&user_id, &Utc::now().to_rfc3339()).await.map_err(|e| {
+        println!("Error creating feedback timestamp: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    Ok(StatusCode::OK)
 }

@@ -2,18 +2,23 @@
   <v-dialog v-model="dialog" max-width="500px">
     <v-card>
       <v-card-title>
-        We're sorry to see you go
+        {{ cancelSubscription ? "We're sorry to see you go" : 'Feedback' }}
       </v-card-title>
       <v-card-text>
-        <p>Would you mind telling us why you're cancelling?</p>
-            <v-radio-group v-model="feedbackData.reasons">
-            <v-radio
-              v-for="reason in cancelReasons"
-              :key="reason.value"
-              :label="reason.label"
-              :value="reason.value"
-            ></v-radio>
-            </v-radio-group>
+        <p class="mb-4">
+          {{ cancelSubscription
+            ? "Would you mind telling us why you're cancelling?"
+            : 'We would love to hear your feedback!'
+          }}
+        </p>
+        <v-radio-group v-model="feedbackData.reasons">
+        <v-radio
+          v-for="reason in cancelReasons"
+          :key="reason.value"
+          :label="reason.label"
+          :value="reason.value"
+        ></v-radio>
+        </v-radio-group>
         <v-textarea
           v-model="feedbackData.additionalComments"
           label="Additional comments (optional)"
@@ -49,6 +54,10 @@ import { useFeedbackStore } from '@/stores/feedback'
 const dialog = ref(false)
 const props = defineProps({
   modelValue: {
+    type: Boolean,
+    default: false
+  },
+  cancelSubscription: {
     type: Boolean,
     default: false
   }

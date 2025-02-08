@@ -617,4 +617,65 @@ impl Supabase {
 
         Ok(())
     }
+
+    pub async fn create_feedback_timestamp(
+        &self,
+        user_id: &str,
+        created_at: &str,
+    ) -> Result<()> {
+        let response = self
+            .client
+            .post(format!("{}/rest/v1/feedback_timestamps", self.url))
+            .headers(self.build_headers()?)
+            .json(&serde_json::json!({
+                "user_id": user_id,
+                "created_at": created_at,
+            }))
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let error_text = response.text().await?;
+            return Err(anyhow::anyhow!("Failed to create feedback timestamp: {}", error_text));
+        }
+
+        Ok(())
+    }
+
+    pub async fn check_feedback_timestamp(
+        &self,
+        user_id: &str
+    ) -> Result<bool> {
+        let response = self
+            .client
+            .get(format!(
+                "{}/rest/v1/feedback_timestamps?user_id=eq.{}",
+                self.url, user_id
+            ))
+            .headers(self.build_headers()?)
+            .send()
+            .await?;
+
+        let timestamps: Vec<serde_json::Value> = response.json().await?;
+        println!("timestamps: {:?}", timestamps);
+        if timestamps.is_empty() {
+            return Ok(true);
+        }
+
+        let timestamp = timestamps[0]["created_at"].as_str().ok_or_else(|| anyhow::anyhow!("Invalid timestamp"))?;
+        let timestamp = chrono::DateTime::parse_from_rfc3339(timestamp)?;
+
+        if chrono::Utc::now().signed_duration_since(timestamp) < chrono::Duration::hours(24) {
+            return Ok(false);
+        }
+
+        // Delete the record from the DB
+        self.client
+            .delete(format!("{}/rest/v1/feedback_timestamps?user_id=eq.{}", self.url, user_id))
+            .headers(self.build_headers()?)
+            .send()
+            .await?;
+
+        Ok(true)
+    }
 }
