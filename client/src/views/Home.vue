@@ -3,7 +3,7 @@
     <div v-if="isLoading" class="h-screen flex items-center justify-center">
       <v-progress-circular indeterminate />
     </div>
-    <v-container v-else>
+    <v-container v-else-if="isLoggedIn && !isLoading">
       <div v-if="isLoggedIn">
         <v-container class="bg-primary">
           <v-row class="items-center">
@@ -114,22 +114,16 @@
           </v-card>
         </v-dialog>
       </div>
-      <div v-else class="mt-16">
-        <v-container class="bg-primary text-center">
-          <v-row align="center" justify="end" class="text-end">
-            <v-col>
-              <v-btn @click="handleShowSignIn" color="primary">Login</v-btn>
-            </v-col>
-          </v-row>
-        </v-container>
-        <LandingPage />
+    </v-container>
+    <div v-else>
+        <!-- <LandingPage /> -->
+        <NewLandingPage />
         <v-dialog v-model="showSignIn" max-width="600px">
           <div class="m-auto">
             <div id="sign-in"></div>
           </div>
         </v-dialog>
-      </div>
-    </v-container>
+    </div>
 
     <Feedback v-model="showFeedbackDialog" @update:modelValue="handleFeedbackDialogClose" :cancelSubscription="false" />
 
@@ -191,6 +185,7 @@ import { Clerk } from "@clerk/clerk-js";
 import { computed, nextTick, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import LandingPage from "../components/LandingPage.vue";
+import NewLandingPage from "../components/NewLandingPage.vue";
 import LinkColumns from "../components/LinkColumns.vue";
 import SearchBar from "../components/SearchBar.vue";
 import Feedback from "../components/Feedback.vue";
