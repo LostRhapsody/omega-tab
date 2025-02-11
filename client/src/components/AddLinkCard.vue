@@ -58,43 +58,43 @@
 
 
 				<v-card-actions>
-					<div class="text-xs text-gray-500 grid grid-cols-3 gap-2 ps-4 pb-4">
-						<span class="col-span-1 text-start">Submit:</span>
-						<span class="col-span-2">
-							<span class="kbd">enter<v-icon size="18">mdi-keyboard-return</v-icon></span>
-						</span>
-						<span class="col-span-1 text-start">New line:</span>
-						<span class="col-span-2">
-							<span class="kbd">shift<v-icon size="18">mdi-arrow-up</v-icon></span> + <span
-								class="kbd">enter<v-icon size="18">mdi-keyboard-return</v-icon></span>
-						</span>
-					</div>
-					<v-spacer></v-spacer>
-					<div class="grid grid-rows-2 gap-4">
-						<div>
-							<v-btn color="grey-darken-1" variant="text" @click="closeModal">
-								Cancel
-							</v-btn>
-							<v-btn color="primary" variant="text" :loading="isLoading" @click="handleSubmit">
-								Add Link
-							</v-btn>
-						</div>
-						<div class="flex justify-end">
-							<v-tooltip location="left" :z-index="1000" max-width="300">
-								<template v-slot:activator="{ props }">
-									<v-btn v-bind="props">
-										<v-icon size="x-large" icon="mdi-help-circle-outline" class="text-gray-500" />
-									</v-btn>
-								</template>
-								<span>
-									<span class="kbd">+Plus Feature</span><br/>
-									If title and description are left blank, <strong>Better New Tab</strong> attempts to them this, along
-									with an icon, from the URL's website.
+							<div :class="mobile ? 'hidden' : 'text-xs text-gray-500 grid grid-cols-3 gap-2 ps-4 pb-4'">
+								<span class="col-span-1 text-start">Submit:</span>
+								<span class="col-span-2">
+									<span class="kbd">enter<v-icon size="18">mdi-keyboard-return</v-icon></span>
 								</span>
-							</v-tooltip>
+								<span class="col-span-1 text-start">New line:</span>
+								<span class="col-span-2">
+									<span class="kbd">shift<v-icon size="18">mdi-arrow-up</v-icon></span> + <span
+									class="kbd">enter<v-icon size="18">mdi-keyboard-return</v-icon></span>
+								</span>
+							</div>
+							<v-spacer v-if="!mobile"></v-spacer>
+							<div :class="mobile ? 'flex flex-col gap-4 w-full' : 'grid grid-rows-2 gap-4'">
+								<div :class="mobile ? 'flex justify-around' : ''">
+									<v-btn color="grey-darken-1" :variant="mobile ? 'elevated' : 'text' " :size="mobile ? 'x-large' : 'default'" @click="closeModal">
+										Cancel
+									</v-btn>
+									<v-btn color="primary" :variant="mobile ? 'elevated' : 'text'" :size="mobile ? 'x-large' : 'default'" :loading="isLoading" @click="handleSubmit">
+										Add Link
+									</v-btn>
+								</div>
+								<div class="flex justify-end">
+									<v-tooltip location="left" :z-index="1000" max-width="300" open-on-click>
+										<template v-slot:activator="{ props }">
+											<v-btn v-bind="props">
+												<v-icon size="x-large" icon="mdi-help-circle-outline" class="text-gray-500" />
+											</v-btn>
+										</template>
+										<span>
+											<span class="kbd">+Plus Feature</span><br/>
+											If title and description are left blank, <strong>Better New Tab</strong> attempts to them this, along
+											with an icon, from the URL's website.
+										</span>
+									</v-tooltip>
+							</div>
 						</div>
-					</div>
-				</v-card-actions>
+					</v-card-actions>
 			</v-card>
 		</v-dialog>
 	</div>

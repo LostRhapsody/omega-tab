@@ -2,7 +2,7 @@
   <div class="settings-container h-screen">
     <v-card>
       <v-layout>
-        <v-navigation-drawer permanent location="left" width="256" class="h-full">
+        <v-navigation-drawer :rail="mobile" permanent location="left" width="256" class="h-full">
           <v-list>
             <v-list-item prepend-icon="mdi-arrow-left-circle" title="Back" value="back" @click="router.push('/')" />
             <v-list-item prepend-icon="mdi-account-cog" title="User Preferences" value="preferences"
@@ -19,7 +19,7 @@
     </v-card>
 
 
-    <div class="content-area ml-64 p-8">
+    <div :class="mobile ? 'content-area ml-16 p-8' : 'content-area ml-64 p-8'">
       <!-- User Preferences -->
       <div v-if="activeTab === 'preferences'" class="max-w-2xl">
         <h2 class="text-2xl font-bold mb-6">User Preferences</h2>
@@ -278,11 +278,13 @@
   import type { CancellationReason } from "../types/CancellationReasons";
   import { type UserSettings, UserSettingsLabels } from "../types/UserSettings";
   import { useUserSettingsStore } from "../stores/settings";
+  import { useDisplay } from 'vuetify';
 
   // In Settings.vue setup
   const userStore = useUserStore();
   const feedbackStore = useFeedbackStore();
   const settingsStore = useUserSettingsStore();
+  const mobile = useDisplay().smAndDown;
 
   const userId = computed(() => userStore.userId);
   const firstName = computed(() => userStore.firstName);
