@@ -128,6 +128,18 @@ impl Supabase {
         users.pop().ok_or_else(|| anyhow::anyhow!("404"))
     }
 
+    pub async fn get_user_by_email(&self, email: &str) -> Result<User> {
+        let response = self
+            .client
+            .get(format!("{}/rest/v1/users?email=eq.{}", self.url, email))
+            .headers(self.build_headers()?)
+            .send()
+            .await?;
+
+        let mut users: Vec<User> = response.json().await?;
+        users.pop().ok_or_else(|| anyhow::anyhow!("404"))
+    }
+
     pub async fn get_plan_by_stripe_id(&self, stripe_id: &str) -> Result<Plan> {
         let response = self
             .client

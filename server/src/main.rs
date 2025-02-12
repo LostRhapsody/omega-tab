@@ -5,7 +5,10 @@ mod supabase;
 
 use axum::{
     extract::{Json, Path, State},
-    http::StatusCode,
+    http::{
+        StatusCode,
+        HeaderMap,
+    },
     routing::{delete, get, post},
     Router,
 };
@@ -16,12 +19,16 @@ use dotenv::dotenv;
 use resend::ResendClient;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::collections::HashMap;
+use std::{
+    env,
+    collections::HashMap
+};
 use stripe_client::StripeClient;
 use supabase::Supabase;
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::prelude::*;
 use url::Url;
+use stripe::{Event, EventType, Subscription};
 
 #[derive(Serialize)]
 pub struct SubscriptionResponse {
@@ -151,6 +158,8 @@ async fn runtime() {
         .route("/suggest/{query}", get(move |path| suggest_handler(path)))
         .route("/feedback/{user_id}/{user_email}", post(feedback_handler))
         .route("/settings/{user_id}", post(create_settings).put(update_settings).get(get_settings))
+        // cancel subscription event listener for Stripe
+        .route("/stripe_cancel_hook", post(cancel_subscription_hook))
         .with_state(client)
         .layer(cors);
 
@@ -1011,4 +1020,103 @@ async fn get_settings(
         })?;
 
     Ok(Json(settings))
+}
+
+async fn cancel_subscription_hook(
+    headers: HeaderMap,
+    Json(payload): Json<Event>,
+) -> Result<StatusCode, StatusCode> {
+    println!("Received cancel subscription webhook");
+
+    let endpoint_secret = env::var("STRIPE_ENDPOINT_SECRET").expect("STRIPE_ENDPOINT_SECRET must be set");
+    let verify_signature = env::var("STRIPE_VERIFY_WEBHOOK_SIGNATURE").expect("STRIPE_VERIFY_WEBHOOK_SIGNATURE must be set");
+
+    let signature = headers
+        .get("Stripe-Signature")
+        .ok_or_else(|| {
+            println!("Missing Stripe-Signature header");
+            StatusCode::BAD_REQUEST
+        })?
+        .to_str()
+        .map_err(|e| {
+            println!("Error parsing Stripe-Signature header: {:?}", e);
+            StatusCode::BAD_REQUEST
+        })?;
+
+    let payload_str = serde_json::to_string(&payload).map_err(|e| {
+        println!("Error serializing payload: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let event = if verify_signature == "true" {
+        stripe::Webhook::construct_event(&payload_str, signature, &endpoint_secret)
+            .map_err(|e| {
+                println!("Error constructing Stripe event: {:?}", e);
+                StatusCode::BAD_REQUEST
+            })?
+    } else {
+        serde_json::from_str::<Event>(&payload_str).map_err(|e| {
+            println!("Error deserializing event: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+    };
+
+    if event.type_ != EventType::CustomerSubscriptionDeleted {
+        println!("Unexpected event type: {:?}", event.type_);
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    let event_data = serde_json::to_value(event.data.object).map_err(|e| {
+        println!("Error converting event data to value: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let subscription: Subscription = serde_json::from_value(event_data).map_err(|e| {
+        println!("Error deserializing subscription: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let customer_id = subscription.customer.id();
+
+    let user_email = StripeClient::get_customer_email(&customer_id).await.map_err(|e| {
+        println!("Error retrieving customer email for ID: {:?}, error: {:?}", customer_id, e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let user_email = match user_email {
+        Some(email) => email,
+        None => {
+            println!("No email found for customer ID: {:?}", customer_id);
+            return Err(StatusCode::NOT_FOUND);
+        }
+    };
+
+    let supabase = Supabase::new(
+        env::var("SUPABASE_URL").expect("SUPABASE_URL must be set"),
+        env::var("SUPABASE_KEY").expect("SUPABASE_KEY must be set"),
+    )
+    .map_err(|e| {
+        println!("Error initializing Supabase client: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let user = supabase.get_user_by_email(&user_email).await.map_err(|e| {
+        println!("Error retrieving user by email: {:?}", e);
+        StatusCode::NOT_FOUND
+    })?;
+
+    let mut updates = HashMap::new();
+    updates.insert("status".to_string(), json!("cancelled"));
+    updates.insert("stripe_subscription_id".to_string(), json!(subscription.id));
+    updates.insert(
+        "current_period_end".to_string(),
+        json!(Utc::now().to_rfc3339()),
+    );
+
+    supabase.update_subscription(&user.id, updates).await.map_err(|e| {
+        println!("Error updating subscription: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    Ok(StatusCode::OK)
 }

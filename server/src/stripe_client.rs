@@ -1,6 +1,7 @@
 // use axum::extract::Json;
 use stripe::{Client, Customer, ListCustomers};
 // use serde::{Deserialize, Serialize};
+use anyhow::Result;
 
 pub struct StripeClient {}
 
@@ -90,6 +91,26 @@ impl StripeClient {
             Err(err) => {
                 eprintln!("Error canceling subscription: {:?}", err);
                 None
+            }
+        }
+    }
+
+    pub async fn get_customer_email(customer_id: &str) -> Result<Option<String>> {
+        let secret_key = std::env::var("STRIPE_SECRET_KEY").expect("STRIPE_SECRET_KEY must be set");
+        let client = Client::new(secret_key);
+        let customer_id = match customer_id.parse::<stripe::CustomerId>() {
+            Ok(id) => id,
+            Err(err) => {
+                println!("Error parsing customer ID: {:?}", err);
+                return Err(err.into());
+            }
+        };
+
+        match Customer::retrieve(&client, &customer_id, &[]).await {
+            Ok(customer) => Ok(customer.email),
+            Err(err) => {
+                println!("Error retrieving customer email: {:?}", err);
+                Err(err.into())
             }
         }
     }
