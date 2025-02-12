@@ -1,5 +1,6 @@
 import { API } from "@/constants/api";
 import type { CreateLinkRequest, Link, UpdateLinkRequest } from "@/types/Link";
+import { CacheKeys, cache } from "@/utils/cache";
 import { defineStore } from "pinia";
 
 interface LinksState {
@@ -28,8 +29,15 @@ export const useLinksStore = defineStore("links", {
 
   actions: {
     async fetchLinks(userId: string) {
+      // Load from cache first
+      const cachedLinks = cache.get<Link[]>(CacheKeys.LINKS);
+      if (cachedLinks) {
+        this.links = cachedLinks;
+        this.isLoading = false;
+      }
+
+      // Then fetch fresh data
       this.isLoading = true;
-      // load link data
       try {
         const response = await fetch(API.GET_USER_LINKS(userId));
         /*
@@ -39,7 +47,9 @@ export const useLinksStore = defineStore("links", {
                 */
         switch (response.status) {
           case 200: {
-            this.links = await response.json();
+            const links = await response.json();
+            this.links = links;
+            cache.set(CacheKeys.LINKS, links);
             break;
           }
           default: {
@@ -72,6 +82,7 @@ export const useLinksStore = defineStore("links", {
           throw new Error("Invalid link data");
         }
         this.addLink(newLink);
+        cache.set(CacheKeys.LINKS, this.links);
       } catch (error) {
         this.error = error as string;
         this.isLoading = false;
@@ -96,6 +107,7 @@ export const useLinksStore = defineStore("links", {
         if (!response.ok) {
           throw new Error(`Failed to delete link ${response.status}`);
         }
+        cache.set(CacheKeys.LINKS, this.links);
       } catch (error) {
         this.error = error as string;
         this.isLoading = false;
@@ -135,6 +147,7 @@ export const useLinksStore = defineStore("links", {
         if (!response.ok) {
           throw new Error(`Failed to update link ${response.status}`);
         }
+        cache.set(CacheKeys.LINKS, this.links);
       } catch (error) {
         this.error = error as string;
         this.isLoading = false;

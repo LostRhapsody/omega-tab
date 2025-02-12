@@ -1,4 +1,5 @@
 import type { Subscription, SubscriptionResponse } from "@/types/Subscription";
+import { CacheKeys, cache } from "@/utils/cache";
 import { Clerk } from "@clerk/clerk-js";
 // src/router/index.ts
 import { createRouter, createWebHistory } from "vue-router";
@@ -31,6 +32,12 @@ const router = createRouter({
         const userStore = useUserStore();
         const userSettingsStore = useUserSettingsStore();
 
+        // Load from cache first
+        const cachedUser = cache.get(CacheKeys.USER);
+        if (cachedUser) {
+          Object.assign(userStore.$state, cachedUser);
+        }
+
         // if not logged in already in userStore (user probably refreshed page)
         if (!userStore.userId) {
           try {
@@ -47,12 +54,22 @@ const router = createRouter({
 
             let gotUser = false;
 
-            gotUser = await userStore.fetchUserData({
+            // Fetch user data asynchronously without blocking the UI
+            userStore.fetchUserData({
               id: clerk.user.id,
               firstName: clerk.user.firstName || "",
               lastName: clerk.user.lastName || "",
               email: clerk.user.emailAddresses[0].emailAddress,
+            }).then(success => {
+              if (!success) {
+              console.error("Failed to fetch user data");
+              }
+            }).catch(err => {
+              console.error("Error fetching user data:", err);
             });
+
+            // Proceed without waiting for fetchUserData to complete
+            gotUser = !!userStore.userId;
 
             if (!gotUser) {
               throw new Error("Failed to fetch user data");

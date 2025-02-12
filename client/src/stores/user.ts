@@ -1,6 +1,7 @@
 import { API } from "@/constants/api";
 import type { Subscription, SubscriptionResponse } from "@/types/Subscription";
 import type { ClerkUser, User, UserState } from "@/types/User";
+import { CacheKeys, cache } from "@/utils/cache";
 import { defineStore } from "pinia";
 
 export const useUserStore = defineStore("user", {
@@ -23,6 +24,12 @@ export const useUserStore = defineStore("user", {
      * @throws Error if the user data could not be fetched.
      */
     async fetchUserData(clerk_user: ClerkUser) {
+      // Try to load from cache first
+      const cachedData = cache.get<UserState>(CacheKeys.USER);
+      if (cachedData) {
+        Object.assign(this.$state, cachedData);
+      }
+
       let user: User;
       let subscription: SubscriptionResponse;
       this.isLoading = true;
@@ -137,6 +144,9 @@ export const useUserStore = defineStore("user", {
         this.isLoading = false;
         return false;
       }
+
+      // Update cache after successful fetch
+      cache.set(CacheKeys.USER, this.$state);
       this.isLoading = false;
       return true;
     },

@@ -361,18 +361,30 @@ onMounted(async () => {
 
         // if user store is already initialized, no need to fetch user data
         if (!userStore.userId) {
-          // pass clerk data to fetch user data
-          gotUser = await userStore.fetchUserData({
+
+          // Fetch user data asynchronously without blocking the UI
+          userStore.fetchUserData({
             id: clerk.user.id,
             firstName: clerk.user.firstName || "",
             lastName: clerk.user.lastName || "",
             email: clerk.user.emailAddresses[0].emailAddress,
+          }).then(success => {
+            if (!success) {
+            console.error("Failed to fetch user data");
+            }
+          }).catch(err => {
+            console.error("Error fetching user data:", err);
           });
+
+          // Proceed without waiting for fetchUserData to complete
+          gotUser = !!userStore.userId;
+
         } else gotUser = true;
 
       } catch (error) {
         console.error("Error fetching user data:", error);
       }
+      
       if (!gotUser) {
         throw new Error("Error fetching user data");
       }
