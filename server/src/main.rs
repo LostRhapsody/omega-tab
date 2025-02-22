@@ -30,7 +30,7 @@ use std::{
     collections::HashMap
 };
 use stripe_client::StripeClient;
-use supabase::Supabase;
+use supabase::{Supabase, UserSettings};
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::prelude::*;
 use url::Url;
@@ -212,6 +212,12 @@ async fn create_user_handler(
     match supabase.create_user(user.clone()).await {
         Ok(_) => {
             tracing::info!("Successfully created user: {}", user.email);
+            let create_settings_result = create_user_default_settings(&user).await;
+            if let Err(e) = create_settings_result {
+                if e == StatusCode::INTERNAL_SERVER_ERROR {
+                    tracing::error!("Failed to create user settings for user: {}", user.email);
+                }
+            }
             Ok(Json(user))
         },
         Err(e) => {
@@ -1241,6 +1247,12 @@ async fn get_user_data_handler(
                     tracing::error!("Failed to create user: {:?}", e);
                     StatusCode::INTERNAL_SERVER_ERROR
                 })?;
+            let create_settings_result = create_user_default_settings(&new_user).await;
+            if let Err(e) = create_settings_result {
+                if e == StatusCode::INTERNAL_SERVER_ERROR {
+                    tracing::error!("Failed to create user settings for user: {}", new_user.email);
+                }
+            }
             new_user
         }
     };
@@ -1275,7 +1287,20 @@ async fn get_user_data_handler(
     };
 
     tracing::info!("Fetching user settings for {}", user_id);
-    let settings = supabase.get_user_settings(&user_id).await.ok();
+    let settings = match supabase.get_user_settings(&user_id).await {
+        Ok(settings) => Some(settings),
+        Err(_) => {
+            match create_user_default_settings(&user).await {
+                Ok(new_settings) => Some(new_settings),
+                Err(e) => {
+                    if e == StatusCode::INTERNAL_SERVER_ERROR {
+                        tracing::error!("Failed to create user settings for user: {}", user.email);
+                    }
+                    None
+                }
+            }
+        }
+    };
 
     tracing::info!("Fetching links for user {}", user_id);
     let links = supabase.get_links(&user_id, "user")
@@ -1306,4 +1331,40 @@ async fn get_user_data_handler(
         settings,
         links,
     }))
+}
+
+async fn create_user_default_settings(user: &crate::supabase::User) -> Result<supabase::UserSettings, StatusCode> {
+    println!("Creating default user settings");
+
+    let supabase = Supabase::new(
+        std::env::var("SUPABASE_URL").expect("SUPABASE_URL must be set"),
+        std::env::var("SUPABASE_KEY").expect("SUPABASE_KEY must be set"),
+    ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let settings_blob = UserSettingsRequest {
+        search_history: false,
+        autosuggest: false,
+        jira_api: false,
+        confluence_api: false,
+        linear_api: false,
+        new_tabs: false,
+    };
+
+    let user_settings = supabase::UserSettings {
+        user_id: user.id.clone(),
+        settings_blob: json!(settings_blob),
+        created_at: Utc::now().to_rfc3339(),
+    };
+
+    let settings = supabase.get_user_settings(&user.id).await.ok();
+    if settings.is_none() {
+        if let Err(e) = supabase.create_user_settings(user_settings.clone()).await {
+            println!("Failed to create user settings: {:?}", e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+        return Ok(user_settings);
+    } else {
+        return Err(StatusCode::FOUND);
+    }
+
 }

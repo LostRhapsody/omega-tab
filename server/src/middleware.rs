@@ -77,18 +77,12 @@ pub async fn authenticate_user(
             axum::http::StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    println!("JWKS: {:?}", jwks);
-
     let header = decode_header(&token).map_err(|e| {
         eprintln!("Error: {}", e);
         axum::http::StatusCode::UNAUTHORIZED
     })?;
 
-    println!("Header: {:?}", header);
-
     let kid = header.kid.ok_or(axum::http::StatusCode::UNAUTHORIZED)?;
-
-    println!("Kid: {:?}", kid);
 
     let jwk = jwks["keys"]
         .as_array()
@@ -96,8 +90,6 @@ pub async fn authenticate_user(
         .iter()
         .find(|&jwk| jwk["kid"] == kid)
         .ok_or(axum::http::StatusCode::UNAUTHORIZED)?;
-
-    println!("JWK: {:?}", jwk);
 
     let decoding_key = DecodingKey::from_rsa_components(
         jwk["n"]
@@ -112,8 +104,6 @@ pub async fn authenticate_user(
         axum::http::StatusCode::UNAUTHORIZED
     })?;
 
-    println!("Have decoding key");
-
     let mut validation = Validation::new(Algorithm::RS256);
     validation.set_audience(&[
         std::env::var("DOMAIN").unwrap_or_else(|_| "http://localhost:3000".to_string())
@@ -124,11 +114,7 @@ pub async fn authenticate_user(
         axum::http::StatusCode::UNAUTHORIZED
     })?;
 
-    println!("Token data: {:?}", token_data);
-
     let claims = token_data.claims;
-
-    println!("Claims: {:?}", claims);
 
     if claims.exp < chrono::Utc::now().timestamp() as usize
         || claims.nbf > chrono::Utc::now().timestamp() as usize

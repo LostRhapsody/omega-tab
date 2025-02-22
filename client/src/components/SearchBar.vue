@@ -93,6 +93,7 @@ import { API } from "../constants/api";
 import { useSearchEngineStore } from '../stores/searchEngine';
 import { openUrl } from '../utils/openUrl';
 import { useDisplay } from 'vuetify';
+import api from "@/services/api";
 
 const AUTO_SUGGEST_ON = import.meta.env.VITE_AUTO_SUGGEST_ON === 'true';
 const mobile = useDisplay().smAndDown;
@@ -445,8 +446,8 @@ const handleSearchEngineHotkeys = (event: KeyboardEvent) => {
 const getSuggestions = async (query: string) => {
 	if(!AUTO_SUGGEST_ON) return;
 	try {
-		const response = await fetch(API.SUGGEST(query));
-		const suggestionResponse = await response.json() as SuggestionsResponse;
+		const response = await api.get(API.SUGGEST(query));
+		const suggestionResponse = response.data as SuggestionsResponse;
 		// todo make this type safer
 		autoSuggestions.value = suggestionResponse.suggestions;
 	} catch (error) {

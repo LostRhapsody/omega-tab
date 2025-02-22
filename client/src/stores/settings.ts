@@ -3,6 +3,7 @@ import type { UserSettings } from "@/types/UserSettings";
 import { CacheKeys, cache } from "@/utils/cache";
 import { defineStore } from "pinia";
 import { useUserStore } from "./user";
+import api from "@/services/api";
 
 export const useUserSettingsStore = defineStore("userSettings", {
   state: () => ({
@@ -22,13 +23,7 @@ export const useUserSettingsStore = defineStore("userSettings", {
       try {
         const userStore = useUserStore();
         if (!userStore.userId) return;
-        await fetch(API.UPDATE_SETTINGS(userStore.userId), {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(this.settings),
-        });
+        await api.put(API.UPDATE_SETTINGS, this.settings);
         cache.set(CacheKeys.SETTINGS, this.settings);
       } catch (error) {
         console.error("Failed to update settings:", error);
@@ -49,10 +44,9 @@ export const useUserSettingsStore = defineStore("userSettings", {
         try {
           const userStore = useUserStore();
           if (!userStore.userId) return;
-          const response = await fetch(API.GET_SETTINGS(userStore.userId));
-          const settings = await response.json();
-          this.settings = settings.settings_blob;
-          cache.set(CacheKeys.SETTINGS, settings.settings_blob);
+          const response = await api.get(API.GET_SETTINGS);
+          this.settings = response.data.settings_blob;
+          cache.set(CacheKeys.SETTINGS, this.settings);
         } catch (error) {
           console.error("Failed to fetch settings:", error);
         }
@@ -63,13 +57,7 @@ export const useUserSettingsStore = defineStore("userSettings", {
       try {
         const userStore = useUserStore();
         if (!userStore.userId) return;
-        await fetch(API.CREATE_SETTINGS(userStore.userId), {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(this.settings),
-        });
+        await api.post(API.CREATE_SETTINGS, this.settings);
         cache.set(CacheKeys.SETTINGS, this.settings);
       } catch (error) {
         console.error("Failed to create settings:", error);

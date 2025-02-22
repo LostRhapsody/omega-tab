@@ -197,6 +197,7 @@ import { useUserSettingsStore } from "../stores/settings";
 import { storeToRefs } from "pinia";
 import { searchEngines } from "../data/SearchEngines";
 import { API } from "../constants/api";
+import api from "../services/api";
 
 const userStore = useUserStore();
 const linksStore = useLinksStore();
@@ -312,15 +313,9 @@ const handleFeedbackDialogClose = async (value: boolean) => {
   if (!feedbackStore.reasons) return;
 
   try {
-    const response = await fetch(API.FEEDBACK(userStore.userId, userStore.email), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        reasons: feedbackStore.reasons,
-        feedback_comment: feedbackStore.feedbackComment,
-      }),
+    const response = await api.post(API.FEEDBACK, {
+      reasons: feedbackStore.reasons,
+      feedback_comment: feedbackStore.feedbackComment,
     });
 
     switch (response.status) {

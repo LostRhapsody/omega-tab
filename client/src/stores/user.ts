@@ -110,10 +110,8 @@ export const useUserStore = defineStore("user", {
         throw new Error("User ID or email not found");
       }
 
-      const response = await fetch(
-        API.CONFIRM_SUBSCRIPTION(this.email, this.userId),
-      );
-      if (!response.ok) {
+      const response = await api.get(API.CONFIRM_SUBSCRIPTION);
+      if (response.status !== 200) {
         throw new Error(
           `Failed to confirm subscription, status: ${response.status}`,
         );

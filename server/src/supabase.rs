@@ -73,7 +73,7 @@ pub struct UserMembership {
     pub created_at: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UserSettings {
     pub user_id: String,
     pub settings_blob: serde_json::Value,
@@ -180,7 +180,7 @@ impl Supabase {
 
     pub async fn create_user(&self, user: User) -> Result<User> {
         tracing::info!("Creating new user: {}", user.email);
-        
+
         // Check if user exists
         let existing_user = self.get_user(&user.id).await;
         if existing_user.is_ok() {

@@ -279,7 +279,7 @@
   import { type UserSettings, UserSettingsLabels } from "../types/UserSettings";
   import { useUserSettingsStore } from "../stores/settings";
   import { useDisplay } from 'vuetify';
-
+  import api from "@/services/api";
   // In Settings.vue setup
   const userStore = useUserStore();
   const feedbackStore = useFeedbackStore();
@@ -368,15 +368,11 @@
       if (selectedTeamId.value) {
         // Update existing team
         // todo add team creation/update logic to backend and call here
-        // await teamUtils.updateTeam(selectedTeamId.value, { name: teamForm.value.name });
+        // await api.put(`/teams/${selectedTeamId.value}`, { name: teamForm.value.name });
       } else {
         // todo add team creation/update logic to backend and call here
         // Create new team
-        // await teamUtils.createTeam(
-        //   userId,
-        //   userPlan.id,
-        //   teamForm.value.name
-        // );
+        // await api.post('/teams', { userId: userId.value, planId: userPlan.value.id, name: teamForm.value.name });
       }
       showTeamModal.value = false;
       // loadTeamData();
@@ -388,7 +384,7 @@
   const handleInvite = async () => {
     try {
       // todo add membership creation/update logic to backend and call here
-      // await membershipUtils.addMember(inviteEmail.value, selectedTeamId.value, 'team', 'member');
+      // await api.post('/memberships', { email: inviteEmail.value, teamId: selectedTeamId.value, role: 'member' });
       showInviteModal.value = false;
       // loadTeamData();
     } catch (error) {
@@ -399,7 +395,7 @@
   const updateMemberRole = async (userId: string, newRole: string) => {
     // try {
     //   // todo add membership creation/update logic to backend and call here
-    //   // await membershipUtils.updateMemberRole(userId, selectedTeamId.value, newRole);
+    //   // await api.put(`/memberships/${userId}`, { teamId: selectedTeamId.value, role: newRole });
     //   // loadTeamData();
     // } catch (error) {
     //   console.error('Error updating member role:', error);
@@ -409,7 +405,7 @@
   const removeMember = async (userId: string) => {
     // try {
     //   // todo add membership creation/update logic to backend and call here
-    //   // await membershipUtils.removeMember(userId, selectedTeamId.value);
+    //   // await api.delete(`/memberships/${userId}`, { data: { teamId: selectedTeamId.value } });
     //   // loadTeamData();
     // } catch (error) {
     //   console.error('Error removing member:', error);
@@ -420,11 +416,11 @@
     try {
       if (!userId.value) return;
       // todo add team creation/update logic to backend and call here
-      // const userTeams = await teamUtils.getUserTeams(userId.value);
+      // const userTeams = await api.get(`/users/${userId.value}/teams`);
       // if (userTeams.length > 0) {
       // selectedTeamId.value = userTeams[0].teams?.id || "";
       // todo add team creation/update logic to backend and call here
-      // const members = await teamUtils.getTeamMembers(selectedTeamId.value);
+      // const members = await api.get(`/teams/${selectedTeamId.value}/members`);
       // teamMembers.value = members;
       // }
     } catch (error) {
@@ -457,15 +453,9 @@
       throw new Error("User email not found");
     }
     try {
-      const response = await fetch(API.CANCEL_SUBSCRIPTION(userStore.userId, userStore.email), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          reasons: feedbackStore.reasons as CancellationReason,
-          feedback_comment: feedbackStore.feedbackComment,
-        }),
+      const response = await api.post(API.CANCEL_SUBSCRIPTION, {
+        reasons: feedbackStore.reasons as CancellationReason,
+        feedback_comment: feedbackStore.feedbackComment,
       });
       /*
         200 If unsubscribed successfully

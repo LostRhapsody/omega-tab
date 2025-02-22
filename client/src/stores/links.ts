@@ -2,6 +2,7 @@ import { API } from "@/constants/api";
 import type { CreateLinkRequest, Link, UpdateLinkRequest } from "@/types/Link";
 import { CacheKeys, cache } from "@/utils/cache";
 import { defineStore } from "pinia";
+import api from "@/services/api";
 
 interface LinksState {
   links: Link[];
@@ -42,10 +43,10 @@ export const useLinksStore = defineStore("links", {
         // Then fetch fresh data
         this.isLoading = true;
         try {
-          const response = await fetch(API.GET_USER_LINKS(userId));
+          const response = await api.get(API.GET_USER_LINKS);
           switch (response.status) {
             case 200: {
-              const links = await response.json();
+              const links = response.data;
               this.links = links;
               cache.set(CacheKeys.LINKS, links);
               break;
@@ -66,17 +67,11 @@ export const useLinksStore = defineStore("links", {
     async postLink(link: CreateLinkRequest) {
       this.isLoading = true;
       try {
-        const response = await fetch(API.CREATE_LINK, {
-          headers: {
-            "Content-Type": "application/json",
-          },
-          method: "POST",
-          body: JSON.stringify(link),
-        });
+        const response = await api.post(API.CREATE_LINK, link);
         if (response.status !== 201) {
           throw new Error(`Failed to create link ${response.status}`);
         }
-        const newLink = (await response.json()) as Link;
+        const newLink = response.data as Link;
         if (!this.isLink(newLink)) {
           throw new Error("Invalid link data");
         }
@@ -100,10 +95,8 @@ export const useLinksStore = defineStore("links", {
       this.isLoading = true;
       this.links = this.links.filter((link) => link.id !== linkId);
       try {
-        const response = await fetch(API.DELETE_LINK(linkId), {
-          method: "DELETE",
-        });
-        if (!response.ok) {
+        const response = await api.delete(API.DELETE_LINK(linkId));
+        if (response.status !== 200) {
           throw new Error(`Failed to delete link ${response.status}`);
         }
         cache.set(CacheKeys.LINKS, this.links);
@@ -136,14 +129,8 @@ export const useLinksStore = defineStore("links", {
         if not 200, something went wrong
       */
       try {
-        const response = await fetch(API.UPDATE_LINK, {
-          headers: {
-            "Content-Type": "application/json",
-          },
-          method: "PUT",
-          body: JSON.stringify(updateLink),
-        });
-        if (!response.ok) {
+        const response = await api.put(API.UPDATE_LINK, updateLink);
+        if (response.status !== 200) {
           throw new Error(`Failed to update link ${response.status}`);
         }
         cache.set(CacheKeys.LINKS, this.links);
