@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 async-stripe = { version = "0.40.0", features = ["runtime-tokio-hyper"] }
-axum = { version = "0.8.1", features = ["json"] }
+axum = { version = "0.8.1", features = ["json", "macros"] }
 tokio = { version = "1.0", features = ["full"] }
 tower-http = { version = "0.6.2", features = ["cors", "fs"] }
 tower = "0.5.2"

@@ -777,15 +777,6 @@ impl Supabase {
             return Err(anyhow::anyhow!("Failed to update user settings: {}", error_text));
         }
 
-        if response.status() == reqwest::StatusCode::NO_CONTENT {
-            let user_settings = UserSettings {
-            user_id: user_id.to_string(),
-            settings_blob: updates.get("settings_blob").unwrap().clone(),
-            created_at: chrono::Utc::now().to_rfc3339(),
-            };
-            self.create_user_settings(user_settings).await?;
-        }
-
         Ok(())
     }
 

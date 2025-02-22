@@ -303,7 +303,6 @@ const handleShowKeyboardShortcuts = (event: KeyboardEvent) => {
 };
 
 const handleFeedbackDialogClose = async (value: boolean) => {
-  console.log("Feedback dialog closed", value);
   // only want to run this on close (meaning value is false)
   if (value) return;
 

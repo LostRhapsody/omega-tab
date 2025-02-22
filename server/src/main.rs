@@ -30,7 +30,7 @@ use std::{
     collections::HashMap
 };
 use stripe_client::StripeClient;
-use supabase::{Supabase, UserSettings};
+use supabase::Supabase;
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::prelude::*;
 use url::Url;
@@ -150,31 +150,25 @@ async fn runtime() {
     // Reminder! Anything you return must be serializable
     let app = Router::new()
         // confirm subscription
-        .route(
-            "/confirm/{user_email}/{user_id}",
-            get(move |path| confirm_handler(path)),
-        )
+        .route("/confirm",get(confirm_handler))
         // cancel subscription
-        .route("/cancel/{user_email}/{user_id}", post(cancel_handler))
+        .route("/cancel", post(cancel_handler))
         // create and update links
         .route("/link", post(create_link).put(update_link))
         // read links
-        .route(
-            "/user/{user_id}/links",
-            get(move |path| links_handler(path)),
-        )
+        .route("/user/links",get(links_handler))
         // delete link
-        .route("/link/{link_id}", delete(move |path| delete_link(path)))
+        .route("/link/{link_id}", delete(move |path, user_context| delete_link(path, user_context)))
         // get plan
-        .route("/plan/{plan_id}", get(move |path| plan_handler(path)))
+        .route("/plan/{plan_id}", get(move |path, user_context| plan_handler(path,user_context)))
         // create user
         .route("/create_user", post(create_user_handler))
         // get user
-        .route("/user/{user_id}", get(move |path| get_user_handler(path)))
+        .route("/user", get(get_user_handler))
         // get suggestion
-        .route("/suggest/{query}", get(move |path| suggest_handler(path)))
-        .route("/feedback/{user_id}/{user_email}", post(feedback_handler))
-        .route("/settings/{user_id}", post(create_settings).put(update_settings).get(get_settings))
+        .route("/suggest/{query}", get(move |path, user_context| suggest_handler(path, user_context)))
+        .route("/feedback", post(feedback_handler))
+        .route("/settings", post(create_settings).put(update_settings).get(get_settings))
         // cancel subscription event listener for Stripe
         .route("/stripe_cancel_hook", post(cancel_subscription_hook))
         .route("/user_data", get(get_user_data_handler))
@@ -190,6 +184,7 @@ async fn runtime() {
 }
 
 async fn create_user_handler(
+    Extension(user_context): Extension<UserContext>,
     Json(payload): Json<CreateUserRequest>,
 ) -> Result<Json<supabase::User>, StatusCode> {
     tracing::info!("Creating new user: {}", payload.email);
@@ -268,8 +263,10 @@ async fn create_user_handler(
 /// ```
 #[tracing::instrument]
 async fn confirm_handler(
-    Path((user_email, user_id)): Path<(String, String)>,
+    Extension(user_context): Extension<UserContext>,
 ) -> Result<Json<SubscriptionResponse>, StatusCode> {
+    let user_email = user_context.email.clone();
+    let user_id = user_context.user_id.clone();
     println!("Confirming email: {}", user_email);
 
     // todo - put this everywhere somehow lol
@@ -485,8 +482,9 @@ async fn confirm_handler(
 }
 
 async fn links_handler(
-    Path(user_id): Path<String>,
+    Extension(user_context): Extension<UserContext>,
 ) -> Result<Json<Vec<supabase::Link>>, StatusCode> {
+    let user_id = user_context.user_id.clone();
     tracing::info!("Fetching links for user: {}", user_id);
 
     let supabase = Supabase::new(
@@ -512,6 +510,7 @@ async fn links_handler(
 
 async fn create_link(
     State(client): State<reqwest::Client>,
+    Extension(user_context): Extension<UserContext>,
     Json(payload): Json<CreateLinkRequest>,
 ) -> Result<(StatusCode, Json<supabase::Link>), StatusCode> {
     tracing::info!("Creating new link for owner {}: {}", payload.owner_id, payload.url);
@@ -593,7 +592,10 @@ async fn create_link(
     Ok((StatusCode::CREATED, Json(link)))
 }
 
-async fn update_link(Json(payload): Json<UpdateLinkRequest>) -> Result<StatusCode, StatusCode> {
+async fn update_link(
+    Extension(user_context): Extension<UserContext>,
+    Json(payload): Json<UpdateLinkRequest>
+) -> Result<StatusCode, StatusCode> {
     tracing::info!("Updating link: {}", payload.id);
 
     let supabase = Supabase::new(
@@ -632,7 +634,10 @@ async fn update_link(Json(payload): Json<UpdateLinkRequest>) -> Result<StatusCod
     Ok(StatusCode::OK)
 }
 
-async fn delete_link(Path(link_id): Path<String>) -> Result<StatusCode, StatusCode> {
+async fn delete_link(
+    Path(link_id): Path<String>,
+    Extension(user_context): Extension<UserContext>,
+) -> Result<StatusCode, StatusCode> {
     let supabase = Supabase::new(
         std::env::var("SUPABASE_URL").expect("SUPABASE_URL must be set"),
         std::env::var("SUPABASE_KEY").expect("SUPABASE_KEY must be set"),
@@ -647,7 +652,10 @@ async fn delete_link(Path(link_id): Path<String>) -> Result<StatusCode, StatusCo
     Ok(StatusCode::NO_CONTENT)
 }
 
-async fn plan_handler(Path(plan_id): Path<String>) -> Result<Json<supabase::Plan>, StatusCode> {
+async fn plan_handler(
+    Path(plan_id): Path<String>,
+    Extension(user_context): Extension<UserContext>,
+) -> Result<Json<supabase::Plan>, StatusCode> {
     let supabase = Supabase::new(
         std::env::var("SUPABASE_URL").expect("SUPABASE_URL must be set"),
         std::env::var("SUPABASE_KEY").expect("SUPABASE_KEY must be set"),
@@ -665,7 +673,10 @@ async fn plan_handler(Path(plan_id): Path<String>) -> Result<Json<supabase::Plan
     Ok(Json(plan))
 }
 
-async fn get_user_handler(Path(user_id): Path<String>) -> Result<Json<supabase::User>, StatusCode> {
+async fn get_user_handler(
+    Extension(user_context): Extension<UserContext>,
+) -> Result<Json<supabase::User>, StatusCode> {
+    let user_id = user_context.user_id.clone();
     let supabase = Supabase::new(
         std::env::var("SUPABASE_URL").expect("SUPABASE_URL must be set"),
         std::env::var("SUPABASE_KEY").expect("SUPABASE_KEY must be set"),
@@ -691,11 +702,6 @@ async fn get_user_handler(Path(user_id): Path<String>) -> Result<Json<supabase::
 /// 3. Confirms the user has an active Stripe subscription
 /// 4. Cancels the subscription in Stripe
 ///
-/// # Arguments
-///
-/// * `Path((user_email, user_id))` - A tuple containing the user's email and user ID
-/// * sent to the server as `/cancel/{user_email}/{user_id}`
-///
 /// # Returns
 ///
 /// * `Result<StatusCode, StatusCode>` - Returns OK (200) if cancellation is successful
@@ -717,13 +723,20 @@ async fn get_user_handler(Path(user_id): Path<String>) -> Result<Json<supabase::
 ///     Err(status) => println!("Error cancelling subscription: {:?}", status),
 /// }
 /// ```
+#[axum::debug_handler]
 async fn cancel_handler(
-    Path((user_id, user_email)): Path<(String, String)>,
-    Json(payload): Json<FeedbackRequest>,
+    Extension(user_context): Extension<UserContext>,
+    payload: Json<FeedbackRequest>,
 ) -> Result<StatusCode, StatusCode> {
+
+    let user_email = user_context.email.clone();
+    let user_id = user_context.user_id.clone();
+
     println!("Cancelling email: {}", user_email);
     println!("Cancelling user id: {}", user_id);
     println!("Feedback: {:?}", payload);
+    let feedback = payload.feedback_comment.clone();
+    let reasons = payload.reasons.clone();
 
     // confirm the user email and user id are present and formatted well else throw a 400
     if user_email.is_empty() || user_id.is_empty() {
@@ -781,8 +794,8 @@ async fn cancel_handler(
     // let's try and cancel the subscription with Stripe
     let sub = match StripeClient::cancel_subscription(
         user_email,
-        payload.feedback_comment,
-        payload.reasons,
+        feedback,
+        reasons,
     )
     .await
     {
@@ -827,7 +840,9 @@ async fn cancel_handler(
     return Ok(StatusCode::OK);
 }
 
-async fn get_metadata(client: State<reqwest::Client>, url: &str) -> Result<Metadata, StatusCode> {
+async fn get_metadata(
+    client: State<reqwest::Client>, url: &str,
+) -> Result<Metadata, StatusCode> {
     tracing::info!("Fetching metadata for URL: {}", url);
 
     let response = client
@@ -913,8 +928,6 @@ async fn get_favicon(
         format!("{}/favicon-32x32.png", domain.trim_end_matches('/')),
     ];
 
-    println!("Favicon urls: {:?}", favicon_urls);
-
     let mut favicon: Option<String> = None;
 
     // if we found a source link tag while parsing the page's document, grab that
@@ -948,13 +961,12 @@ async fn get_favicon(
         favicon = Some("".to_string());
     }
 
-    println!("Favicon: {:?}", favicon);
-
     Ok(favicon.unwrap())
 }
 
 async fn suggest_handler(
     Path(query): Path<String>,
+    Extension(user_context): Extension<UserContext>,
 ) -> Result<Json<SuggestionResponse>, StatusCode> {
     println!("Suggesting: {}", query);
 
@@ -978,9 +990,11 @@ async fn suggest_handler(
 }
 
 async fn feedback_handler(
-    Path((user_id, user_email)): Path<(String, String)>,
+    Extension(user_context): Extension<UserContext>,
     Json(payload): Json<FeedbackRequest>,
 ) -> Result<StatusCode, StatusCode> {
+    let user_id = user_context.user_id.clone();
+    let user_email = user_context.email.clone();
     println!("Feedback for user: {}", user_id);
 
     let supabase = Supabase::new(
@@ -1039,10 +1053,10 @@ async fn feedback_handler(
 }
 
 async fn create_settings(
-    Path(user_id): Path<String>,
+    Extension(user_context): Extension<UserContext>,
     Json(payload): Json<UserSettingsRequest>,
 ) -> Result<StatusCode, StatusCode> {
-
+    let user_id = user_context.user_id.clone();
     println!("Creating settings for user: {}", user_id);
     println!("Payload: {:?}", payload);
 
@@ -1067,9 +1081,10 @@ async fn create_settings(
 }
 
 async fn update_settings(
-    Path(user_id): Path<String>,
+    Extension(user_context): Extension<UserContext>,
     Json(payload): Json<UserSettingsRequest>,
 ) -> Result<StatusCode, StatusCode> {
+    let user_id = user_context.user_id.clone();
     println!("Updating settings for user: {}", user_id);
     println!("Payload: {:?}", payload);
 
@@ -1091,8 +1106,9 @@ async fn update_settings(
 }
 
 async fn get_settings(
-    Path(user_id): Path<String>
+    Extension(user_context): Extension<UserContext>,
 ) -> Result<Json<supabase::UserSettings>, StatusCode> {
+    let user_id = user_context.user_id.clone();
     println!("Getting settings for user: {}", user_id);
 
     let supabase = Supabase::new(

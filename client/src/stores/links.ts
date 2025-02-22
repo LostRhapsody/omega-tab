@@ -1,8 +1,8 @@
 import { API } from "@/constants/api";
+import api from "@/services/api";
 import type { CreateLinkRequest, Link, UpdateLinkRequest } from "@/types/Link";
 import { CacheKeys, cache } from "@/utils/cache";
 import { defineStore } from "pinia";
-import api from "@/services/api";
 
 interface LinksState {
   links: Link[];

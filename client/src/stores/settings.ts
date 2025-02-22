@@ -1,9 +1,9 @@
 import { API } from "@/constants/api";
+import api from "@/services/api";
 import type { UserSettings } from "@/types/UserSettings";
 import { CacheKeys, cache } from "@/utils/cache";
 import { defineStore } from "pinia";
 import { useUserStore } from "./user";
-import api from "@/services/api";
 
 export const useUserSettingsStore = defineStore("userSettings", {
   state: () => ({
