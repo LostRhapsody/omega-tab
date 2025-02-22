@@ -1,6 +1,12 @@
 import { API } from "@/constants/api";
+import api from "@/services/api";
 import type { Subscription, SubscriptionResponse } from "@/types/Subscription";
-import type { ClerkUser, User, UserState } from "@/types/User";
+import type {
+  ClerkUser,
+  User,
+  UserDataResponse,
+  UserState,
+} from "@/types/User";
 import { CacheKeys, cache } from "@/utils/cache";
 import { defineStore } from "pinia";
 import { useLinksStore } from "./links";
@@ -28,6 +34,10 @@ export const useUserStore = defineStore("user", {
     async fetchUserData(clerk_user: ClerkUser): Promise<boolean> {
       this.isLoading = true;
 
+      // set ID and Email from Clerk user initially to use in middleware
+      this.setEmail(clerk_user.email);
+      this.setUserId(clerk_user.id);
+
       // Load from cache initially for fast page load
       const cachedData = cache.get<UserState>(CacheKeys.USER);
       if (cachedData) {
@@ -36,21 +46,15 @@ export const useUserStore = defineStore("user", {
       }
 
       try {
-        const headers = new Headers();
-        headers.set("X-User-Email", clerk_user.email);
-        headers.set("X-User-Id", clerk_user.id);
-        const response = await fetch(API.GET_USER_DATA, {
-          method: "GET",
-          headers: headers,
-        });
+        const response = await api.get<UserDataResponse>(API.GET_USER_DATA);
 
-        if (!response.ok) {
+        if (response.status !== 200) {
           throw new Error(
             `Failed to fetch user data, status: ${response.status}`,
           );
         }
 
-        const data = await response.json();
+        const data = response.data;
 
         // Reset all stores to ensure clean state
         this.$reset();

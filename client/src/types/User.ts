@@ -1,4 +1,6 @@
-import type { Subscription } from "./Subscription";
+import type { Link } from "./Link";
+import type { Subscription, SubscriptionResponse } from "./Subscription";
+import type { UserSettings } from "./UserSettings";
 
 // this is the "Supabase" User type, i.e. exactly what is in the supabase table
 export type User = {
@@ -24,4 +26,16 @@ export type ClerkUser = {
   email: string;
   firstName: string;
   lastName: string;
+};
+
+export type UserDataResponse = {
+  user: User;
+  subscription: SubscriptionResponse | null;
+  plan: Subscription | null;
+  settings: settings_blob;
+  links: Link[];
+};
+
+export type settings_blob = {
+  settings_blob: object;
 };

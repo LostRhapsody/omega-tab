@@ -1208,10 +1208,9 @@ async fn cancel_subscription_hook(
 async fn get_user_data_handler(
     Extension(user_context): Extension<UserContext>,
 ) -> Result<Json<UserDataResponse>, StatusCode> {
+    println!("Fetching user data!");
     let user_id = user_context.user_id.clone();
     let user_email = user_context.email.clone();
-    println!("Fetching user data for {}", user_email);
-
     tracing::info!("Fetching user data for {}", user_email);
 
     let supabase = Supabase::new(
