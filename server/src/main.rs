@@ -2,9 +2,15 @@ mod brave;
 mod resend;
 mod stripe_client;
 mod supabase;
+mod middleware;
 
 use axum::{
-    extract::{Json, Path, State},
+    extract::{
+        Json,
+        Path,
+        State,
+        Extension,
+    },
     http::{
         StatusCode,
         HeaderMap,
@@ -29,6 +35,8 @@ use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::prelude::*;
 use url::Url;
 use stripe::{Event, EventType, Subscription};
+use middleware::extract_user;
+use middleware::UserContext;
 
 #[derive(Serialize, Clone)]
 pub struct SubscriptionResponse {
@@ -134,6 +142,7 @@ async fn runtime() {
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
+        // .allow_origin("http://localhost:5173".parse::<axum::http::HeaderValue>().unwrap())
         .allow_methods(Any)
         .allow_headers(Any);
 
@@ -169,8 +178,9 @@ async fn runtime() {
         .route("/settings/{user_id}", post(create_settings).put(update_settings).get(get_settings))
         // cancel subscription event listener for Stripe
         .route("/stripe_cancel_hook", post(cancel_subscription_hook))
-        .route("/user_data/{user_id}/{user_email}", get(get_user_data_handler))
+        .route("/user_data", get(get_user_data_handler))
         .with_state(client)
+        .layer(axum::middleware::from_fn(extract_user))
         .layer(cors);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
@@ -1196,8 +1206,12 @@ async fn cancel_subscription_hook(
 }
 
 async fn get_user_data_handler(
-    Path((user_id, user_email)): Path<(String, String)>,
+    Extension(user_context): Extension<UserContext>,
 ) -> Result<Json<UserDataResponse>, StatusCode> {
+    let user_id = user_context.user_id.clone();
+    let user_email = user_context.email.clone();
+    println!("Fetching user data for {}", user_email);
+
     tracing::info!("Fetching user data for {}", user_email);
 
     let supabase = Supabase::new(
@@ -1245,7 +1259,7 @@ async fn get_user_data_handler(
                     let product_id = plan.product.as_ref()
                         .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?
                         .id();
-                    
+
                     let supabase_plan = supabase.get_plan_by_stripe_id(&product_id.to_string())
                         .await
                         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;

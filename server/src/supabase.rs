@@ -752,6 +752,7 @@ impl Supabase {
 
         if !response.status().is_success() {
             let error_text = response.text().await?;
+            println!("Failed to create user settings: {}", error_text);
             return Err(anyhow::anyhow!("500"));
         }
 

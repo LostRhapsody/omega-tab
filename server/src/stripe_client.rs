@@ -19,7 +19,7 @@ impl StripeClient {
         match Customer::list(&client, &list_customers).await {
             Ok(customers) => {
                 let customer = customers.data.into_iter().next();
-                if let Some(ref c) = customer {
+                if let Some(ref _c) = customer {
                     tracing::info!("Found Stripe customer for email: {}", email);
                     println!("Found Stripe customer for email: {}", email);
                 } else {

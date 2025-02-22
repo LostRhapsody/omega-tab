@@ -36,9 +36,13 @@ export const useUserStore = defineStore("user", {
       }
 
       try {
-        const response = await fetch(
-          API.GET_USER_DATA(clerk_user.id, clerk_user.email),
-        );
+        const headers = new Headers();
+        headers.set("X-User-Email", clerk_user.email);
+        headers.set("X-User-Id", clerk_user.id);
+        const response = await fetch(API.GET_USER_DATA, {
+          method: "GET",
+          headers: headers,
+        });
 
         if (!response.ok) {
           throw new Error(

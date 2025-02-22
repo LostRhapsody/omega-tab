@@ -21,6 +21,5 @@ export const API = {
   UPDATE_SETTINGS: (userId: string) =>
     `http://localhost:3000/settings/${userId}`,
   GET_SETTINGS: (userId: string) => `http://localhost:3000/settings/${userId}`,
-  GET_USER_DATA: (userId: string, userEmail: string) =>
-    `http://localhost:3000/user_data/${userId}/${userEmail}`,
+  GET_USER_DATA: "http://localhost:3000/user_data",
 } as const;
