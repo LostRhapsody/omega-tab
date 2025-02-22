@@ -14,7 +14,10 @@ api.interceptors.request.use(
     // Add your custom headers here
     config.headers.set("X-User-Id", userStore.userId);
     config.headers.set("X-User-Email", userStore.email);
-    config.headers.set('Authorization', `Bearer ${localStorage.getItem('token') || ''}`);
+    config.headers.set(
+      "Authorization",
+      `Bearer ${localStorage.getItem("token") || ""}`,
+    );
     config.headers.set("Content-Type", "application/json");
     return config;
   },

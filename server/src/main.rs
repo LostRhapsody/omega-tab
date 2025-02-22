@@ -35,8 +35,7 @@ use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::prelude::*;
 use url::Url;
 use stripe::{Event, EventType, Subscription};
-use middleware::extract_user;
-use middleware::UserContext;
+use middleware::{extract_user, authenticate_user, UserContext};
 
 #[derive(Serialize, Clone)]
 pub struct SubscriptionResponse {
@@ -180,6 +179,7 @@ async fn runtime() {
         .route("/stripe_cancel_hook", post(cancel_subscription_hook))
         .route("/user_data", get(get_user_data_handler))
         .with_state(client)
+        .layer(axum::middleware::from_fn(authenticate_user))
         .layer(axum::middleware::from_fn(extract_user))
         .layer(cors);
 

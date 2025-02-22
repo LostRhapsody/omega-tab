@@ -355,6 +355,18 @@ onMounted(async () => {
     isLoggedIn.value = !!clerk.user;
 
     if (isLoggedIn.value && clerk.user) {
+
+      try {
+        // Retrieve JWT token and store it in local storage
+        const session = await clerk.session;
+        const token = await session?.getToken();
+        if (token) {
+          localStorage.setItem("token", token);
+        }
+      } catch (error) {
+        console.error("Error fetching JWT token:", error);
+      }
+
       let gotUser = false;
       try {
         // if user store is already initialized, no need to fetch user data
