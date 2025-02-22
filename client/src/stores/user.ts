@@ -62,7 +62,7 @@ export const useUserStore = defineStore("user", {
           this.setFirstName(clerk_user.firstName);
           this.setLastName(clerk_user.lastName);
         }
-        
+
         if (data.plan) {
           this.setPlan(data.plan);
         }
@@ -102,9 +102,13 @@ export const useUserStore = defineStore("user", {
         throw new Error("User ID or email not found");
       }
 
-      const response = await fetch(API.CONFIRM_SUBSCRIPTION(this.email, this.userId));
+      const response = await fetch(
+        API.CONFIRM_SUBSCRIPTION(this.email, this.userId),
+      );
       if (!response.ok) {
-        throw new Error(`Failed to confirm subscription, status: ${response.status}`);
+        throw new Error(
+          `Failed to confirm subscription, status: ${response.status}`,
+        );
       }
 
       return true;
