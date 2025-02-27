@@ -102,7 +102,7 @@
 </template>
 
 <script setup lang="ts">
-	import { computed, ref, watch } from "vue";
+	import { computed, ref, watch, nextTick } from "vue";
 	import { useRouter } from "vue-router";
 	import { useLinksStore } from "../stores/links";
 	import { useUserStore } from "../stores/user";
@@ -169,6 +169,12 @@
 			return;
 		}
 		isModalOpen.value = true;
+		nextTick(() => {
+			const urlField = document.querySelector('input[type="url"]');
+			if (urlField) {
+				(urlField as HTMLInputElement).focus();
+			}
+		});
 	};
 
 	const closeModal = () => {
