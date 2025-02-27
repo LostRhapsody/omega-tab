@@ -505,7 +505,7 @@ watch(selectedEngine, () => {
     if (searchInput.value) {
       (searchInput.value as HTMLElement).focus();
     }
-  }, 50);
+  }, 200);
 });
 
 onMounted(() => {
