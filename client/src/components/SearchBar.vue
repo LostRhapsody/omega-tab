@@ -499,6 +499,15 @@ watch(searchQuery, async (newQuery) => {
     }
 });
 
+// Add new watcher for selectedEngine
+watch(selectedEngine, () => {
+	setTimeout(() => {
+    if (searchInput.value) {
+      (searchInput.value as HTMLElement).focus();
+    }
+  }, 50);
+});
+
 onMounted(() => {
 	if (searchInput.value) {
 		searchInput.value.focus();
