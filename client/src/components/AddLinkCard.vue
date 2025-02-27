@@ -1,7 +1,7 @@
 <!-- AddLinkCard.vue -->
 <template>
 	<div>
-		<div v-if="!isAtMaxPins || (isAtMaxPins && isPlanFree)" @click="handleClick"
+		<div id="add-link-card" v-if="!isAtMaxPins || (isAtMaxPins && isPlanFree)" @click="handleClick"
 			class="group cursor-pointer border-2 rounded-lg p-4 transition-all duration-300 flex flex-col items-center justify-center space-y-2"
 			:class="[
 				isAtMaxPins
@@ -163,7 +163,6 @@
 	const openModal = () => {
 		const totalPins = props.tools.length + props.docs.length;
 		if (totalPins >= props.maxPins) {
-			// Use Vuetify's built-in snackbar or alert system
 			alert(
 				`You've reached your maximum number of pins (${props.maxPins}). Please upgrade your plan for more.`,
 			);

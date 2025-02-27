@@ -54,7 +54,7 @@ const { links } = storeToRefs(linksStore);
 
 const commands = [
   { title: 'Navigate to Settings', subtitle: 'Go to settings page', action: () => router.push('/settings') },
-  { title: 'Add New Link', subtitle: 'Trigger Add Link routine', action: () => triggerAddLink() },
+  { title: 'Add New Link', subtitle: 'Add a new link', action: () => triggerAddLink() },
 ];
 
 const filteredResults = computed(() => {
@@ -123,7 +123,7 @@ const closePalette = () => {
 
 const triggerAddLink = () => {
   // Trigger the Add Link routine
-  const addLinkButton = document.querySelector('.add-link-button');
+  const addLinkButton = document.querySelector('#add-link-card');
   if (addLinkButton) {
     (addLinkButton as HTMLElement).click();
   }
