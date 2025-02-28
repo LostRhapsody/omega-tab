@@ -4,7 +4,7 @@
       <v-progress-circular indeterminate />
     </div>
     <div v-else-if="isLoggedIn && !isLoading">
-      <div
+      <header
         class="border-b border-gray-700 bg-white/5">
         <v-container>
           <v-row class="items-center">
@@ -15,178 +15,183 @@
             </v-col>
             <v-col class="flex justify-end">
               <div class="flex rounded-full items-center">
-                <button id="user-button"></button>
-                <v-btn icon="mdi-cog" @click="router.push('/settings');" class="!w-[42px] !h-[42px] ms-8" />
+                <button id="user-button" aria-label="User account"></button>
+                <v-btn icon="mdi-cog" @click="router.push('/settings');" class="!w-[42px] !h-[42px] ms-8" aria-label="Settings" />
               </div>
             </v-col>
           </v-row>
         </v-container>
-      </div>
-      <v-container>
-        <SearchBar :tools="tools" :docs="docs" />
-        <LinkColumns :tools="toolLinks" :docs="docLinks" :userId="userId" :maxPins="userStore.userPlan?.max_pins || 6"
-          :canAddLinks="canShowAddLink" @link-deleted="handleDeleteLink"
-          :isPlanFree="userStore.userPlan?.name === 'free'" />
-        <v-dialog v-model="showHelpDialog" max-width="900px">
-          <v-card>
-            <v-card-title class="headline">Keyboard Shortcuts</v-card-title>
-            <v-card-text>
-              <h4 class="text-xl mb-4">Open Links</h4>
-              <div v-if="linkShortcuts.length" class="border p-4 rounded-lg mb-4">
-                <v-row>
-                  <v-col>
-                    <ul>
-                      <li v-for="(shortcut, index) in linkShortcuts" :key="shortcut.index">
-                        <div class="grid grid-cols-3 gap-2">
-                          <div class="col-span-2">
-                            {{ shortcut.description }}
+      </header>
+      <main>
+        <v-container>
+          <section aria-label="Search">
+            <SearchBar :tools="tools" :docs="docs" />
+          </section>
+          <section aria-label="Link columns">
+            <LinkColumns :tools="toolLinks" :docs="docLinks" :userId="userId" :maxPins="userStore.userPlan?.max_pins || 6"
+              :canAddLinks="canShowAddLink" @link-deleted="handleDeleteLink"
+              :isPlanFree="userStore.userPlan?.name === 'free'" />
+          </section>
+          <v-dialog v-model="showHelpDialog" max-width="900px">
+            <v-card>
+              <v-card-title class="headline">Keyboard Shortcuts</v-card-title>
+              <v-card-text>
+                <h4 class="text-xl mb-4">Open Links</h4>
+                <div v-if="linkShortcuts.length" class="border p-4 rounded-lg mb-4">
+                  <v-row>
+                    <v-col>
+                      <ul>
+                        <li v-for="(shortcut, index) in linkShortcuts" :key="shortcut.index">
+                          <div class="grid grid-cols-3 gap-2">
+                            <div class="col-span-2">
+                              {{ shortcut.description }}
+                            </div>
+                            <div class="col-span-1">
+                              <span class="kbd">{{ shortcut.command }}</span>
+                              +
+                              <span class="kbd">{{ shortcut.index }}</span>
+                            </div>
                           </div>
-                          <div class="col-span-1">
-                            <span class="kbd">{{ shortcut.command }}</span>
-                            +
-                            <span class="kbd">{{ shortcut.index }}</span>
+                          <v-divider v-if="index + 1 !== linkShortcuts.length" class="my-4"></v-divider>
+                        </li>
+                      </ul>
+                    </v-col>
+                  </v-row>
+                </div>
+                <div v-else class="border p-4 rounded-lg mb-4">
+                  No links added
+                </div>
+                <h4 class="text-xl mb-4 mt-8">Change Search Engine</h4>
+                <div class="border p-4 rounded-lg mb-4">
+                  <p class="text-lg mb-4">
+                    Use
+                    <span class="kbd !text-sm">Ctrl</span> +
+                    <span class="kbd !text-sm">
+                      <v-icon icon="mdi-arrow-up"></v-icon>
+                      up arrow
+                    </span>
+                    or
+                    <span class="kbd !text-sm">Ctrl</span> +
+                    <span class="kbd !text-sm">
+                      <v-icon icon="mdi-arrow-down"></v-icon>
+                      down arrow
+                    </span>
+                    to cycle through search engines.
+                  </p>
+                  <v-row>
+                    <v-col>
+                      <ul>
+                        <li v-for="(engine, index) in searchEngines" :key="engine.name">
+                          <div class="grid grid-cols-3 gap-2">
+                            <div class="col-span-2">
+                              {{ engine.name }}
+                            </div>
+                            <div class="col-span-1">
+                              Search Engine {{ index + 1 }}
+                            </div>
                           </div>
-                        </div>
-                        <v-divider v-if="index + 1 !== linkShortcuts.length" class="my-4"></v-divider>
-                      </li>
-                    </ul>
-                  </v-col>
-                </v-row>
-              </div>
-              <div v-else class="border p-4 rounded-lg mb-4">
-                No links added
-              </div>
-              <h4 class="text-xl mb-4 mt-8">Change Search Engine</h4>
-              <div class="border p-4 rounded-lg mb-4">
-                <p class="text-lg mb-4">
-                  Use
-                  <span class="kbd !text-sm">Ctrl</span> +
-                  <span class="kbd !text-sm">
-                    <v-icon icon="mdi-arrow-up"></v-icon>
-                    up arrow
-                  </span>
-                  or
-                  <span class="kbd !text-sm">Ctrl</span> +
-                  <span class="kbd !text-sm">
-                    <v-icon icon="mdi-arrow-down"></v-icon>
-                    down arrow
-                  </span>
-                  to cycle through search engines.
-                </p>
-                <v-row>
-                  <v-col>
-                    <ul>
-                      <li v-for="(engine, index) in searchEngines" :key="engine.name">
-                        <div class="grid grid-cols-3 gap-2">
-                          <div class="col-span-2">
-                            {{ engine.name }}
+                          <v-divider v-if="index + 1 !== searchEngines.length" class="my-4"></v-divider>
+                        </li>
+                      </ul>
+                    </v-col>
+                  </v-row>
+                </div>
+                <h4 class="text-xl mb-4">Other Shortcuts</h4>
+                <div class="border p-4 rounded-lg mb-4">
+                  <v-row>
+                    <v-col>
+                      <ul>
+                        <li>
+                          <div class="grid grid-cols-3 gap-2">
+                            <div class="col-span-2">
+                              Show Keyboard Shortcuts
+                            </div>
+                            <div class="col-span-1">
+                              <span class="kbd">?</span> (<span class="kbd">shift + /</span>)
+                            </div>
                           </div>
-                          <div class="col-span-1">
-                            Search Engine {{ index + 1 }}
+                          <v-divider class="my-4"></v-divider>
+                        </li>
+                        <li>
+                          <div class="grid grid-cols-3 gap-2">
+                            <div class="col-span-2">
+                              Show Command Palette
+                            </div>
+                            <div class="col-span-1">
+                              <span class="kbd">ctrl</span>
+                              +
+                              <span class="kbd">k</span>
+                            </div>
                           </div>
-                        </div>
-                        <v-divider v-if="index + 1 !== searchEngines.length" class="my-4"></v-divider>
-                      </li>
-                    </ul>
-                  </v-col>
-                </v-row>
-              </div>
-              <h4 class="text-xl mb-4">Other Shortcuts</h4>
-              <div class="border p-4 rounded-lg mb-4">
-                <v-row>
-                  <v-col>
-                    <ul>
-                      <li>
-                        <div class="grid grid-cols-3 gap-2">
-                          <div class="col-span-2">
-                            Show Keyboard Shortcuts
+                          <v-divider class="my-4"></v-divider>
+                        </li>
+                        <li>
+                          <div class="grid grid-cols-3 gap-2">
+                            <div class="col-span-2">
+                              Add A New Link
+                            </div>
+                            <div class="col-span-1">
+                              <span class="kbd">ctrl</span>
+                              +
+                              <span class="kbd">alt</span>
+                              +
+                              <span class="kbd">n</span>
+                            </div>
                           </div>
-                          <div class="col-span-1">
-                            <span class="kbd">?</span> (<span class="kbd">shift + /</span>)
-                          </div>
-                        </div>
-                        <v-divider class="my-4"></v-divider>
-                      </li>
-                      <li>
-                        <div class="grid grid-cols-3 gap-2">
-                          <div class="col-span-2">
-                            Show Command Palette
-                          </div>
-                          <div class="col-span-1">
-                            <span class="kbd">ctrl</span>
-                            +
-                            <span class="kbd">k</span>
-                          </div>
-                        </div>
-                        <v-divider class="my-4"></v-divider>
-                      </li>
-                      <li>
-                        <div class="grid grid-cols-3 gap-2">
-                          <div class="col-span-2">
-                            Add A New Link
-                          </div>
-                          <div class="col-span-1">
-                            <span class="kbd">ctrl</span>
-                            +
-                            <span class="kbd">alt</span>
-                            +
-                            <span class="kbd">n</span>
-                          </div>
-                        </div>
-                      </li>
-                    </ul>
-                  </v-col>
-                </v-row>
-              </div>
-            </v-card-text>
-            <v-card-actions>
-              <v-btn variant="tonal" @click="showHelpDialog = false">Close</v-btn>
-            </v-card-actions>
-          </v-card>
-        </v-dialog>
-      </v-container>
+                        </li>
+                      </ul>
+                    </v-col>
+                  </v-row>
+                </div>
+              </v-card-text>
+              <v-card-actions>
+                <v-btn variant="tonal" @click="showHelpDialog = false">Close</v-btn>
+              </v-card-actions>
+            </v-card>
+          </v-dialog>
+        </v-container>
+      </main>
       <div class="fixed bottom-4 right-4">
-      <v-menu location="top">
-        <template v-slot:activator="{ props }">
-          <v-btn v-bind="props" class="!w-[42px] !h-[42px] bg-white" icon="mdi-help" variant="tonal" />
-        </template>
-        <v-list class="w-64" lines="two">
-          <v-list-item @click="router.push('/help/getting-started')">
-            <v-list-item-title>
-              <v-icon icon="mdi-rocket-launch" />
-              Getting Started
-            </v-list-item-title>
-          </v-list-item>
-          <v-list-item @click="showHelpDialog = true">
-            <v-list-item-title>
-              <v-icon icon="mdi-keyboard" />
-              Keyboard Shortcuts
-            </v-list-item-title>
-          </v-list-item>
-          <v-list-item @click="router.push('/plans')">
-            <v-list-item-title>
-              <v-icon icon="mdi-plus" />
-              Better New Tab Plus
-            </v-list-item-title>
-          </v-list-item>
-          <v-list-item @click="router.push('/help')">
-            <v-list-item-title>
-              <v-icon icon="mdi-book" />
-              Help Center
-            </v-list-item-title>
-          </v-list-item>
-          <v-list-item @click="showFeedbackDialog = true">
-            <v-list-item-title>
-              <v-icon icon="mdi-comment-quote-outline" />
-              Send Feedback
-            </v-list-item-title>
-          </v-list-item>
-        </v-list>
-      </v-menu>
-    </div>
+        <v-menu location="top">
+          <template v-slot:activator="{ props }">
+            <v-btn v-bind="props" class="!w-[42px] !h-[42px] bg-white" icon="mdi-help" variant="tonal" aria-label="Help menu" />
+          </template>
+          <v-list class="w-64" lines="two">
+            <v-list-item @click="router.push('/help/getting-started')">
+              <v-list-item-title>
+                <v-icon icon="mdi-rocket-launch" />
+                Getting Started
+              </v-list-item-title>
+            </v-list-item>
+            <v-list-item @click="showHelpDialog = true">
+              <v-list-item-title>
+                <v-icon icon="mdi-keyboard" />
+                Keyboard Shortcuts
+              </v-list-item-title>
+            </v-list-item>
+            <v-list-item @click="router.push('/plans')">
+              <v-list-item-title>
+                <v-icon icon="mdi-plus" />
+                Better New Tab Plus
+              </v-list-item-title>
+            </v-list-item>
+            <v-list-item @click="router.push('/help')">
+              <v-list-item-title>
+                <v-icon icon="mdi-book" />
+                Help Center
+              </v-list-item-title>
+            </v-list-item>
+            <v-list-item @click="showFeedbackDialog = true">
+              <v-list-item-title>
+                <v-icon icon="mdi-comment-quote-outline" />
+                Send Feedback
+              </v-list-item-title>
+            </v-list-item>
+          </v-list>
+        </v-menu>
+      </div>
     </div>
     <div v-else>
-      <!-- <LandingPage /> -->
       <NewLandingPage />
       <v-dialog v-model="showSignIn" max-width="600px">
         <div class="m-auto">
@@ -208,7 +213,6 @@
     </v-dialog>
     <CommandPalette />
   </div>
-
 </template>
 <script setup lang="ts">
 import CommandPalette from '../components/CommandPalette.vue';
@@ -229,6 +233,83 @@ import { storeToRefs } from "pinia";
 import { searchEngines } from "../data/SearchEngines";
 import { API } from "../constants/api";
 import api from "../services/api";
+// Import useHead from Unhead
+import { useHead } from '@unhead/vue';
+
+// Set SEO metadata using Unhead
+useHead({
+  // Title tag - crucial for SEO
+  title: 'BetterNewTab - The Ultimate New Tab',
+  // Meta tags
+  meta: [
+    {
+      name: 'description',
+      content: 'Create the ultimate new tab landing page.'
+    },
+    {
+      name: 'keywords',
+      content: 'new tab, browser extension, productivity, keyboard shortcuts, Jira, Linear, command palette, browser landing page'
+    },
+    // Open Graph tags for social media sharing
+    {
+      property: 'og:title',
+      content: 'BetterNewTab - The Ultimate New Tab'
+    },
+    {
+      property: 'og:description',
+      content: 'Create the ultimate new tab landing page.'
+    },
+    {
+      property: 'og:type',
+      content: 'website'
+    },
+    {
+      property: 'og:url',
+      content: 'https://betternewtab.com'
+    },
+    // Twitter card tags
+    {
+      name: 'twitter:card',
+      content: 'summary_large_image'
+    },
+    {
+      name: 'twitter:title',
+      content: 'BetterNewTab - The Ultimate New Tab'
+    },
+    {
+      name: 'twitter:description',
+      content: 'Create the ultimate new tab landing page.'
+    }
+  ],
+  // Schema.org JSON-LD structured data
+  // This is properly handled by Unhead with automatic stringification
+  script: [
+    {
+      type: 'application/ld+json',
+      children: JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "BetterNewTab",
+        "description": "Create the ultimate new tab landing page.",
+        "applicationCategory": "ProductivityApplication",
+        "operatingSystem": "Any",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "featureList": "Keyboard shortcuts, Command palette, Tool integrations with Jira and Linear"
+      })
+    }
+  ],
+  // Link tags
+  link: [
+    {
+      rel: 'canonical',
+      href: 'https://betternewtab.com'
+    }
+  ]
+});
 
 const userStore = useUserStore();
 const linksStore = useLinksStore();
@@ -472,6 +553,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   stopTokenRefreshInterval();
+  window.removeEventListener('keydown', handleShowKeyboardShortcuts);
 });
 </script>
 

@@ -26,6 +26,7 @@
     "@tailwindcss/vite": "^4.0.1",
     "@types/axios": "^0.14.4",
     "@types/lodash": "^4.17.15",
+    "@unhead/vue": "^1.11.20",
     "axios": "^1.7.9",
     "fuse.js": "^7.0.0",
     "lodash": "^4.17.21",

@@ -5,10 +5,15 @@ import "@mdi/font/css/materialdesignicons.css";
 
 import "vuetify/styles";
 import * as Sentry from "@sentry/vue";
+// Import createHead from Unhead
+import { createHead } from "@unhead/vue";
 import { createPinia } from "pinia";
 import { createApp } from "vue";
 import App from "./App.vue";
 import router from "./router";
+
+// Create Unhead instance
+const head = createHead();
 
 // Lazy load Vuetify
 const initVuetify = async () => {
@@ -56,6 +61,8 @@ const bootstrap = async () => {
     replaysOnErrorSampleRate: 1.0, // If you're not already sampling the entire session, change the sample rate to 100% when sampling sessions where errors occur.
   });
 
+  // Use Unhead
+  app.use(head);
   app.use(createPinia());
   app.use(router);
   app.use(vuetify);
