@@ -3,6 +3,7 @@ import api from "@/services/api";
 import type { CreateLinkRequest, Link, UpdateLinkRequest } from "@/types/Link";
 import { CacheKeys, cache } from "@/utils/cache";
 import { defineStore } from "pinia";
+import { useUserStore } from "@/stores/user";
 
 interface LinksState {
   links: Link[];
@@ -66,8 +67,21 @@ export const useLinksStore = defineStore("links", {
 
     async postLink(link: CreateLinkRequest) {
       this.isLoading = true;
+		  const userStore = useUserStore();
+      const authToken = userStore.getAuthToken();
+		
+      // Only proceed if we have an auth token
+      if (!authToken) {
+        console.warn('No auth token available for create link');
+        return;
+      }
+      
       try {
-        const response = await api.post(API.CREATE_LINK, link);
+        const response = await api.post(API.CREATE_LINK, link, {
+          headers: {
+            'X-User-Authorization': authToken
+          },
+        });
         if (response.status !== 201) {
           throw new Error(`Failed to create link ${response.status}`);
         }

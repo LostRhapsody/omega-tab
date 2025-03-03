@@ -1,23 +1,15 @@
 // test user: evanr@fdm4.com
 //TestPasswordForClerk
 mod brave;
+mod middleware;
 mod resend;
 mod stripe_client;
 mod supabase;
-mod middleware;
 mod user_jwt;
 
 use axum::{
-    extract::{
-        Json,
-        Path,
-        State,
-        Extension,
-    },
-    http::{
-        StatusCode,
-        HeaderMap,
-    },
+    extract::{Extension, Json, Path, State},
+    http::{HeaderMap, StatusCode},
     routing::{delete, get, post},
     Router,
 };
@@ -25,20 +17,17 @@ use base64::prelude::*;
 use brave::Brave;
 use chrono::{TimeZone, Utc};
 use dotenv::dotenv;
+use middleware::{authenticate_user, extract_user, UserContext};
 use resend::ResendClient;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::{
-    env,
-    collections::HashMap
-};
+use std::{collections::HashMap, env};
+use stripe::{Event, EventType, Subscription};
 use stripe_client::StripeClient;
 use supabase::Supabase;
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::prelude::*;
 use url::Url;
-use stripe::{Event, EventType, Subscription};
-use middleware::{extract_user, authenticate_user, UserContext};
 
 #[derive(Serialize, Clone)]
 pub struct SubscriptionResponse {
@@ -152,25 +141,37 @@ async fn runtime() {
     // Reminder! Anything you return must be serializable
     let app = Router::new()
         // confirm subscription
-        .route("/confirm",get(confirm_handler))
+        .route("/confirm", get(confirm_handler))
         // cancel subscription
         .route("/cancel", post(cancel_handler))
         // create and update links
         .route("/link", post(create_link).put(update_link))
         // read links
-        .route("/user/links",get(links_handler))
+        .route("/user/links", get(links_handler))
         // delete link
-        .route("/link/{link_id}", delete(move |path, user_context| delete_link(path, user_context)))
+        .route(
+            "/link/{link_id}",
+            delete(move |path, user_context| delete_link(path, user_context)),
+        )
         // get plan
-        .route("/plan/{plan_id}", get(move |path, user_context| plan_handler(path,user_context)))
+        .route(
+            "/plan/{plan_id}",
+            get(move |path, user_context| plan_handler(path, user_context)),
+        )
         // create user
         .route("/create_user", post(create_user_handler))
         // get user
         .route("/user", get(get_user_handler))
         // get suggestion
-        .route("/suggest/{query}", get(move |path, user_context, headers| suggest_handler(path, user_context, headers)))
+        .route(
+            "/suggest/{query}",
+            get(move |path, user_context, headers| suggest_handler(path, user_context, headers)),
+        )
         .route("/feedback", post(feedback_handler))
-        .route("/settings", post(create_settings).put(update_settings).get(get_settings))
+        .route(
+            "/settings",
+            post(create_settings).put(update_settings).get(get_settings),
+        )
         // cancel subscription event listener for Stripe
         .route("/stripe_cancel_hook", post(cancel_subscription_hook))
         .route("/user_data", get(get_user_data_handler))
@@ -230,14 +231,14 @@ async fn create_user_handler(
                 }
             }
             Ok(Json(user))
-        },
+        }
         Err(e) => {
             tracing::error!("Failed to create user: {}", e);
             match e.to_string().as_str() {
                 "409" => Err(StatusCode::BAD_REQUEST),
                 _ => Err(StatusCode::INTERNAL_SERVER_ERROR),
             }
-        },
+        }
     }
 }
 
@@ -313,7 +314,7 @@ async fn confirm_handler(
             return Ok(Json(SubscriptionResponse {
                 plan_id: free_plan_id,
                 current_period_end: 0,
-            }))
+            }));
         }
     };
 
@@ -328,7 +329,7 @@ async fn confirm_handler(
             return Ok(Json(SubscriptionResponse {
                 plan_id: free_plan_id,
                 current_period_end: 0,
-            }))
+            }));
         }
     };
 
@@ -399,13 +400,14 @@ async fn confirm_handler(
             // Update existing subscription if plan changed
             // if plan id has changed (user upgraded/downgraded); or,
             // the plan exists but has been cancelled and is now being re-activated
-            if (sub.plan_id != supabase_plan.id) ||
-            sub.status.eq("cancelled") {
+            if (sub.plan_id != supabase_plan.id) || sub.status.eq("cancelled") {
                 let mut updates = HashMap::new();
                 updates.insert("plan_id".to_string(), json!(supabase_plan.id));
                 updates.insert(
                     "current_period_end".to_string(),
-                    json!(Utc.timestamp(subscription.current_period_end, 0).to_rfc3339()),
+                    json!(Utc
+                        .timestamp(subscription.current_period_end, 0)
+                        .to_rfc3339()),
                 );
                 updates.insert("stripe_subscription_id".to_string(), json!(subscription.id));
                 updates.insert("status".to_string(), json!("active"));
@@ -523,26 +525,31 @@ async fn links_handler(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    let links = supabase
-        .get_links(&user_id, "user")
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to fetch links for user {}: {:?}", user_id, e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    let links = supabase.get_links(&user_id, "user").await.map_err(|e| {
+        tracing::error!("Failed to fetch links for user {}: {:?}", user_id, e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
-    tracing::info!("Successfully fetched {} links for user {}", links.len(), user_id);
+    tracing::info!(
+        "Successfully fetched {} links for user {}",
+        links.len(),
+        user_id
+    );
     Ok(Json(links))
 }
 
 async fn create_link(
     State(client): State<reqwest::Client>,
     Extension(user_context): Extension<UserContext>,
+    headers: HeaderMap,
     Json(payload): Json<CreateLinkRequest>,
 ) -> Result<(StatusCode, Json<supabase::Link>), StatusCode> {
     let user_email = user_context.email.clone();
     let user_id = user_context.user_id.clone();
-    println!("Creating new link for owner {}: {}", payload.owner_id, payload.url);
+    println!(
+        "Creating new link for owner {}: {}",
+        payload.owner_id, payload.url
+    );
 
     sentry::configure_scope(|scope| {
         scope.set_user(Some(sentry::User {
@@ -553,7 +560,11 @@ async fn create_link(
         scope.set_tag("http.method", "POST");
     });
 
-    tracing::info!("Creating new link for owner {}: {}", payload.owner_id, payload.url);
+    tracing::info!(
+        "Creating new link for owner {}: {}",
+        payload.owner_id,
+        payload.url
+    );
 
     let supabase = Supabase::new(
         std::env::var("SUPABASE_URL").expect("SUPABASE_URL must be set"),
@@ -570,18 +581,57 @@ async fn create_link(
         payload.url
     };
 
-    let metadata = get_metadata(State(client.clone()), &url)
-        .await
+    // Check for the custom authorization header
+    let auth_token = headers
+        .get("X-User-Authorization")
+        .ok_or_else(|| {
+            println!("Missing X-User-Authorization header");
+            StatusCode::UNAUTHORIZED
+        })?
+        .to_str()
         .map_err(|e| {
-            tracing::error!("Error getting metadata: {:?}", e);
-        })
-        .unwrap_or_else(|_| Metadata {
+            println!("Invalid X-User-Authorization header: {:?}", e);
+            StatusCode::BAD_REQUEST
+        })?;
+
+    // Validate the JWT token
+    let user_claims = match user_jwt::validate_jwt(auth_token) {
+        Ok(claims) => claims,
+        Err(e) => {
+            println!("Invalid JWT token: {:?}", e);
+            return Err(StatusCode::UNAUTHORIZED);
+        }
+    };
+
+    // Verify the user ID in the token matches the request user ID
+    if user_claims.user_id != user_id {
+        println!("Token user ID does not match request user ID");
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+
+    // init metadata, if plus plan retrieve from link's URL, else use defaults
+    let metadata = if user_claims.plan == "plus" {
+        get_metadata(State(client.clone()), &url)
+            .await
+            .map_err(|e| {
+                tracing::error!("Error getting metadata: {:?}", e);
+            })
+            .unwrap_or_else(|_| Metadata {
+                title: Some(url.clone()),
+                description: None,
+                favicon: None,
+                mime_type: None,
+            })
+    } else {
+        Metadata {
             title: Some(url.clone()),
             description: None,
             favicon: None,
             mime_type: None,
-        });
+        }
+    };
 
+    // use the user's title, if empty use metadata, metadata will be the URL if metadata is not fetched
     let title = if payload.title.as_deref() == Some("") {
         metadata.title.unwrap_or_else(|| "".to_string())
     } else {
@@ -590,18 +640,24 @@ async fn create_link(
             .unwrap_or_else(|| metadata.title.unwrap().clone())
     };
 
-    let favicon = get_favicon(
-        State(client),
-        &url,
-        metadata.favicon.clone(),
-        metadata.mime_type.clone(),
-    )
+    // grab the favicon, or just pass an empty string
+    let favicon = if user_claims.plan == "plus" {
+        get_favicon(
+            State(client),
+            &url,
+            metadata.favicon.clone(),
+            metadata.mime_type.clone(),
+        )
         .await
         .map_err(|e| {
             tracing::error!("Error getting favicon: {:?}", e);
         })
-        .unwrap_or_else(|_| "".to_string());
+        .unwrap_or_else(|_| "".to_string())
+    } else {
+        "".to_string()
+    };
 
+    // use the user's description, or the metadata description
     let description = if payload.description.as_deref() == Some("") {
         metadata.description.unwrap_or_else(|| "".to_string())
     } else {
@@ -634,7 +690,7 @@ async fn create_link(
 
 async fn update_link(
     Extension(user_context): Extension<UserContext>,
-    Json(payload): Json<UpdateLinkRequest>
+    Json(payload): Json<UpdateLinkRequest>,
 ) -> Result<StatusCode, StatusCode> {
     let user_email = user_context.email.clone();
     let user_id = user_context.user_id.clone();
@@ -816,7 +872,6 @@ async fn cancel_handler(
     Extension(user_context): Extension<UserContext>,
     payload: Json<FeedbackRequest>,
 ) -> Result<StatusCode, StatusCode> {
-
     let user_email = user_context.email.clone();
     let user_id = user_context.user_id.clone();
     println!("Cancelling email: {}", user_email);
@@ -889,13 +944,7 @@ async fn cancel_handler(
     }
 
     // let's try and cancel the subscription with Stripe
-    let sub = match StripeClient::cancel_subscription(
-        user_email,
-        feedback,
-        reasons,
-    )
-    .await
-    {
+    let sub = match StripeClient::cancel_subscription(user_email, feedback, reasons).await {
         Some(sub) => sub,
         None => {
             println!("No subscription found");
@@ -928,7 +977,10 @@ async fn cancel_handler(
     })?;
 
     for membership in memberships {
-        if let Err(e) = supabase.remove_member(&membership.user_id, &membership.entity_id).await {
+        if let Err(e) = supabase
+            .remove_member(&membership.user_id, &membership.entity_id)
+            .await
+        {
             println!("Error removing membership: {:?}", e);
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
@@ -937,70 +989,15 @@ async fn cancel_handler(
     return Ok(StatusCode::OK);
 }
 
-async fn get_metadata(
-    client: State<reqwest::Client>, url: &str,
-    Extension(user_context): Extension<UserContext>,
-    headers: HeaderMap,
-) -> Result<Metadata, StatusCode> {
+async fn get_metadata(client: State<reqwest::Client>, url: &str) -> Result<Metadata, StatusCode> {
     tracing::info!("Fetching metadata for URL: {}", url);
 
-    let user_email = user_context.email.clone();
-    let user_id = user_context.user_id.clone();
     println!("Fetching metadata for URL: {}", url);
 
-    sentry::configure_scope(|scope| {
-        scope.set_user(Some(sentry::User {
-            email: Some(user_email.clone()),
-            id: Some(user_id.clone()),
-            ..Default::default()
-        }));
-        scope.set_tag("http.method", "GET");
-    });
-
-    // Check for the custom authorization header
-    let auth_token = headers
-        .get("X-User-Authorization")
-        .ok_or_else(|| {
-            println!("Missing X-User-Authorization header");
-            StatusCode::UNAUTHORIZED
-        })?
-        .to_str()
-        .map_err(|e| {
-            println!("Invalid X-User-Authorization header: {:?}", e);
-            StatusCode::BAD_REQUEST
-        })?;
-
-    // Validate the JWT token
-    let user_claims = match user_jwt::validate_jwt(auth_token) {
-        Ok(claims) => claims,
-        Err(e) => {
-            println!("Invalid JWT token: {:?}", e);
-            return Err(StatusCode::UNAUTHORIZED);
-        }
-    };
-
-    // Verify the user ID in the token matches the request user ID
-    if user_claims.user_id != user_id {
-        println!("Token user ID does not match request user ID");
-        return Err(StatusCode::UNAUTHORIZED);
-    }
-    
-    // Check if token is for a "plus" plan user or if their plan allows this feature
-    if user_claims.plan != "plus" {
-        println!("User plan does not allow metadata extraction from Links");
-        return Err(StatusCode::FORBIDDEN);
-    }
-
-    println!("Fetching metadata for URL: {}", url);
-
-    let response = client
-        .get(url)
-        .send()
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to fetch URL {}: {:?}", url, e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    let response = client.get(url).send().await.map_err(|e| {
+        tracing::error!("Failed to fetch URL {}: {:?}", url, e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     if !response.status().is_success() {
         return Err(StatusCode::BAD_REQUEST);
@@ -1045,7 +1042,7 @@ async fn get_metadata(
         title,
         description,
         favicon,
-        mime_type
+        mime_type,
     })
 }
 
@@ -1081,14 +1078,21 @@ async fn get_favicon(
     // if we found a source link tag while parsing the page's document, grab that
     // otherwise we just try some backups
     if favicon_source.is_some() {
-
-        let favicon_url = format!("{}{}", domain.trim_end_matches('/'),&favicon_source.unwrap());
+        let favicon_url = format!(
+            "{}{}",
+            domain.trim_end_matches('/'),
+            &favicon_source.unwrap()
+        );
         let fav_response = client.get(favicon_url).send().await;
 
         if let Ok(fav_response) = fav_response {
             if fav_response.status().is_success() {
                 if let Ok(fav_bytes) = fav_response.bytes().await {
-                    favicon = Some(format!("data:{};base64,{}", mime_type.unwrap_or_else(|| "unknown".to_string()), BASE64_STANDARD.encode(fav_bytes)));
+                    favicon = Some(format!(
+                        "data:{};base64,{}",
+                        mime_type.unwrap_or_else(|| "unknown".to_string()),
+                        BASE64_STANDARD.encode(fav_bytes)
+                    ));
                 }
             }
         }
@@ -1097,7 +1101,11 @@ async fn get_favicon(
             if let Ok(fav_response) = client.get(&favicon_url).send().await {
                 if fav_response.status().is_success() {
                     if let Ok(fav_bytes) = fav_response.bytes().await {
-                        favicon = Some(format!("data:{};base64,{}", mime_type.unwrap_or_else(|| "unknown".to_string()), BASE64_STANDARD.encode(fav_bytes)));
+                        favicon = Some(format!(
+                            "data:{};base64,{}",
+                            mime_type.unwrap_or_else(|| "unknown".to_string()),
+                            BASE64_STANDARD.encode(fav_bytes)
+                        ));
                         break;
                     }
                 }
@@ -1157,7 +1165,7 @@ async fn suggest_handler(
         println!("Token user ID does not match request user ID");
         return Err(StatusCode::UNAUTHORIZED);
     }
-    
+
     // Check if token is for a "plus" plan user or if their plan allows this feature
     if user_claims.plan != "plus" {
         println!("User plan does not allow auto-suggestions");
@@ -1362,13 +1370,14 @@ async fn get_settings(
     )
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let settings = supabase
-        .get_user_settings(&user_id)
-        .await
-        .map_err(|e| match e.to_string().as_str() {
-            "404" => StatusCode::NOT_FOUND,
-            _ => StatusCode::INTERNAL_SERVER_ERROR,
-        })?;
+    let settings =
+        supabase
+            .get_user_settings(&user_id)
+            .await
+            .map_err(|e| match e.to_string().as_str() {
+                "404" => StatusCode::NOT_FOUND,
+                _ => StatusCode::INTERNAL_SERVER_ERROR,
+            })?;
 
     Ok(Json(settings))
 }
@@ -1383,8 +1392,10 @@ async fn cancel_subscription_hook(
         scope.set_tag("http.method", "POST");
     });
 
-    let endpoint_secret = env::var("STRIPE_ENDPOINT_SECRET").expect("STRIPE_ENDPOINT_SECRET must be set");
-    let verify_signature = env::var("STRIPE_VERIFY_WEBHOOK_SIGNATURE").expect("STRIPE_VERIFY_WEBHOOK_SIGNATURE must be set");
+    let endpoint_secret =
+        env::var("STRIPE_ENDPOINT_SECRET").expect("STRIPE_ENDPOINT_SECRET must be set");
+    let verify_signature = env::var("STRIPE_VERIFY_WEBHOOK_SIGNATURE")
+        .expect("STRIPE_VERIFY_WEBHOOK_SIGNATURE must be set");
 
     let signature = headers
         .get("Stripe-Signature")
@@ -1404,11 +1415,12 @@ async fn cancel_subscription_hook(
     })?;
 
     let event = if verify_signature == "true" {
-        stripe::Webhook::construct_event(&payload_str, signature, &endpoint_secret)
-            .map_err(|e| {
+        stripe::Webhook::construct_event(&payload_str, signature, &endpoint_secret).map_err(
+            |e| {
                 println!("Error constructing Stripe event: {:?}", e);
                 StatusCode::BAD_REQUEST
-            })?
+            },
+        )?
     } else {
         serde_json::from_str::<Event>(&payload_str).map_err(|e| {
             println!("Error deserializing event: {:?}", e);
@@ -1433,10 +1445,15 @@ async fn cancel_subscription_hook(
 
     let customer_id = subscription.customer.id();
 
-    let user_email = StripeClient::get_customer_email(&customer_id).await.map_err(|e| {
-        println!("Error retrieving customer email for ID: {:?}, error: {:?}", customer_id, e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    let user_email = StripeClient::get_customer_email(&customer_id)
+        .await
+        .map_err(|e| {
+            println!(
+                "Error retrieving customer email for ID: {:?}, error: {:?}",
+                customer_id, e
+            );
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
 
     let user_email = match user_email {
         Some(email) => email,
@@ -1468,10 +1485,13 @@ async fn cancel_subscription_hook(
         json!(Utc::now().to_rfc3339()),
     );
 
-    supabase.update_subscription(&user.id, updates).await.map_err(|e| {
-        println!("Error updating subscription: {:?}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    supabase
+        .update_subscription(&user.id, updates)
+        .await
+        .map_err(|e| {
+            println!("Error updating subscription: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
 
     Ok(StatusCode::OK)
 }
@@ -1511,7 +1531,7 @@ async fn get_user_data_handler(
         Ok(user) => {
             tracing::info!("Found existing user: {}", user.email);
             user
-        },
+        }
         Err(_) => {
             tracing::info!("Creating new user: {}", user_email);
             let new_user = supabase::User {
@@ -1520,16 +1540,17 @@ async fn get_user_data_handler(
                 created_at: Utc::now().to_rfc3339(),
                 auth_token: None,
             };
-            supabase.create_user(new_user.clone())
-                .await
-                .map_err(|e| {
-                    tracing::error!("Failed to create user: {:?}", e);
-                    StatusCode::INTERNAL_SERVER_ERROR
-                })?;
+            supabase.create_user(new_user.clone()).await.map_err(|e| {
+                tracing::error!("Failed to create user: {:?}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
             let create_settings_result = create_user_default_settings(&new_user).await;
             if let Err(e) = create_settings_result {
                 if e == StatusCode::INTERNAL_SERVER_ERROR {
-                    tracing::error!("Failed to create user settings for user: {}", new_user.email);
+                    tracing::error!(
+                        "Failed to create user settings for user: {}",
+                        new_user.email
+                    );
                 }
             }
             new_user
@@ -1539,106 +1560,120 @@ async fn get_user_data_handler(
     tracing::info!("Fetching subscription info for {}", user_email);
     // Get subscription info
     let subscription = match StripeClient::get_customer(&user_email).await {
-        Some(customer) => {
-            match StripeClient::get_subscription(&customer).await {
-                Some(sub) if sub.status.eq(&stripe::SubscriptionStatus::Active) => {
-                    let item = sub.items.data.first()
-                        .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
-                    let plan = item.plan.as_ref()
-                        .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
-                    let product_id = plan.product.as_ref()
-                        .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?
-                        .id();
+        Some(customer) => match StripeClient::get_subscription(&customer).await {
+            Some(sub) if sub.status.eq(&stripe::SubscriptionStatus::Active) => {
+                let item = sub
+                    .items
+                    .data
+                    .first()
+                    .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+                let plan = item
+                    .plan
+                    .as_ref()
+                    .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+                let product_id = plan
+                    .product
+                    .as_ref()
+                    .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?
+                    .id();
 
-                    let supabase_plan = supabase.get_plan_by_stripe_id(&product_id.to_string())
-                        .await
-                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                let supabase_plan = supabase
+                    .get_plan_by_stripe_id(&product_id.to_string())
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-                    Some((SubscriptionResponse {
+                Some((
+                    SubscriptionResponse {
                         plan_id: supabase_plan.id.clone(),
                         current_period_end: sub.current_period_end,
-                    }, supabase_plan))
-                }
-                _ => None
+                    },
+                    supabase_plan,
+                ))
             }
-        }
-        None => None
+            _ => None,
+        },
+        None => None,
     };
 
     tracing::info!("Fetching user settings for {}", user_id);
     let settings = match supabase.get_user_settings(&user_id).await {
         Ok(settings) => Some(settings),
-        Err(_) => {
-            match create_user_default_settings(&user).await {
-                Ok(new_settings) => Some(new_settings),
-                Err(e) => {
-                    if e == StatusCode::INTERNAL_SERVER_ERROR {
-                        tracing::error!("Failed to create user settings for user: {}", user.email);
-                    }
-                    None
+        Err(_) => match create_user_default_settings(&user).await {
+            Ok(new_settings) => Some(new_settings),
+            Err(e) => {
+                if e == StatusCode::INTERNAL_SERVER_ERROR {
+                    tracing::error!("Failed to create user settings for user: {}", user.email);
                 }
+                None
             }
-        }
+        },
     };
 
     tracing::info!("Fetching links for user {}", user_id);
-    let links = supabase.get_links(&user_id, "user")
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to fetch links: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    let links = supabase.get_links(&user_id, "user").await.map_err(|e| {
+        tracing::error!("Failed to fetch links: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     let free_plan_id = std::env::var("FREE_PLAN_ID").expect("FREE_PLAN_ID must be set");
     let free_plan = if subscription.is_none() {
-        Some(supabase.get_plan(&free_plan_id)
-            .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?)
+        Some(
+            supabase
+                .get_plan(&free_plan_id)
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+        )
     } else {
         None
     };
-    
+
     // Generate JWT token with user ID and plan info
     let plan_name = subscription
         .as_ref()
         .map(|(_, plan)| plan.name.clone())
         .or_else(|| free_plan.as_ref().map(|p| p.name.clone()))
         .unwrap_or_else(|| "free".to_string());
-    
-    let auth_token = user_jwt::generate_jwt(&user_id, &plan_name)
-        .map_err(|e| {
-            tracing::error!("Failed to generate JWT token: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
 
-    tracing::info!("Successfully assembled user data response for {}", user_email);
-    
+    let auth_token = user_jwt::generate_jwt(&user_id, &plan_name).map_err(|e| {
+        tracing::error!("Failed to generate JWT token: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    tracing::info!(
+        "Successfully assembled user data response for {}",
+        user_email
+    );
+
     // Create response with user data and authorization token
     let mut response = UserDataResponse {
         user,
-        subscription: subscription.as_ref().map(|(sub, _)| sub.clone())
-            .or(Some(SubscriptionResponse {
+        subscription: subscription.as_ref().map(|(sub, _)| sub.clone()).or(Some(
+            SubscriptionResponse {
                 plan_id: free_plan_id.clone(),
                 current_period_end: 0,
-            })),
+            },
+        )),
         plan: subscription.map(|(_, plan)| plan).or(free_plan),
         settings,
         links,
     };
-    
+
     // Add the auth_token to the response
     response.user.auth_token = Some(auth_token);
-    
+
     Ok(Json(response))
 }
 
-async fn create_user_default_settings(user: &crate::supabase::User) -> Result<supabase::UserSettings, StatusCode> {
+async fn create_user_default_settings(
+    user: &crate::supabase::User,
+) -> Result<supabase::UserSettings, StatusCode> {
     println!("Creating default user settings");
 
     let supabase = Supabase::new(
         std::env::var("SUPABASE_URL").expect("SUPABASE_URL must be set"),
         std::env::var("SUPABASE_KEY").expect("SUPABASE_KEY must be set"),
-    ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    )
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let settings_blob = UserSettingsRequest {
         search_history: false,
@@ -1665,5 +1700,4 @@ async fn create_user_default_settings(user: &crate::supabase::User) -> Result<su
     } else {
         return Err(StatusCode::FOUND);
     }
-
 }
