@@ -939,8 +939,59 @@ async fn cancel_handler(
 
 async fn get_metadata(
     client: State<reqwest::Client>, url: &str,
+    Extension(user_context): Extension<UserContext>,
+    headers: HeaderMap,
 ) -> Result<Metadata, StatusCode> {
     tracing::info!("Fetching metadata for URL: {}", url);
+
+    let user_email = user_context.email.clone();
+    let user_id = user_context.user_id.clone();
+    println!("Fetching metadata for URL: {}", url);
+
+    sentry::configure_scope(|scope| {
+        scope.set_user(Some(sentry::User {
+            email: Some(user_email.clone()),
+            id: Some(user_id.clone()),
+            ..Default::default()
+        }));
+        scope.set_tag("http.method", "GET");
+    });
+
+    // Check for the custom authorization header
+    let auth_token = headers
+        .get("X-User-Authorization")
+        .ok_or_else(|| {
+            println!("Missing X-User-Authorization header");
+            StatusCode::UNAUTHORIZED
+        })?
+        .to_str()
+        .map_err(|e| {
+            println!("Invalid X-User-Authorization header: {:?}", e);
+            StatusCode::BAD_REQUEST
+        })?;
+
+    // Validate the JWT token
+    let user_claims = match user_jwt::validate_jwt(auth_token) {
+        Ok(claims) => claims,
+        Err(e) => {
+            println!("Invalid JWT token: {:?}", e);
+            return Err(StatusCode::UNAUTHORIZED);
+        }
+    };
+
+    // Verify the user ID in the token matches the request user ID
+    if user_claims.user_id != user_id {
+        println!("Token user ID does not match request user ID");
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    
+    // Check if token is for a "plus" plan user or if their plan allows this feature
+    if user_claims.plan != "plus" {
+        println!("User plan does not allow metadata extraction from Links");
+        return Err(StatusCode::FORBIDDEN);
+    }
+
+    println!("Fetching metadata for URL: {}", url);
 
     let response = client
         .get(url)
