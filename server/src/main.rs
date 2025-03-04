@@ -100,6 +100,12 @@ pub struct UserDataResponse {
     links: Vec<supabase::Link>,
 }
 
+// New struct for staging login request
+#[derive(Deserialize, Debug)]
+pub struct StagingLoginRequest {
+    password: String,
+}
+
 fn main() {
     let _guard = sentry::init(("https://dacfc75c4bbf7f8a70134067d078c21a@o4508773394153472.ingest.us.sentry.io/4508773395857408", sentry::ClientOptions {
         release: sentry::release_name!(),
@@ -175,6 +181,8 @@ async fn runtime() {
         // cancel subscription event listener for Stripe
         .route("/stripe_cancel_hook", post(cancel_subscription_hook))
         .route("/user_data", get(get_user_data_handler))
+        // Add staging login route - doesn't need authentication
+        .route("/staging_login", post(staging_login_handler))
         .with_state(client)
         .layer(axum::middleware::from_fn(authenticate_user))
         .layer(axum::middleware::from_fn(extract_user))
@@ -184,6 +192,31 @@ async fn runtime() {
     println!("Server running on http://0.0.0.0:3000");
 
     axum::serve(listener, app).await.unwrap();
+}
+
+// Staging login handler
+async fn staging_login_handler(
+    Json(payload): Json<StagingLoginRequest>,
+) -> Result<StatusCode, StatusCode> {
+    println!("Processing staging login request");
+
+    // Get the staging password from environment variables
+    let staging_password = match env::var("STAGING_PASSWORD") {
+        Ok(pwd) => pwd,
+        Err(_) => {
+            println!("STAGING_PASSWORD environment variable not set");
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+
+    // Simple password validation
+    if payload.password == staging_password {
+        println!("Staging login successful");
+        return Ok(StatusCode::OK);
+    } else {
+        println!("Invalid staging password provided");
+        return Err(StatusCode::FORBIDDEN);
+    }
 }
 
 async fn create_user_handler(

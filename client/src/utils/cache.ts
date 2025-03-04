@@ -6,6 +6,7 @@ export const CacheKeys = {
   LINKS: `${CACHE_PREFIX}${CACHE_VERSION}links`,
   SETTINGS: `${CACHE_PREFIX}${CACHE_VERSION}settings`,
   SEARCH_ENGINE: `${CACHE_PREFIX}${CACHE_VERSION}search_engine`,
+  STAGING_LOGGED_IN: `${CACHE_PREFIX}${CACHE_VERSION}staging_logged_in`,
 } as const;
 
 export const cache = {

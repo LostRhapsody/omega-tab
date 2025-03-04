@@ -16,4 +16,5 @@ export const API = {
   UPDATE_SETTINGS: "http://localhost:3000/settings",
   GET_SETTINGS: "http://localhost:3000/settings",
   GET_USER_DATA: "http://localhost:3000/user_data",
+  STAGING_LOGIN: "http://localhost:3000/staging_login",
 } as const;
