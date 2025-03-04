@@ -175,11 +175,13 @@
                 Better New Tab Plus
               </v-list-item-title>
             </v-list-item>
-            <v-list-item @click="router.push('/help')">
-              <v-list-item-title>
-                <v-icon icon="mdi-book" />
-                Help Center
-              </v-list-item-title>
+            <v-list-item>
+              <a href="docs/">
+                <v-list-item-title>
+                  <v-icon icon="mdi-book" />
+                  Help Center
+                </v-list-item-title>
+              </a>
             </v-list-item>
             <v-list-item @click="showFeedbackDialog = true">
               <v-list-item-title>

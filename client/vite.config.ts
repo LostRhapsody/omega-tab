@@ -51,6 +51,12 @@ export default defineConfig({
 
   // Development specific settings
   server: {
+    proxy: {
+      "/docs": {
+        target: "http://localhost:5174", // VitePress dev server
+        rewrite: (path) => path, // Keep /docs in the path
+      },
+    },
     hmr: {
       overlay: true
     },

@@ -89,6 +89,7 @@ pub struct UserSettingsRequest {
     confluence_api: bool,
     linear_api: bool,
     new_tabs: bool,
+    metadata: bool,
 }
 
 #[derive(Serialize)]
@@ -1761,6 +1762,7 @@ async fn create_user_default_settings(
         confluence_api: false,
         linear_api: false,
         new_tabs: false,
+        metadata: false,
     };
 
     let user_settings = supabase::UserSettings {

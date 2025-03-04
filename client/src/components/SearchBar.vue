@@ -48,27 +48,32 @@
 				</v-row>
 				<div v-if="fuzzyResults.length || (getFilteredHistory.length && searchQuery) || autoSuggestions.length" class="dropdown-menu">
 					<div>
-
-						<!-- Tool section -->
-						<div v-for="(result, index) in fuzzyResults" :key="result.item.title" class="dropdown-item"
-							:class="{ focused: focusedIndex === index }" @mouseover="focusedIndex = index">
-							<div>
-								<a :href="result.item.url">
-									<div> <v-icon icon="mdi-link" /> {{ result.item.title }}</div>
-									<span v-if="result.item.description">{{ result.item.description }}</span>
-								</a>
+						<!-- my links section -->
+						<div v-if="fuzzyResults.length">
+							<em>My Links</em>
+							<v-divider class="mb-2" />						
+							<div v-for="(result, index) in fuzzyResults" :key="result.item.title" class="dropdown-item"
+								:class="{ focused: focusedIndex === index}" @mouseover="focusedIndex = index">
+								<div>
+									<a :href="result.item.url">
+										<div> <v-icon icon="mdi-link" /> {{ result.item.title }}</div>
+										<span v-if="result.item.description">{{ result.item.description }}</span>
+									</a>
+								</div>
 							</div>
 						</div>
-
 						<!-- Suggestions -->
-						<div v-for="(suggestion, index) in autoSuggestions" :key="suggestion.query" class="dropdown-item"
-							:class="{ focused: focusedIndex === index }"
-							@mouseover="focusedIndex = index">
-							<a variant="plain" @click="() => suggestionHandler(suggestion.query)">{{ suggestion.query }}</a>
-						</div>
-						<div v-if="autoSuggestions.length">
+						<div v-else-if="autoSuggestions.length">
+							<em>Suggestions</em>
 							<v-divider class="mb-2" />
-							<em>Suggestions POWERED BY BRAVE</em>
+							<div v-for="(suggestion, index) in autoSuggestions" :key="suggestion.query" class="dropdown-item"
+								:class="{ focused: focusedIndex === index }"
+								@mouseover="focusedIndex = index">
+								<a variant="plain" @click="() => suggestionHandler(suggestion.query)">{{ suggestion.query }}</a>
+							</div>
+							<div>
+								<em>Suggestions POWERED BY BRAVE</em>
+							</div>
 						</div>
 					</div>
 				</div>
