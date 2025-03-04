@@ -8,17 +8,19 @@ pub struct Brave {
     api_key: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct SuggestResponse {
     #[serde(rename = "type")]
-    pub _response_type: String,
-    pub _query: Query,
+    pub response_type: String,
+    pub query: Query,
     pub results: Vec<Suggestion>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct Query {
-    pub _original: String,
+    pub original: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
