@@ -615,8 +615,8 @@ async fn create_link(
         return Err(StatusCode::UNAUTHORIZED);
     }
 
-    // init metadata, if plus plan retrieve from link's URL, else use defaults
-    let metadata = if user_claims.plan == "plus" && metadata_on {
+    // init metadata, if not free plan retrieve from link's URL, else use defaults
+    let metadata = if user_claims.plan != "free" && metadata_on {
         get_metadata(State(client.clone()), &url)
             .await
             .map_err(|e| {
@@ -647,7 +647,7 @@ async fn create_link(
     };
 
     // grab the favicon, or just pass an empty string
-    let favicon = if user_claims.plan == "plus" && metadata_on {
+    let favicon = if user_claims.plan != "free" && metadata_on {
         get_favicon(
             State(client),
             &url,
@@ -1172,8 +1172,8 @@ async fn suggest_handler(
         return Err(StatusCode::UNAUTHORIZED);
     }
 
-    // Check if token is for a "plus" plan user or if their plan allows this feature
-    if user_claims.plan != "plus" {
+    // Check if token is for a "free" plan user or if their plan allows this feature
+    if user_claims.plan == "free" {
         println!("User plan does not allow auto-suggestions");
         return Err(StatusCode::FORBIDDEN);
     }

@@ -159,7 +159,9 @@
           <v-card-item>
             <v-card-title class="mb-2">Current Plan</v-card-title>
             <v-card-text class="border border-gray-200 rounded-lg !p-2">
-              <div class="text-h4 mb-2">{{ userPlan?.name === 'plus' ? 'Plus+' : userPlan?.name || 'Free' }}</div>
+                <div class="text-h4 mb-2">
+                {{ userPlan?.name === 'plus' ? 'Plus+' : userPlan?.name === 'pro' ? 'Pro' : 'Free' }}
+                </div>
               <div class="text-body-1">{{ userPlan?.max_pins || 6 }} pins included</div>
             </v-card-text>
             <v-card-actions>

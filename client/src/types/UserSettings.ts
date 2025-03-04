@@ -27,18 +27,18 @@ export const UserSettingsLabels = [
     active: true,
     plan: "plus",
   },
-  { label: "Enable Jira API", key: "jira_api", active: false, plan: "plus" },
+  { label: "Enable Jira API", key: "jira_api", active: false, plan: "pro" },
   {
     label: "Enable Confluence API",
     key: "confluence_api",
     active: false,
-    plan: "plus",
+    plan: "pro",
   },
   {
     label: "Enable Linear API",
     key: "linear_api",
     active: false,
-    plan: "plus",
+    plan: "pro",
   },
   {
     label: "Open Links In New Tabs",
