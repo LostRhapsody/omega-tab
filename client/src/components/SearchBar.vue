@@ -283,14 +283,25 @@ const clearHistory = (query: string) => {
 	localStorage.removeItem(STORAGE_KEY);
 };
 
+// Add a function to prepare URL (add protocol if needed)
+const prepareUrl = (url: string) => {
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    return `https://${url}`;
+  }
+  return url;
+};
+
 // Modify your existing performSearch function
 const performSearch = () => {
 	if (searchQuery.value.trim()) {
 		// If there are fuzzy results, open the first result's URL
 		if (fuzzyResults.value.length > 0) {
 			openUrl(fuzzyResults.value[0].item.url);
-		} else {
+			// If it's a valid URL, open it directly
+		} else if (isCompleteURI.value) {
+			openUrl(prepareUrl(searchQuery.value));
 			// Otherwise perform normal search
+		} else {
 			const searchUrl = selectedEngine.value + encodeURIComponent(searchQuery.value);
 			openUrl(searchUrl);
 		}
@@ -354,54 +365,15 @@ const handleKeydown = (event: KeyboardEvent) => {
 						openUrl(fuzzyResults.value[fuzzyIndex].item.url);
 						searchQuery.value = "";
 					}
-				}
-				if(!event.shiftKey){
+				} else if(!event.shiftKey) {
 					performSearch();
 				}
 				return;
 		}
-	}
-	if(event.key === "Enter" && !event.shiftKey){
-		performSearch();
-	}
-	// Handle CS ticket queries
-	// else if (isCSQuery.value) {
-	// 	switch (event.key) {
-	// 		case "ArrowDown":
-	// 			event.preventDefault();
-	// 			focusedIndex.value = (focusedIndex.value + 1) % (pillLinks.length + 3);
-	// 			break;
-	// 		case "ArrowUp":
-	// 			event.preventDefault();
-	// 			focusedIndex.value =
-	// 				(focusedIndex.value - 1 + (pillLinks.length + 3)) %
-	// 				(pillLinks.length + 3);
-	// 			break;
-	// 		case "Enter":
-	// 			event.preventDefault();
-	// 			if (focusedIndex.value === 0) {
-	// 				window.open(jiraLink.value, "_blank");
-	// 			} else if (
-	// 				focusedIndex.value >= 2 &&
-	// 				focusedIndex.value < pillLinks.length + 2
-	// 			) {
-	// 				window.open(pillLinks[focusedIndex.value - 2].link, "_blank");
-	// 			} else if (focusedIndex.value === pillLinks.length + 2) {
-	// 				window.open(confluenceLink.value, "_blank");
-	// 			}
-	// 			searchQuery.value = ""; // Clear the search after opening
-	// 			return; // Prevent further processing
-	// 	}
-	// }
-	// Handle complete URI
-	else if (isCompleteURI.value && event.key === "Enter") {
+	} else if(event.key === "Enter" && !event.shiftKey) {
+		// Handle direct URL input or search
 		event.preventDefault();
-		openUrl(
-			searchQuery.value.startsWith("http")
-				? searchQuery.value
-				: `https://${searchQuery.value}`
-		);
-		searchQuery.value = "";
+		performSearch();
 		return;
 	}
 };

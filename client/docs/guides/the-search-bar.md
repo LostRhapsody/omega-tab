@@ -5,18 +5,18 @@ description: Master the powerful search functionality in BetterNewTab
 
 # The Search Bar
 
-The search bar is one of BetterNewTab's most powerful features, allowing you to search the web, find your saved links, and access search suggestions all from one place.
+The search bar allows you to search the web, get search suggestions, and open your saved links all from one place.
 
 ## Basic Search Functionality
 
 The search bar appears prominently at the top of your BetterNewTab dashboard. To use it:
 
-1. Click on the search bar or press any key to focus it
+1. Click on the search bar, the search bar is automatically selected when the page loads
 2. Type your search query
 3. Press Enter to search using your selected search engine
-4. Or click on one of the suggested results that appear below the search bar
+4. Click on a suggestion or navigate to it with arrow keys and press Enter to search with that suggestion
 
-![Search Bar](/public/copy/suggestions.png)
+![Search Bar](/copy/suggestions.png)
 
 ## Search Engines
 
@@ -26,11 +26,15 @@ BetterNewTab supports multiple search engines. To switch between them:
 2. Select your preferred search engine from the dropdown
 3. Your selection will be saved for future searches
 
+::: tip
+You can also use the shortcuts below to switch engines
+:::
+
 ### Keyboard Shortcuts for Search Engines
 
 Quickly switch between search engines using keyboard shortcuts:
-- **Ctrl+↑**: Switch to the previous search engine in the list
-- **Ctrl+↓**: Switch to the next search engine in the list
+- `Ctrl+↑`: Switch to the previous search engine in the list
+- `Ctrl+↓`: Switch to the next search engine in the list
 
 ## Searching Your Links
 

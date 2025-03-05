@@ -21,7 +21,7 @@ There are three ways to add a new link to your dashboard:
 
 Use one of the above methods to open a modal dialog where you can enter your link details.
 
-![Add Link Card](/public/copy/add_link.png)
+![Add Link Card](/copy/add_link.png)
 
 ### 2. Enter Link Details
 

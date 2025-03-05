@@ -16,7 +16,7 @@ As you type in the search bar, BetterNewTab can display a list of suggested sear
 - Fix spelling errors in your query
 - Find popular searches related to your topic
 
-![Search Suggestions](/public/copy/suggestions.png)
+![Search Suggestions](/copy/suggestions.png)
 
 ## Powered by Brave
 

@@ -30,7 +30,7 @@ The metadata fetching process works as follows:
 
 ## Availability
 
-Metadata fetching is a **Plus Feature** and is available only to Plus subscribers. For free users, any fields left blank will remain blank, and you'll need to manually enter all details.
+Metadata fetching is a **Plus Feature** and is available only to Plus or Pro subscribers. For free users, any fields left blank will remain blank, and you'll need to manually enter all details.
 
 ## What Gets Extracted
 
