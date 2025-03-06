@@ -128,7 +128,7 @@ if (props.icon && !isMdiIcon.value) {
         </v-list>
       </v-menu>
       <v-icon icon="mdi-chevron-right" size="24" class="chevron" />
-      <div class="shortcut-text">{{ shortcut }}+{{ index + 1 }}</div>
+      <div v-if="shortcut" class="shortcut-text">{{ shortcut }}+{{ index + 1 }}</div>
     </v-card>
     <v-snackbar v-model="snackbar" :timeout="3000">
       URL Copied to clipboard

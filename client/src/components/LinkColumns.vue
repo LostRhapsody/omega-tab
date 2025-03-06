@@ -59,32 +59,21 @@
 	};
 
 	const handleKeydown = (event: KeyboardEvent) => {
-		console.log("event.key", event.key);
 		// Only process numeric keys 1-9
 		if (!/^[1-9]$/.test(event.key)) return;
 		
 		const numKey = Number.parseInt(event.key) - 1;
-		console.log("numKey", numKey);
 		
 		// Check which shortcut combination is pressed
 		let columnIndex = -1;
-		if (event.ctrlKey && event.altKey && event.shiftKey) {
-			columnIndex = 5; // Ctrl+Alt+Shift
-		} else if (event.altKey && event.shiftKey) {
-			columnIndex = 4; // Alt+Shift
+		if (event.ctrlKey && event.altKey) {
+			columnIndex = 2; // Ctrl+Alt (third column)
 		} else if (event.ctrlKey && event.shiftKey) {
-			columnIndex = 3; // Ctrl+Shift
-		} else if (event.ctrlKey && event.altKey) {
-			columnIndex = 2; // Ctrl+Alt
-		} else if (event.altKey) {
-			columnIndex = 1; // Alt
+			columnIndex = 1; // Ctrl+Shift (second column)
 		} else if (event.ctrlKey) {
-			columnIndex = 0; // Ctrl
+			columnIndex = 0; // Ctrl (first column)
 		}
 		
-		console.log("columnIndex", columnIndex);
-		console.log("uniqueColumnTypes.value.length", uniqueColumnTypes.value.length);
-		console.log("numKey", numKey);
 		// If we have a valid column, try to open the corresponding link
 		if (columnIndex >= 0 && columnIndex < uniqueColumnTypes.value.length) {
 			const columnType = uniqueColumnTypes.value[columnIndex];
