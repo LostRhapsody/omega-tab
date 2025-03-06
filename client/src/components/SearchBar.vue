@@ -69,9 +69,12 @@
 							<div v-for="(suggestion, index) in autoSuggestions" :key="suggestion.query" class="dropdown-item"
 								:class="{ focused: focusedIndex === index }"
 								@mouseover="focusedIndex = index">
-								<a variant="plain" @click="() => suggestionHandler(suggestion.query)">{{ suggestion.query }}</a>
+								<a variant="plain" @click="() => suggestionHandler(suggestion.query)" class="d-flex align-center">
+									<v-icon v-if="suggestion.isHistory" icon="mdi-history" size="small" class="mr-1" />
+									{{ suggestion.query }}
+								</a>
 							</div>
-							<div>
+							<div v-if="autoSuggestions.some(s => !s.isHistory)">
 								<em>Suggestions POWERED BY BRAVE</em>
 							</div>
 						</div>
@@ -112,9 +115,18 @@ interface HistoryItem {
 	timestamp: number;
 }
 
+interface ScoredHistoryItem {
+	query: string;
+	score: number; // Combined score for ranking
+	matchScore: number; // How well it matches the search query
+	freqScore: number; // Normalized frequency score
+	recencyScore: number; // Normalized recency score
+}
+
 // consts and refs
-const MAX_STORED_HISTORY = 100; // Maximum number of items to store
-const MAX_DISPLAYED_HISTORY = 5; // Maximum number of items to display
+const MAX_STORED_HISTORY = 500; // Maximum number of items to store
+const MAX_DISPLAYED_HISTORY = 5; // Maximum number of history items to display in suggestions
+const MAX_HISTORY_SUGGESTIONS = 5; // Maximum number of history suggestions to mix with API suggestions
 const STORAGE_KEY = "search_history";
 
 const linksStore = useLinksStore();
@@ -122,7 +134,8 @@ const settingsStore = useUserSettingsStore();
 const { links } = storeToRefs(linksStore)
 
 const searchQuery = ref("");
-const searchHistory = ref<string[]>([]);
+const searchHistory = ref<string[]>([]); // For backward compatibility
+const historyItems = ref<HistoryItem[]>([]); // Complete history items with metadata
 const showHistory = ref(false);
 const searchInput = ref<HTMLElement | null>(null);
 const searchEngineStore = useSearchEngineStore();
@@ -136,6 +149,7 @@ const MAX_HISTORY_ENTRIES = Number.parseInt(import.meta.env.VITE_MAX_HISTORY_ENT
 // Fuzzy search setup
 const fuzzyResults = ref<FuseResult<Link>[]>([]);
 const autoSuggestions = ref<Suggestions[]>([]);
+const historySuggestions = ref<ScoredHistoryItem[]>([]);
 
 // computed properties
 const placeholder = computed(() => {
@@ -236,16 +250,74 @@ const loadSearchHistory = () => {
 		const stored = cache.get_search_history(CacheKeys.SEARCH_HISTORY);
 		if (stored) {
 			const parsed: HistoryItem[] = JSON.parse(stored);
-			// Sort by timestamp and get just the queries
-			searchHistory.value = parsed
-				.sort((a, b) => b.timestamp - a.timestamp)
-				.map((item) => item.query)
-				.slice(0, MAX_STORED_HISTORY);
+				// Store complete history items
+				historyItems.value = parsed.slice(0, MAX_STORED_HISTORY);
+				// For backward compatibility, still keep searchHistory
+				searchHistory.value = parsed
+					.sort((a, b) => b.timestamp - a.timestamp)
+					.map((item) => item.query)
+					.slice(0, MAX_STORED_HISTORY);
 		}
 	} catch (error) {
 		console.error("Error loading search history:", error);
+		historyItems.value = [];
 		searchHistory.value = [];
 	}
+};
+
+// Calculate history suggestions based on query matching, frequency and recency
+const calculateHistorySuggestions = (query: string): ScoredHistoryItem[] => {
+	if (!query || !historyItems.value.length) return [];
+	
+	const now = Date.now();
+	const maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
+	const queryLower = query.toLowerCase();
+	
+	// Get max frequency for normalization
+	const maxFreq = Math.max(...historyItems.value.map(item => parseInt(item.freq || '1')));
+	
+	// Score each history item
+	const scoredItems = historyItems.value.map(item => {
+		// Calculate match score (exact match gets highest score)
+		let matchScore = 0;
+		if (item.query.toLowerCase() === queryLower) {
+			matchScore = 1;
+		} else if (item.query.toLowerCase().startsWith(queryLower)) {
+			matchScore = 0.8;
+		} else if (item.query.toLowerCase().includes(queryLower)) {
+			matchScore = 0.6;
+		} else {
+			// Fuzzy match based on query length vs item length (simple approximation)
+			const matchLength = Math.min(queryLower.length, item.query.length);
+			const maxLength = Math.max(queryLower.length, item.query.length);
+			matchScore = matchLength / maxLength * 0.4; // max 0.4 for fuzzy matches
+		}
+		
+		// Skip items with very low match score
+		if (matchScore < 0.3) return null;
+		
+		// Calculate frequency score (normalized)
+		const freqScore = parseInt(item.freq || '1') / maxFreq;
+		
+		// Calculate recency score (newer gets higher score)
+		const age = now - item.timestamp;
+		const recencyScore = Math.max(0, 1 - (age / maxAge));
+		
+		// Combined score with weights: match (0.5) + frequency (0.3) + recency (0.2)
+		const score = (matchScore * 0.5) + (freqScore * 0.3) + (recencyScore * 0.2);
+		
+		return {
+			query: item.query,
+			score,
+			matchScore,
+			freqScore,
+			recencyScore
+		};
+	}).filter(item => item !== null) as ScoredHistoryItem[];
+	
+	// Sort by combined score and return top results
+	return scoredItems.sort((a, b) => b.score - a.score)
+		.slice(0, MAX_HISTORY_SUGGESTIONS);
 };
 
 const addToHistory = (query: string) => {
@@ -263,6 +335,7 @@ const addToHistory = (query: string) => {
 		if (existingIndex !== -1) {
 			// Increment frequency count
 			history[existingIndex].freq = (parseInt(history[existingIndex].freq || '0') + 1).toString();			
+			history[existingIndex].timestamp = Date.now(); // Update timestamp to now
 			
 			// Move this item to the beginning of the array
 			const item = history.splice(existingIndex, 1)[0];
@@ -284,7 +357,8 @@ const addToHistory = (query: string) => {
 		// Save to local Storage
 		cache.set_search_history(CacheKeys.SEARCH_HISTORY, JSON.stringify(history));
 
-		// Update the reactive history
+		// Update the reactive history arrays
+		historyItems.value = history.slice(0, MAX_STORED_HISTORY);
 		searchHistory.value = history.map((item) => item.query);
 	} catch (error) {
 		console.error("Error saving to search history:", error);
@@ -431,41 +505,56 @@ const handleSearchEngineHotkeys = (event: KeyboardEvent) => {
 };
 
 const getSuggestions = async (query: string) => {
-	if(!AUTO_SUGGEST_ON){
-		autoSuggestions.value = [];
-		return;
-	} 
-	if (!settingsStore.settings.autosuggest) {
-		autoSuggestions.value = [];
-		return;
-	}
-	try {
-		const userStore = useUserStore();
-		const authToken = userStore.getAuthToken();
-		
-		// Only proceed if we have an auth token
-		if (!authToken) {
-			console.warn('No auth token available for suggestions');
-			return;
-		}
-		
-		const response = await api.get(API.SUGGEST(query), {
-			headers: {
-				'X-User-Authorization': authToken
+	// Calculate history suggestions first
+	const historyResults = calculateHistorySuggestions(query);
+	
+	// Convert history suggestions to the same format as API suggestions
+	const historySuggestionsFormatted = historyResults.map(item => ({
+		query: item.query,
+		score: item.score,
+		isHistory: true // Add flag to identify history suggestions
+	}));
+	
+	let apiSuggestions: Suggestions[] = [];
+	
+	// Get API suggestions if enabled
+	if(AUTO_SUGGEST_ON && settingsStore.settings.autosuggest){
+		try {
+			const userStore = useUserStore();
+			const authToken = userStore.getAuthToken();
+			
+			// Only proceed if we have an auth token
+			if (authToken) {
+				const response = await api.get(API.SUGGEST(query), {
+					headers: {
+						'X-User-Authorization': authToken
+					}
+				});		
+				const suggestionResponse = response.data as SuggestionsResponse;
+				apiSuggestions = suggestionResponse.suggestions;
 			}
-		});		
-		const suggestionResponse = response.data as SuggestionsResponse;
-		autoSuggestions.value = suggestionResponse.suggestions;
-	} catch (error) {
-		console.error("Error fetching suggestion:", error);
-		if ((error as AxiosError).status === 403) {
-			alert('Auto-suggestions are not available for your account. This feature has been disabled.');
-			settingsStore.updateSetting('autosuggest', false);
-			autoSuggestions.value = [];
-			return;
+		} catch (error) {
+			console.error("Error fetching suggestion:", error);
+			if ((error as AxiosError).status === 403) {
+				alert('Auto-suggestions are not available for your account. This feature has been disabled.');
+				settingsStore.updateSetting('autosuggest', false);
+			}
 		}
-		autoSuggestions.value = []; // Clear suggestions on error
 	}
+	
+	// Combine history and API suggestions, giving preference to history suggestions
+	// We'll show all history suggestions first (up to MAX_HISTORY_SUGGESTIONS),
+	// then fill the rest with API suggestions
+	
+	// Get unique suggestions (avoid duplicates between history and API)
+	const seenQueries = new Set<string>(historySuggestionsFormatted.map(s => s.query.toLowerCase()));
+	const uniqueApiSuggestions = apiSuggestions.filter(s => !seenQueries.has(s.query.toLowerCase()));
+	
+	// Combine the suggestions
+	autoSuggestions.value = [
+		...historySuggestionsFormatted,
+		...uniqueApiSuggestions
+	];
 };
 
 const suggestionHandler = (suggestion: string) => {
