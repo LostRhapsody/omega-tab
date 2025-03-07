@@ -68,9 +68,7 @@ const handleKeydown = (event: KeyboardEvent) => {
 	// Check which shortcut combination is pressed
 	let columnIndex = -1;
 	if (event.ctrlKey && event.altKey) {
-		columnIndex = 2; // Ctrl+Alt (third column)
-	} else if (event.ctrlKey && event.shiftKey) {
-		columnIndex = 1; // Ctrl+Shift (second column)
+		columnIndex = 1; // Ctrl+Alt (second column)	
 	} else if (event.ctrlKey) {
 		columnIndex = 0; // Ctrl (first column)
 	}

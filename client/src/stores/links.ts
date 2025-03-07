@@ -9,8 +9,7 @@ import { defineStore } from "pinia";
 // Define shortcut mapping for columns
 export const SHORTCUT_MAPPINGS = [
   { key: "ctrl", label: "Ctrl" }, // First column
-  { key: "ctrlshift", label: "Ctrl+Shift" }, // Second column
-  { key: "ctrlalt", label: "Ctrl+Alt" }, // Third column
+  { key: "ctrlalt", label: "Ctrl+Alt" }, // Second column
 ];
 
 interface LinksState {
