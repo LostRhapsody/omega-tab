@@ -1285,6 +1285,11 @@ async fn suggest_handler(
     })?;
 
     let response = brave.get_suggestions(&query).await.map_err(|e| {
+        // Check for rate limit error specifically
+        if e.to_string().contains("429 Too Many Requests") {
+            println!("Rate limit exceeded for Brave API");
+            return StatusCode::TOO_MANY_REQUESTS;
+        }
         println!("Error getting suggestions: {:?}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;

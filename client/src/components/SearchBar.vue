@@ -541,15 +541,22 @@ const getSuggestions = async (query: string) => {
 					headers: {
 						'X-User-Authorization': authToken
 					}
-				});		
-				const suggestionResponse = response.data as SuggestionsResponse;
-				apiSuggestions = suggestionResponse.suggestions;
+				});
+				
+				// Check for successful response
+				if (response.status === 200) {
+					const suggestionResponse = response.data as SuggestionsResponse;
+					apiSuggestions = suggestionResponse.suggestions;
+				}
 			}
 		} catch (error) {
-			console.error("Error fetching suggestion:", error);
-			if ((error as AxiosError).status === 403) {
-				alert('Auto-suggestions are not available for your account. This feature has been disabled.');
-				settingsStore.updateSetting('autosuggest', false);
+			// Silently handle 429 errors (too many requests)
+			if ((error as AxiosError).response?.status !== 429) {
+				console.error("Error fetching suggestion:", error);
+				if ((error as AxiosError).response?.status === 403) {
+					alert('Auto-suggestions are not available for your account. This feature has been disabled.');
+					settingsStore.updateSetting('autosuggest', false);
+				}
 			}
 		}
 	}
@@ -574,6 +581,12 @@ const suggestionHandler = (suggestion: string) => {
 	performSearch();
 };
 
+// Add these variables near the other refs and constants
+const lastQuery = ref(""); // Keep track of the last query we sent to the API
+const lastQueryTime = ref(0); // Keep track of when we last sent a request
+const DEBOUNCE_TIME = 500; // milliseconds to wait for user typing to settle
+const MIN_TOKEN_SIZE = 3; // minimum characters difference to trigger a new request
+
 // watch, mount, and unmount
 watch(searchQuery, async (newQuery) => {
 	// if you type more stuff, reset the focused index,
@@ -592,7 +605,7 @@ watch(searchQuery, async (newQuery) => {
 
     // if is not a complete URI, perform fuzzy search for links
     if (!isCompleteURI.value) {
-
+		// Always perform the local fuzzy search (it's fast and doesn't hit APIs)
 		await debouncedFuzzySearch(newQuery);
 		// this is here on purpose. The debounced search has a 10 ms delay
 		// so we need to wait for it to finish before fetching suggestions
@@ -604,8 +617,22 @@ watch(searchQuery, async (newQuery) => {
             return;
         }
 
-        // if no fuzzy results, get search suggestions
-        await getSuggestions(newQuery);
+        // Rate limit checks before getting search suggestions
+        const now = Date.now();
+        const timeSinceLastQuery = now - lastQueryTime.value;
+        const charDiff = Math.abs(newQuery.length - lastQuery.value.length);
+        
+        // Get suggestions if:
+        // 1. We have enough new characters (tokenization) OR
+        // 2. Enough time has passed since last request AND the query is different
+        if (
+            (charDiff >= MIN_TOKEN_SIZE) || 
+            (timeSinceLastQuery >= DEBOUNCE_TIME && newQuery !== lastQuery.value)
+        ) {
+            lastQuery.value = newQuery;
+            lastQueryTime.value = now;
+            await getSuggestions(newQuery);
+        }
     } else {
         // If it's a complete URI, clear the fuzzy results and suggestions
         autoSuggestions.value = [];
