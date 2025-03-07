@@ -224,7 +224,6 @@ import type { Link } from "@/types/Link";
 import { Clerk } from "@clerk/clerk-js";
 import { computed, nextTick, onMounted, ref, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
-import LandingPage from "../components/LandingPage.vue";
 import NewLandingPage from "../components/NewLandingPage.vue";
 import LinkColumns from "../components/LinkColumns.vue";
 import SearchBar from "../components/SearchBar.vue";

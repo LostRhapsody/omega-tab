@@ -3,47 +3,8 @@
   <div class="min-h-screen bg-[rgb(3,5,21)] relative">
     <!-- Gradient Overlay -->
     <div class="absolute top-0 right-0 w-full h-full animated-gradient"></div>
-    <!-- Navigation -->
-    <nav
-      class="px-4 py-4 min-h-24 flex align-center border-b border-gray-700 bg-white/5 backdrop-filter backdrop-blur-3xl relative z-10">
-      <div class="container mx-auto">
-        <div class="flex justify-between items-center">
-          <!-- Logo -->
-          <div class="flex items-center space-x-2">
-            <span class="text-white text-xl font-semibold"><a href="/">BetterNewTab_</a></span>
-          </div>
-
-          <!-- Navigation Links -->
-          <div class="hidden md:flex space-x-8 border border-gray-300 px-6 py-4 rounded-full">
-            <a href="/docs/getting-started" class="text-gray-300 hover:text-white transition-colors">Getting Started</a>
-            <span class="text-gray-300 cursor-default">•</span>
-            <a href="/docs/integrations" class="text-gray-300 hover:text-white transition-colors">Integrations</a>
-            <span class="text-gray-300 cursor-default">•</span>
-            <a href="/#pricing" class="text-gray-300 hover:text-white transition-colors">Pricing</a>
-            <span class="text-gray-300 cursor-default">•</span>
-            <a href="/docs/guides" class="text-gray-300 hover:text-white transition-colors">Guides</a>
-            <span class="text-gray-300 cursor-default">•</span>
-            <a href="/contact" class="text-gray-300 hover:text-white transition-colors">Contact</a>
-          </div>
-
-          <!-- Get Started and Sign In Buttons -->
-          <div class="flex items-center space-x-4">
-            <button @click="handleShowSignUp"
-              class="px-4 py-4 rounded-l-full backdrop-filter backdrop-blur-lg text-white hover:bg-white/5 active:bg-white/10 transition-colors flex items-center space-x-2 shadow-inner shadow-white/20">
-              <span class="text-lg">Get Started</span>
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M5 12h14M12 5l7 7-7 7" />
-              </svg>
-            </button>
-            <button @click="handleShowSignIn"
-              class="px-4 py-4 rounded-r-full backdrop-filter backdrop-blur-lg text-white hover:bg-white/5 active:bg-white/10 transition-colors flex items-center space-x-2 shadow-inner shadow-white/20">
-              <span class="text-lg">Sign In</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </nav>
+    
+    <AppHeader />
 
     <!-- Privacy Policy Section -->
     <div class="container mx-auto px-4 py-12">
@@ -73,6 +34,8 @@
               <li class="mb-2"><strong>Search History:</strong> We store your last 500 search terms locally on your device. Search frequency is tracked and scored to provide better search suggestions. This data is stored locally on your device and is not transmitted to our servers.</li>
               <li class="mb-2"><strong>Keystrokes:</strong> We track keystrokes solely for the purpose of enabling keyboard shortcuts. These are not logged or stored.</li>
               <li class="mb-2"><strong>Search Terms:</strong> When you use our search suggestion feature, your search terms are sent to Brave to generate search suggestions using their API.</li>
+              <li class="mb-2"><strong>Payment Information:</strong> When you subscribe to our Service, we collect billing information (such as your name, billing address, and payment method details) through our payment processor, Stripe. We do not store full payment card details on our servers; this data is securely handled by Stripe.</li>
+              <li class="mb-2"><strong>Cookies and Similar Technologies:</strong> We may use cookies or similar technologies (e.g., via Clerk for authentication) to manage sessions and improve your experience. You can control cookies through your browser settings.</li>
             </ul>
           </div>
 
@@ -87,13 +50,14 @@
               <li class="mb-2">Send technical notices, updates, security alerts, and support messages</li>
               <li class="mb-2">Respond to your comments, questions, and requests</li>
               <li class="mb-2">Provide personalized content and search suggestions</li>
+              <li class="mb-2">Process payments and manage subscriptions through Stripe</li>
             </ul>
           </div>
 
           <h2 class="text-2xl font-bold text-white mt-8 mb-4">Data Storage and Transfer</h2>
           
           <p class="text-gray-300 mb-4">
-            Your data is stored in Supabase, not on our servers. Data is transferred through our servers (located in Canada) to Supabase. Our operations are based in Canada, but we use various services such as Clerk, Supabase, and Brave that operate globally, primarily in the United States.
+            Your data is stored in Supabase, not on our servers. Data is transferred through our servers to Supabase. Our operations are based in Canada, but we use various services such as Clerk, Supabase, and Brave that operate globally, primarily in the United States.
           </p>
 
           <h2 class="text-2xl font-bold text-white mt-8 mb-4">Error Tracking and Monitoring</h2>
@@ -114,19 +78,32 @@
             Our Service uses third-party services that may collect information used to identify you:
           </p>
           <ul class="list-disc pl-6 mb-6 text-gray-300">
-            <li class="mb-2"><strong>Clerk:</strong> For authentication services</li>
-            <li class="mb-2"><strong>Supabase:</strong> For data storage</li>
-            <li class="mb-2"><strong>Brave:</strong> For search suggestions</li>
-            <li class="mb-2"><strong>Sentry:</strong> For error tracking</li>
+            <li class="mb-2"><strong>Clerk:</strong> For authentication services; <a href="https://clerk.com/legal/privacy" class="text-blue-400 hover:underline">Privacy Policy</a></li>
+            <li class="mb-2"><strong>Supabase:</strong> For data storage; <a href="https://sentry.io/privacy/" class="text-blue-400 hover:underline">Privacy Policy</a></li>
+            <li class="mb-2"><strong>Brave:</strong> For search suggestions; <a href="https://brave.com/privacy/browser/" class="text-blue-400 hover:underline">Privacy Policy</a></li>
+            <li class="mb-2"><strong>Sentry:</strong> For error tracking; <a href="https://sentry.io/privacy/" class="text-blue-400 hover:underline">Privacy Policy</a></li>
+            <li class="mb-2"><strong>Stripe:</strong> For processing payments and managing subscriptions. Stripe collects and processes your payment information in accordance with its <a href="https://stripe.com/privacy" class="text-blue-400 hover:underline">Privacy Policy</a>.</li>
           </ul>
           <p class="text-gray-300 mb-4">
             We encourage you to review the privacy policies of these third-party services.
+          </p>
+
+          <h2 class="text-2xl font-bold text-white mt-8 mb-4">Sharing Your Information</h2>
+
+          <p class="text-gray-300 mb-4">
+            We do not sell, trade, or rent your personal information to third parties. We may share your information with third-party service providers (such as Clerk, Supabase, Brave, Sentry, and Stripe) to perform functions on our behalf, as described in this Privacy Policy. We may also disclose your information if required by law, to protect our rights, or in connection with a business transfer (e.g., merger or acquisition).
           </p>
 
           <h2 class="text-2xl font-bold text-white mt-8 mb-4">Data Retention</h2>
           
           <p class="text-gray-300 mb-4">
             We will retain your personal information only for as long as necessary to fulfill the purposes outlined in this Privacy Policy. When your data is no longer needed for the purposes for which it was collected, we will delete or anonymize it.
+          </p>
+
+          <h2 class="text-2xl font-bold text-white mt-8 mb-4">Security of Your Information</h2>
+
+          <p class="text-gray-300 mb-4">
+            We take reasonable measures to protect your personal information from unauthorized access, loss, misuse, or alteration. This includes using encryption for data in transit and relying on the security practices of our third-party providers (e.g., Supabase, Stripe). However, no method of transmission over the internet or electronic storage is 100% secure, and we cannot guarantee absolute security.
           </p>
 
           <h2 class="text-2xl font-bold text-white mt-8 mb-4">Your Rights</h2>
@@ -142,6 +119,11 @@
           </ul>
           <p class="text-gray-300 mb-4">
             To exercise these rights, please contact us using the contact information provided below.
+          </p>
+
+          <h2 class="text-2xl font-bold text-white mt-8 mb-4">Children's Privacy</h2>
+          <p class="text-gray-300 mb-4">
+            Our Service is not intended for use by individuals under the age of 13. We do not knowingly collect personal information from children under 13. If we become aware that a child under 13 has provided us with personal information, we will take steps to delete it.
           </p>
 
           <h2 class="text-2xl font-bold text-white mt-8 mb-4">Changes to This Privacy Policy</h2>
@@ -163,91 +145,15 @@
       </div>
     </div>
 
-    <!-- Footer -->
-    <div class="pt-24 text-center bottom-0 w-full">
-      <footer
-        class="px-4 py-4 min-h-24 flex align-center border-t border-gray-700 bg-white/5 backdrop-filter backdrop-blur-3xl relative z-10">
-        <div class="container mx-auto">
-          <div class="flex justify-between items-center">
-            <!-- Company Name -->
-            <div class="flex items-center space-x-2">
-              <span class="text-white text-xl font-semibold">BetterNewTab_</span>
-            </div>
-
-            <!-- Footer Links -->
-            <div class="hidden md:flex space-x-8 border border-gray-300 px-6 py-4 rounded-full">
-              <a href="/docs/getting-started" class="text-gray-300 hover:text-white transition-colors">Getting Started</a>
-              <span class="text-gray-300 cursor-default">•</span>
-              <a href="/privacy-policy" class="text-gray-300 hover:text-white transition-colors">Privacy Policy</a>
-              <span class="text-gray-300 cursor-default">•</span>
-              <a href="/terms-of-service" class="text-gray-300 hover:text-white transition-colors">Terms of Service</a>
-              <span class="text-gray-300 cursor-default">•</span>
-              <a href="/contact" class="text-gray-300 hover:text-white transition-colors">Contact</a>
-            </div>
-
-            <!-- Social Media Links -->
-            <div class="flex items-center space-x-4">
-              <a href="#" class="text-gray-300 hover:text-white transition-colors">
-                <v-icon icon="mdi-twitter" />
-              </a>
-              <a href="#" class="text-gray-300 hover:text-white transition-colors">
-                <v-icon icon="mdi-github" />
-              </a>
-              <a href="#" class="text-gray-300 hover:text-white transition-colors">
-                <v-icon icon="mdi-linkedin" />
-              </a>
-            </div>
-          </div>
-        </div>
-      </footer>
-    </div>
-
-    <v-dialog v-model="showSignIn" max-width="600px">
-      <div class="m-auto">
-        <div id="sign-in"></div>
-      </div>
-    </v-dialog>
+    <AppFooter />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, onMounted } from "vue";
-import { Clerk } from "@clerk/clerk-js";
-import { cache } from "@/utils/cache";
+import AppHeader from '@/components/AppHeader.vue';
+import AppFooter from '@/components/AppFooter.vue';
 
-const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-const clerk = new Clerk(clerkPubKey);
-const showSignIn = ref(false);
-
-const handleShowSignIn = () => {
-  // Clear all cache before signing in to ensure a fresh state
-  cache.clearAll();
-  
-  showSignIn.value = true;
-  nextTick(() => {
-    const signInDiv = document.getElementById("sign-in");
-    if (signInDiv) {
-      clerk.mountSignIn(signInDiv as HTMLDivElement);
-    }
-  });
-};
-
-const handleShowSignUp = () => {
-  // Clear all cache before signing up to ensure a fresh state
-  cache.clearAll();
-  
-  showSignIn.value = true;
-  nextTick(() => {
-    const signInDiv = document.getElementById("sign-in");
-    if (signInDiv) {
-      clerk.mountSignUp(signInDiv as HTMLDivElement);
-    }
-  });
-};
-
-onMounted(async () => {
-  await clerk.load();
-});
+// The rest of the script setup code is no longer needed as it's moved to AppHeader
 </script>
 
 <style scoped>
