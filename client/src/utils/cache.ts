@@ -39,11 +39,10 @@ export const cache = {
   },
 
   // search history uses it's own timestamp
-  get_search_history: <T>(key: string): T | null => {
+  get_search_history: (key: string): string | null => {
     try {
       const item = localStorage.getItem(key);
-      if (!item) return null;
-      return item;
+      return item; // Return the raw string value directly
     } catch (error) {
       console.error("Cache read failed:", error);
       return null;
@@ -51,7 +50,7 @@ export const cache = {
   },
 
   // search history is stored unqiuely
-  set_search_history: <T>(key: string, data: T): void => {
+  set_search_history: <T>(key: string, data: string): void => {
     try {
       localStorage.setItem(key, data);
     } catch (error) {

@@ -39,7 +39,6 @@ export const useUserSettingsStore = defineStore("userSettings", {
           return;
         }
 
-
         try {
           const userStore = useUserStore();
           if (!userStore.userId) return;

@@ -141,6 +141,12 @@ const MAX_DISPLAYED_HISTORY = 5; // Maximum number of history items to display i
 const MAX_HISTORY_SUGGESTIONS = 5; // Maximum number of history suggestions to mix with API suggestions
 const STORAGE_KEY = "search_history";
 
+// Define a more complete suggestion type that can handle both history and API suggestions
+interface EnhancedSuggestion extends Suggestions {
+  isHistory?: boolean;
+  score?: number;
+}
+
 const linksStore = useLinksStore();
 const settingsStore = useUserSettingsStore();
 const { links } = storeToRefs(linksStore)
@@ -160,7 +166,7 @@ const MAX_HISTORY_ENTRIES = Number.parseInt(import.meta.env.VITE_MAX_HISTORY_ENT
 
 // Fuzzy search setup
 const fuzzyResults = ref<FuseResult<Link>[]>([]);
-const autoSuggestions = ref<Suggestions[]>([]);
+const autoSuggestions = ref<EnhancedSuggestion[]>([]); // Updated to use our enhanced type
 const historySuggestions = ref<ScoredHistoryItem[]>([]);
 
 // computed properties
@@ -527,7 +533,7 @@ const getSuggestions = async (query: string) => {
 		isHistory: true // Add flag to identify history suggestions
 	}));
 	
-	let apiSuggestions: Suggestions[] = [];
+	let apiSuggestions: EnhancedSuggestion[] = []; // Updated to use our enhanced type
 	
 	// Get API suggestions if enabled
 	if(AUTO_SUGGEST_ON && settingsStore.settings.autosuggest){

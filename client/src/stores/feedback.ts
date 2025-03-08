@@ -26,7 +26,7 @@ export const useFeedbackStore = defineStore("feedbackStore", {
       this.feedbackComment = comment;
     },
     storeFeedback(reasons: string, comment: string) {
-      if (reasons.length === 0 && comment.length !== 0) {        
+      if (reasons.length === 0 && comment.length !== 0) {
         this.reasons = null;
         this.feedbackComment = comment;
         return;
@@ -36,7 +36,7 @@ export const useFeedbackStore = defineStore("feedbackStore", {
         this.reasons = reasons;
         return;
       }
-      if(reasons.length === 0 && comment.length === 0) {
+      if (reasons.length === 0 && comment.length === 0) {
         this.reasons = null;
         this.feedbackComment = null;
         return;

@@ -31,8 +31,9 @@ export const useLinksStore = defineStore("links", {
       const columnTypes = new Set(state.links.map((link) => link.column_type));
       return Array.from(columnTypes);
     },
-    getColumnShortcut: (state) => (columnType: string) => {
-      const columnIndex = state.uniqueColumnTypes.indexOf(columnType);
+    getColumnShortcut: () => (columnType: string) => {
+      // Access uniqueColumnTypes through the store instance
+      const columnIndex = useLinksStore().uniqueColumnTypes.indexOf(columnType);
       if (columnIndex >= 0 && columnIndex < SHORTCUT_MAPPINGS.length) {
         return SHORTCUT_MAPPINGS[columnIndex].label;
       }
