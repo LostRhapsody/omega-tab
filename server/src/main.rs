@@ -107,6 +107,28 @@ pub struct StagingLoginRequest {
     password: String,
 }
 
+// New helper function to disable premium features in user settings
+fn disable_premium_features(settings_blob: &mut serde_json::Value) {
+    if let Some(obj) = settings_blob.as_object_mut() {
+        // Disable all premium features
+        if obj.contains_key("autosuggest") {
+            obj["autosuggest"] = json!(false);
+        }
+        if obj.contains_key("jira_api") {
+            obj["jira_api"] = json!(false);
+        }
+        if obj.contains_key("confluence_api") {
+            obj["confluence_api"] = json!(false);
+        }
+        if obj.contains_key("linear_api") {
+            obj["linear_api"] = json!(false);
+        }
+        if obj.contains_key("metadata") {
+            obj["metadata"] = json!(false);
+        }
+    }
+}
+
 fn main() {
     let _guard = sentry::init(("https://dacfc75c4bbf7f8a70134067d078c21a@o4508773394153472.ingest.us.sentry.io/4508773395857408", sentry::ClientOptions {
         release: sentry::release_name!(),
@@ -1161,7 +1183,7 @@ async fn get_favicon(
     client: State<reqwest::Client>,
     url: &str,
     favicon_source: Option<String>,
-    mime_type: Option<String>,
+    mime_type: Option<String>
 ) -> Result<String, StatusCode> {
     let parsed_url = Url::parse(url).expect("Invalid URL");
     let domain = parsed_url.host_str().unwrap_or("").to_string();
@@ -1679,37 +1701,50 @@ async fn get_user_data_handler(
     };
 
     tracing::info!("Fetching subscription info for {}", user_email);
+    
+    // Track if the subscription is active
+    let mut has_active_subscription = false;
+    
     // Get subscription info
     let subscription = match StripeClient::get_customer(&user_email).await {
         Some(customer) => match StripeClient::get_subscription(&customer).await {
-            Some(sub) if sub.status.eq(&stripe::SubscriptionStatus::Active) => {
-                let item = sub
-                    .items
-                    .data
-                    .first()
-                    .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
-                let plan = item
-                    .plan
-                    .as_ref()
-                    .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
-                let product_id = plan
-                    .product
-                    .as_ref()
-                    .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?
-                    .id();
+            Some(sub) => {
+                // Check if subscription is still valid based on status and current period end
+                let current_timestamp = chrono::Utc::now().timestamp();
+                has_active_subscription = sub.status.eq(&stripe::SubscriptionStatus::Active) && 
+                    sub.current_period_end > current_timestamp;
+                
+                if has_active_subscription {
+                    let item = sub
+                        .items
+                        .data
+                        .first()
+                        .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+                    let plan = item
+                        .plan
+                        .as_ref()
+                        .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+                    let product_id = plan
+                        .product
+                        .as_ref()
+                        .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?
+                        .id();
 
-                let supabase_plan = supabase
-                    .get_plan_by_stripe_id(&product_id.to_string())
-                    .await
-                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                    let supabase_plan = supabase
+                        .get_plan_by_stripe_id(&product_id.to_string())
+                        .await
+                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-                Some((
-                    SubscriptionResponse {
-                        plan_id: supabase_plan.id.clone(),
-                        current_period_end: sub.current_period_end,
-                    },
-                    supabase_plan,
-                ))
+                    Some((
+                        SubscriptionResponse {
+                            plan_id: supabase_plan.id.clone(),
+                            current_period_end: sub.current_period_end,
+                        },
+                        supabase_plan,
+                    ))
+                } else {
+                    None
+                }
             }
             _ => None,
         },
@@ -1731,6 +1766,31 @@ async fn get_user_data_handler(
                 }
             },
         };
+    }
+
+    // If subscription is not active but we have settings, disable premium features
+    if !has_active_subscription && settings.is_some() {
+        let mut user_settings = settings.unwrap();
+        let mut settings_blob = user_settings.settings_blob.clone();
+        
+        // Disable premium features in the settings
+        disable_premium_features(&mut settings_blob);
+        
+        // Update the settings object
+        user_settings.settings_blob = settings_blob;
+        
+        // Save changes to database if settings were modified
+        let mut updates = HashMap::new();
+        updates.insert("settings_blob".to_string(), user_settings.settings_blob.clone());
+        
+        if let Err(e) = supabase.update_user_settings(&user_id, updates).await {
+            tracing::error!("Failed to update user settings after disabling premium features: {:?}", e);
+        } else {
+            tracing::info!("Successfully disabled premium features for user with expired subscription");
+        }
+        
+        // Update the settings value for the response
+        settings = Some(user_settings);
     }
 
     tracing::info!("Fetching links for user {}", user_id);
