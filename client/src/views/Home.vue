@@ -240,11 +240,11 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
-    <!-- <CommandPalette /> -->
+    <CommandPalette />
   </div>
 </template>
 <script setup lang="ts">
-// import CommandPalette from '../components/CommandPalette.vue';
+import CommandPalette from '../components/CommandPalette.vue';
 import { Clerk } from "@clerk/clerk-js";
 import { computed, nextTick, onMounted, ref, onUnmounted } from "vue";
 import { useRouter } from "vue-router";

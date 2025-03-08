@@ -1,11 +1,12 @@
 import "./assets/css/tailwind.css";
+// Consolidate Vuetify imports to reduce bundle size
+import { createVuetify } from "vuetify";
 import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
+import "vuetify/styles";
 import "@mdi/font/css/materialdesignicons.css";
 
-import "vuetify/styles";
 import * as Sentry from "@sentry/vue";
-// Import createHead from Unhead
 import { createHead } from "@unhead/vue";
 import { createPinia } from "pinia";
 import { createApp } from "vue";
@@ -15,58 +16,45 @@ import router from "./router";
 // Create Unhead instance
 const head = createHead();
 
-// Lazy load Vuetify
-const initVuetify = async () => {
-  const { createVuetify } = await import("vuetify");
-  return createVuetify({
-    components,
-    directives,
-    theme: {
-      defaultTheme: "dark",
-      themes: {
-        dark: {
-          dark: true,
-          colors: {
-            primary: "#1867C0",
-            secondary: "#5CBBF6",
-          },
+// Create Vuetify instance directly instead of lazy loading
+const vuetify = createVuetify({
+  components,
+  directives,
+  theme: {
+    defaultTheme: "dark",
+    themes: {
+      dark: {
+        dark: true,
+        colors: {
+          primary: "#1867C0",
+          secondary: "#5CBBF6",
         },
       },
     },
-    defaults: {
-      global: {
-        borderRadius: "12px", // Set your desired border radius here
-      },
-    },
-  });
-};
+  },
+});
 
-const bootstrap = async () => {
-  const app = createApp(App);
-  const vuetify = await initVuetify();
+// Initialize application
+const app = createApp(App);
 
-  Sentry.init({
-    app,
-    dsn: "https://80a9e8cf52ce2c1f0a3e055a18d825cb@o4508773394153472.ingest.us.sentry.io/4508774150111232",
-    integrations: [
-      Sentry.browserTracingIntegration({ router }),
-      Sentry.replayIntegration(),
-    ],
-    // Tracing
-    tracesSampleRate: 1.0, //  Capture 100% of the transactions
-    // Set 'tracePropagationTargets' to control for which URLs distributed tracing should be enabled
-    tracePropagationTargets: ["localhost", /^https:\/\/yourserver\.io\/api/],
-    // Session Replay
-    replaysSessionSampleRate: 0.1, // This sets the sample rate at 10%. You may want to change it to 100% while in development and then sample at a lower rate in production.
-    replaysOnErrorSampleRate: 1.0, // If you're not already sampling the entire session, change the sample rate to 100% when sampling sessions where errors occur.
-  });
+// Configure Sentry
+Sentry.init({
+  app,
+  dsn: "https://80a9e8cf52ce2c1f0a3e055a18d825cb@o4508773394153472.ingest.us.sentry.io/4508774150111232",
+  integrations: [
+    Sentry.browserTracingIntegration({ router }),
+    Sentry.replayIntegration(),
+  ],
+  // Reduce sample rates for production
+  tracesSampleRate: process.env.NODE_ENV === "production" ? 0.2 : 1.0,
+  tracePropagationTargets: ["localhost", /^https:\/\/yourserver\.io\/api/],
+  replaysSessionSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 0.5,
+  replaysOnErrorSampleRate: 1.0,
+});
 
-  // Use Unhead
-  app.use(head);
-  app.use(createPinia());
-  app.use(router);
-  app.use(vuetify);
-  app.mount("#app");
-};
-
-bootstrap();
+// Use plugins and mount the app
+app.use(head);
+app.use(createPinia());
+app.use(router);
+app.use(vuetify);
+app.mount("#app");
