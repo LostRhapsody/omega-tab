@@ -118,7 +118,7 @@ export default defineConfig({
         assetFileNames: 'assets/[name].[hash].[ext]'
       },
     },
-    // minify: 'terser',
+    minify: false,
     terserOptions: {
       compress: {
         drop_console: process.env.NODE_ENV === 'production',

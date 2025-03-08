@@ -24,7 +24,6 @@ import { useLinksStore } from '../stores/links';
 import { useSearchEngineStore } from '../stores/searchEngine';
 import { storeToRefs } from 'pinia';
 import { openUrl } from '../utils/openUrl';
-import { tr } from 'vuetify/locale';
 
 type Result = {
   title: string;
