@@ -1,4 +1,4 @@
-const apiDomain = process.env.API_DOMAIN || "http://localhost:3000";
+const apiDomain = process.env.VITE_API_BASE_URL || "http://localhost:3000";
 
 export const API = {
   CREATE_USER: `${apiDomain}/create_user`,
