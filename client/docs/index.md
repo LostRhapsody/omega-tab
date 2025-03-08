@@ -18,7 +18,7 @@ hero:
       link: /guides
     - theme: alt
       text: Return to Better New Tab
-      link: http://localhost:5173
+      link: https://betternewtab.com
       target: _self
 
 features:

@@ -14,7 +14,7 @@ export default defineConfig({
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Guides', link: '/guides' },
-      { text: 'BetterNewTab', link: 'http://localhost:5173', target: '_self' },
+      { text: 'BetterNewTab', link: 'https://betternewtab.com', target: '_self' },
     ],
 
     sidebar: [
