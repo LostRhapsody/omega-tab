@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "NODE_ENV=production run-s lint tailwind:build type-check \"build-only --mode production --minify\" test:unit",
+    "build": "NODE_ENV=production run-s lint tailwind:build type-check \"build-only --mode production --minify\" test:run",
     "preview": "vite preview",
     "test:unit": "vitest",
+    "test:run": "vitest run",
     "test:e2e": "start-server-and-test preview http://localhost:4173 'cypress run --e2e'",
     "test:e2e:dev": "start-server-and-test 'vite dev --port 4173' http://localhost:4173 'cypress open --e2e'",
     "build-only": "vite build",
