@@ -6,6 +6,8 @@ import { createRouter, createWebHistory } from "vue-router";
 import { useUserSettingsStore } from "../stores/settings";
 import { useUserStore } from "../stores/user";
 
+const isStaging = import.meta.env.VITE_STAGING === "true";
+
 const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -13,22 +15,72 @@ const router = createRouter({
       path: "/",
       name: "home",
       component: () => import("../views/Home.vue"),
+      beforeEnter: (to, from, next) => {
+        // Check if we're in staging mode and not logged in
+        if (isStaging && !cache.get(CacheKeys.STAGING_LOGGED_IN)) {
+          next("/staging-login");
+        } else {
+          next();
+        }
+      },
+    },
+    {
+      path: "/staging-login",
+      name: "stagingLogin",
+      component: () => import("../views/staging_login.vue"),
     },
     {
       path: "/plans",
       name: "plans",
       component: () => import("../views/Plans.vue"),
+      beforeEnter: (to, from, next) => {
+        // Check if we're in staging mode and not logged in
+        if (isStaging && !cache.get(CacheKeys.STAGING_LOGGED_IN)) {
+          next("/staging-login");
+        } else {
+          next();
+        }
+      },
     },
     {
       path: "/confirm",
       name: "confirm",
       component: () => import("../views/Confirm.vue"),
+      beforeEnter: (to, from, next) => {
+        // Check if we're in staging mode and not logged in
+        if (isStaging && !cache.get(CacheKeys.STAGING_LOGGED_IN)) {
+          next("/staging-login");
+        } else {
+          next();
+        }
+      },
+    },
+    {
+      path: "/contact",
+      name: "contact",
+      component: () => import("../views/Contact.vue"),
+    },
+    {
+      path: "/privacy-policy",
+      name: "privacyPolicy",
+      component: () => import("../views/PrivacyPolicy.vue"),
+    },
+    {
+      path: "/terms-of-service",
+      name: "termsOfService",
+      component: () => import("../views/TermsOfService.vue"),
     },
     {
       path: "/settings",
       name: "settings",
       component: () => import("../views/Settings.vue"),
       beforeEnter: async (to, from, next) => {
+        // Check if we're in staging mode and not logged in
+        if (isStaging && !cache.get(CacheKeys.STAGING_LOGGED_IN)) {
+          next("/staging-login");
+          return;
+        }
+
         const userStore = useUserStore();
         const userSettingsStore = useUserSettingsStore();
 

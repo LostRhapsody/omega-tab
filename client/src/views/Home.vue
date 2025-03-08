@@ -4,19 +4,19 @@
       <v-progress-circular indeterminate />
     </div>
     <div v-else-if="isLoggedIn && !isLoading">
-      <header
-        class="border-b border-gray-700 bg-white/5">
+      <header class="border-b border-gray-700 bg-white/5">
         <v-container>
           <v-row class="items-center">
             <v-col>
               <h1 class="text-xl">
-                BetterNewTab_
+                <a href="#">BetterNewTab_</a>
               </h1>
             </v-col>
             <v-col class="flex justify-end">
               <div class="flex rounded-full items-center">
                 <button id="user-button" aria-label="User account"></button>
-                <v-btn icon="mdi-cog" @click="router.push('/settings');" class="!w-[42px] !h-[42px] ms-8" aria-label="Settings" />
+                <v-btn icon="mdi-cog" @click="router.push('/settings');" class="!w-[42px] !h-[42px] ms-8"
+                  aria-label="Settings" />
               </div>
             </v-col>
           </v-row>
@@ -25,36 +25,44 @@
       <main>
         <v-container>
           <section aria-label="Search">
-            <SearchBar :tools="tools" :docs="docs" />
+            <SearchBar />
           </section>
           <section aria-label="Link columns">
-            <LinkColumns :tools="toolLinks" :docs="docLinks" :userId="userId" :maxPins="userStore.userPlan?.max_pins || 6"
-              :canAddLinks="canShowAddLink" @link-deleted="handleDeleteLink"
-              :isPlanFree="userStore.userPlan?.name === 'free'" />
+            <LinkColumns :userId="userId"
+              :maxPins="userStore.userPlan?.max_pins || 6" :canAddLinks="canShowAddLink" :isPlanFree="userStore.userPlan?.name === 'free'" />
           </section>
           <v-dialog v-model="showHelpDialog" max-width="900px">
             <v-card>
               <v-card-title class="headline">Keyboard Shortcuts</v-card-title>
               <v-card-text>
                 <h4 class="text-xl mb-4">Open Links</h4>
-                <div v-if="linkShortcuts.length" class="border p-4 rounded-lg mb-4">
+                <div v-if="uniqueColumnTypes.length" class="border p-4 rounded-lg mb-4">
                   <v-row>
                     <v-col>
-                      <ul>
-                        <li v-for="(shortcut, index) in linkShortcuts" :key="shortcut.index">
-                          <div class="grid grid-cols-3 gap-2">
-                            <div class="col-span-2">
-                              {{ shortcut.description }}
+                      <div v-for="(columnType, colIndex) in uniqueColumnTypes" :key="columnType">
+                        <ul>
+                          <li v-for="(link, index) in getLinksByColumnType(columnType)" :key="link.order_index">
+                            <div v-if="colIndex < 2">
+                              <div class="grid grid-cols-3 gap-2">
+                                <div class="col-span-2">
+                                  {{ link.title }}
+                                </div>
+                                <div class="col-span-1">
+                                  <span v-if="getShortcut(columnType).includes('+')" class="mr-2">
+                                    <span class="kbd">{{ getShortcut(columnType).split('+')[0] }}</span>
+                                    +
+                                    <span class="kbd">{{ getShortcut(columnType).split('+')[1] }}</span>
+                                  </span>
+                                  <span v-else class="kbd">{{ getShortcut(columnType) }}</span>
+                                  +
+                                  <span class="kbd">{{ index + 1 }}</span>
+                                </div>
+                              </div>
+                              <v-divider v-if="showShortcutDivider(index,getLinksByColumnType(columnType).length,colIndex)" class="my-4"></v-divider>
                             </div>
-                            <div class="col-span-1">
-                              <span class="kbd">{{ shortcut.command }}</span>
-                              +
-                              <span class="kbd">{{ shortcut.index }}</span>
-                            </div>
-                          </div>
-                          <v-divider v-if="index + 1 !== linkShortcuts.length" class="my-4"></v-divider>
-                        </li>
-                      </ul>
+                          </li>
+                        </ul>
+                      </div>
                     </v-col>
                   </v-row>
                 </div>
@@ -95,6 +103,22 @@
                       </ul>
                     </v-col>
                   </v-row>
+                </div>
+                <h4 class="text-xl mb-4 mt-8">Navigate links</h4>
+                <div class="border p-4 rounded-lg mb-4">
+                  <p class="text-lg mb-4">
+                    Use
+                    <span class="kbd !text-sm">
+                      <v-icon icon="mdi-arrow-up"></v-icon>
+                      up arrow
+                    </span>
+                    or
+                    <span class="kbd !text-sm">
+                      <v-icon icon="mdi-arrow-down"></v-icon>
+                      down arrow
+                    </span>
+                    to jump between links when you are not focused on the search bar.
+                  </p>                  
                 </div>
                 <h4 class="text-xl mb-4">Other Shortcuts</h4>
                 <div class="border p-4 rounded-lg mb-4">
@@ -154,14 +178,17 @@
       <div class="fixed bottom-4 right-4">
         <v-menu location="top">
           <template v-slot:activator="{ props }">
-            <v-btn v-bind="props" class="!w-[42px] !h-[42px] bg-white" icon="mdi-help" variant="tonal" aria-label="Help menu" />
+            <v-btn v-bind="props" class="!w-[42px] !h-[42px] bg-white" icon="mdi-help" variant="tonal"
+              aria-label="Help menu" />
           </template>
           <v-list class="w-64" lines="two">
-            <v-list-item @click="router.push('/help/getting-started')">
-              <v-list-item-title>
-                <v-icon icon="mdi-rocket-launch" />
-                Getting Started
-              </v-list-item-title>
+            <v-list-item @click="showFeedbackDialog = false">
+              <a href="/docs/getting-started">
+                <v-list-item-title>
+                  <v-icon icon="mdi-rocket-launch" />
+                  Getting Started
+                </v-list-item-title>
+              </a>
             </v-list-item>
             <v-list-item @click="showHelpDialog = true">
               <v-list-item-title>
@@ -172,14 +199,16 @@
             <v-list-item @click="router.push('/plans')">
               <v-list-item-title>
                 <v-icon icon="mdi-plus" />
-                Better New Tab Plus
+                Better New Tab Plus & Pro
               </v-list-item-title>
             </v-list-item>
-            <v-list-item @click="router.push('/help')">
-              <v-list-item-title>
-                <v-icon icon="mdi-book" />
-                Help Center
-              </v-list-item-title>
+            <v-list-item @click="showFeedbackDialog = false">
+              <a href="/docs/">
+                <v-list-item-title>
+                  <v-icon icon="mdi-book" />
+                  Guides
+                </v-list-item-title>
+              </a>
             </v-list-item>
             <v-list-item @click="showFeedbackDialog = true">
               <v-list-item-title>
@@ -216,20 +245,17 @@
 </template>
 <script setup lang="ts">
 import CommandPalette from '../components/CommandPalette.vue';
-import type { Link } from "@/types/Link";
 import { Clerk } from "@clerk/clerk-js";
 import { computed, nextTick, onMounted, ref, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
-import LandingPage from "../components/LandingPage.vue";
 import NewLandingPage from "../components/NewLandingPage.vue";
 import LinkColumns from "../components/LinkColumns.vue";
 import SearchBar from "../components/SearchBar.vue";
 import Feedback from "../components/Feedback.vue";
 import { useUserStore } from "../stores/user";
-import { useLinksStore } from "../stores/links";
+import { useLinksStore, SHORTCUT_MAPPINGS } from "../stores/links";
 import { useFeedbackStore } from "../stores/feedback";
 import { useUserSettingsStore } from "../stores/settings";
-import { storeToRefs } from "pinia";
 import { searchEngines } from "../data/SearchEngines";
 import { API } from "../constants/api";
 import api from "../services/api";
@@ -315,9 +341,6 @@ const userStore = useUserStore();
 const linksStore = useLinksStore();
 const feedbackStore = useFeedbackStore();
 const userSettingsStore = useUserSettingsStore();
-// Convert store properties to refs for reactivity
-const { toolLinks, docLinks } = storeToRefs(linksStore)
-const { links } = storeToRefs(linksStore)
 
 // Initialize services
 const router = useRouter();
@@ -336,31 +359,24 @@ const feedbackMessage = ref("");
 
 // Token refresh interval
 let tokenRefreshInterval: number | undefined;
+let lastActivityTimestamp: number = Date.now();
 
 // User and data state
 const userId = ref<string | null>(null);
 const currentRole = ref("member");
-const tools = ref<Link[]>([]);
-const docs = ref<Link[]>([]);
+const uniqueColumnTypes = computed(() => linksStore.uniqueColumnTypes);
 
-// just for sorting shortcuts
-const links_by_column_type = computed(() => {
-  return [...links.value].sort((a, b) => {
-    if (a.column_type !== b.column_type) {
-      return b.column_type.localeCompare(a.column_type);
-    }
-    return a.order_index - b.order_index;
-  })
-});
+const getShortcut = (columnType: string) => {
+  const columnIndex = uniqueColumnTypes.value.indexOf(columnType);
+  if (columnIndex >= 0 && columnIndex < SHORTCUT_MAPPINGS.length) {
+    return SHORTCUT_MAPPINGS[columnIndex].label;
+  }
+  return '';
+};
 
-// Computed properties
-const linkShortcuts = computed(() =>
-  links_by_column_type.value.map((link, index) => ({
-    command: link.column_type === "tools" ? "Ctrl" : "Alt",
-    index: `${index + 1}`,
-    description: `Open ${link.title}`,
-  })),
-);
+const getLinksByColumnType = (columnType: string) => {
+  return linksStore.links.filter(link => link.column_type === columnType);
+};
 
 const canShowAddLink = computed(() => {
   if (userStore.userPlan?.name === "free" || userStore.userPlan?.name === "plus") {
@@ -383,24 +399,6 @@ const canShowAddLink = computed(() => {
 
   return false;
 });
-
-const handleDeleteLink = (type: string, index: number) => {
-  console.log("Deleting link", type, index);
-  if (type === "tool") {
-    tools.value.splice(index, 1);
-    // Reorder remaining tools
-    tools.value.forEach((tool, idx) => {
-      tool.order_index = idx;
-    });
-  } else {
-    docs.value.splice(index, 1);
-    // Reorder remaining docs
-    docs.value.forEach((doc, idx) => {
-      doc.order_index = idx;
-    });
-  }
-};
-
 
 const handleShowKeyboardShortcuts = (event: KeyboardEvent) => {
   if (event.key === "?") {
@@ -448,26 +446,95 @@ const handleFeedbackDialogClose = async (value: boolean) => {
 
 const refreshToken = async () => {
   try {
+    // Check if user is still active
+    const inactiveTime = Date.now() - lastActivityTimestamp;
+    const inactiveThreshold = 5 * 60 * 1000; // 5 minutes
     const session = await clerk.session;
-    const token = await session?.getToken();
+
+    if (!session) {
+      console.warn("No active session found during token refresh");
+      return false;
+    }
+
+    // If inactive for too long, force a more thorough session check
+    if (inactiveTime > inactiveThreshold) {
+      await session.getToken(); // Force a check of the session
+    }
+
+    // This will trigger a token refresh if needed
+    const token = await session.getToken({ leewayInSeconds: 30 }); // 30 seconds leeway to handle clock skew
     if (token) {
       localStorage.setItem("token", token);
+    } else {
+      console.warn("Failed to get token during refresh");
+      // Try a more direct approach to refresh if the token wasn't returned
+      await session.touch();
     }
   } catch (error) {
     console.error("Error refreshing JWT token:", error);
+    // If refreshing fails, try a forced reload of the Clerk client
+    try {
+      await clerk.load();
+      const newSession = await clerk.session;
+      if (newSession) {
+        const token = await newSession.getToken();
+        if (token) {
+          localStorage.setItem("token", token);
+        }
+      }
+    } catch (reloadError) {
+      console.error("Failed to reload clerk after refresh error:", reloadError);
+    }
   }
 };
 
 const startTokenRefreshInterval = () => {
-  // Refresh token every 15 minutes
-  tokenRefreshInterval = window.setInterval(refreshToken, 1 * 60 * 1000);
+  // Refresh token every 4 minutes (Clerk tokens typically expire after 5 minutes of inactivity)
+  tokenRefreshInterval = window.setInterval(refreshToken, 4 * 60 * 1000);
+
+  // Setup activity tracking to detect user presence
+  const trackUserActivity = () => {
+    lastActivityTimestamp = Date.now();
+  };
+
+  // Track various user activities
+  window.addEventListener('mousemove', trackUserActivity);
+  window.addEventListener('keydown', trackUserActivity);
+  window.addEventListener('click', trackUserActivity);
+  window.addEventListener('scroll', trackUserActivity);
+  window.addEventListener('focus', () => {
+    trackUserActivity();
+    // When tab regains focus, immediately refresh token
+    refreshToken();
+  });
 };
 
 const stopTokenRefreshInterval = () => {
   if (tokenRefreshInterval) {
     clearInterval(tokenRefreshInterval);
   }
+
+  // Remove activity tracking
+  window.removeEventListener('mousemove', () => { });
+  window.removeEventListener('keydown', () => { });
+  window.removeEventListener('click', () => { });
+  window.removeEventListener('scroll', () => { });
+  window.removeEventListener('focus', () => { });
 };
+
+const showShortcutDivider = (index:number, linksInColumn:number, currentColumn:number) => {
+  // if there is only 1 column, then we don't need a divider for the last index of this column.
+  // if there is more than 1 column, then we don't need a divider for the last index of the last column.
+  const numberOfColumns = linksStore.uniqueColumnTypes.length;
+  if(numberOfColumns === 1){
+    return index !== linksInColumn - 1;
+  } else {
+    const isLastLink = index === linksInColumn - 1;
+    const isLastColumn = currentColumn === numberOfColumns - 1;
+    return  !(isLastLink && isLastColumn);
+  }
+
+}
 
 // Lifecycle hooks
 onMounted(async () => {

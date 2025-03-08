@@ -137,7 +137,7 @@ impl Supabase {
                 Ok(user)
             },
             None => {
-                tracing::error!("User not found: {}", id);
+                tracing::info!("User not found: {}", id);
                 Err(anyhow::anyhow!("404"))
             }
         }
@@ -159,7 +159,7 @@ impl Supabase {
                 Ok(user)
             },
             None => {
-                tracing::error!("User not found for email: {}", email);
+                tracing::info!("User not found for email: {}", email);
                 Err(anyhow::anyhow!("404"))
             }
         }
@@ -604,7 +604,7 @@ impl Supabase {
                 Ok(subscription)
             },
             None => {
-                tracing::error!("No subscription found for user: {}", user_id);
+                tracing::info!("No subscription found for user: {}", user_id);
                 Err(anyhow::anyhow!("404"))
             }
         }

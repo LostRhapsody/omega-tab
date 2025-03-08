@@ -47,6 +47,53 @@
   const error = ref(false);
   const error_message = ref("");
 
+  // Refresh the token to ensure we have a fresh one before API calls
+  const refreshToken = async () => {
+    try {
+      await clerk.load();
+      const session = await clerk.session;
+      
+      if (!session) {
+        console.warn("No active session found during token refresh");
+        return false;
+      }
+      
+      // Get token with leeway to handle clock skew
+      const token = await session.getToken({ leewayInSeconds: 30 });
+      if (token) {
+        localStorage.setItem("token", token);
+        return true;
+      } else {
+        console.warn("Failed to get token during refresh");
+        // Try more direct approach
+        await session.touch();
+        const retryToken = await session.getToken();
+        if (retryToken) {
+          localStorage.setItem("token", retryToken);
+          return true;
+        }
+      }
+      return false;
+    } catch (err) {
+      console.error("Error refreshing token:", err);
+      // Last resort: try to force a new clerk session
+      try {
+        await clerk.load();
+        const newSession = await clerk.session;
+        if (newSession) {
+          const token = await newSession.getToken();
+          if (token) {
+            localStorage.setItem("token", token);
+            return true;
+          }
+        }
+      } catch (reloadErr) {
+        console.error("Failed final token refresh attempt:", reloadErr);
+      }
+      return false;
+    }
+  };
+
   const confirmSubscription = async () => {
     try {
       await clerk.load();
@@ -57,6 +104,12 @@
 
       if (!isLoggedIn.value || !clerk.user) {
         throw new Error("User not logged in");
+      }
+
+      // Refresh token before making any API calls
+      const tokenRefreshed = await refreshToken();
+      if (!tokenRefreshed) {
+        throw new Error("Failed to refresh authentication token");
       }
 
       gotUser = await userStore.fetchUserData({
@@ -79,7 +132,7 @@
       isLoading.value = false;
     } catch (err) {
       console.error("Error confirming subscription:", err);
-      error_message.value = err as string;
+      error_message.value = err instanceof Error ? err.message : String(err);
       error.value = true;
       isLoading.value = false;
     }

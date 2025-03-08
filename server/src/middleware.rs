@@ -23,6 +23,13 @@ pub async fn extract_user(
     next: Next,
 ) -> Result<Response, axum::http::StatusCode> {
     println!("Extracting user context");
+
+    // Skip authentication for the staging login path
+    if req.uri().path() == "/staging_login" {
+        println!("Skipping user extraction for staging login path");
+        return Ok(next.run(req).await);
+    }
+
     let headers = req.headers();
     let user_id = headers
         .get("X-User-Id")
@@ -47,6 +54,13 @@ pub async fn authenticate_user(
     next: Next,
 ) -> Result<Response, axum::http::StatusCode> {
     println!("Authenticating user");
+
+    // Skip authentication for the staging login path
+    if req.uri().path() == "/staging_login" {
+        println!("Skipping authentication for staging login path");
+        return Ok(next.run(req).await);
+    }
+
     let token = req
         .headers()
         .get("Authorization")

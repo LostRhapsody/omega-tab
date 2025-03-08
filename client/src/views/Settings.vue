@@ -7,12 +7,12 @@
             <v-list-item prepend-icon="mdi-arrow-left-circle" title="Back" value="back" @click="router.push('/')" />
             <v-list-item prepend-icon="mdi-account-cog" title="User Preferences" value="preferences"
               :active="activeTab === 'preferences'" @click="activeTab = 'preferences'" />
+            <v-list-item prepend-icon="mdi-credit-card" title="Billing" value="billing"
+              :active="activeTab === 'billing'" @click="activeTab = 'billing'" />
             <v-list-item prepend-icon="mdi-account-group" title="Manage Team" value="team"
               :active="activeTab === 'team'" @click="activeTab = 'team'" />
             <v-list-item prepend-icon="mdi-domain" title="Organization" value="organization"
-              :active="activeTab === 'organization'" @click="activeTab = 'organization'" />
-            <v-list-item prepend-icon="mdi-credit-card" title="Billing" value="billing"
-              :active="activeTab === 'billing'" @click="activeTab = 'billing'" />
+              :active="activeTab === 'organization'" @click="activeTab = 'organization'" />            
           </v-list>
         </v-navigation-drawer>
       </v-layout>
@@ -42,6 +42,7 @@
             </template>
             </v-switch>
         </div>
+        <v-btn @click="clearSearchHistory">Clear Search History</v-btn>
 
       </div>
 
@@ -159,7 +160,9 @@
           <v-card-item>
             <v-card-title class="mb-2">Current Plan</v-card-title>
             <v-card-text class="border border-gray-200 rounded-lg !p-2">
-              <div class="text-h4 mb-2">{{ userPlan?.name === 'plus' ? 'Plus+' : userPlan?.name || 'Free' }}</div>
+                <div class="text-h4 mb-2">
+                {{ userPlan?.name === 'plus' ? 'Plus+' : userPlan?.name === 'pro' ? 'Pro' : 'Free' }}
+                </div>
               <div class="text-body-1">{{ userPlan?.max_pins || 6 }} pins included</div>
             </v-card-text>
             <v-card-actions>
@@ -168,17 +171,9 @@
               <v-btn v-if="userPlan?.name !== 'free'" variant="elevated" color="red"
                 @click="showCancelDialog = true">Cancel
                 Plan</v-btn>
-              <v-btn @click="showPaymentTooltip = !showPaymentTooltip">
-                <v-icon size="x-large" icon="mdi-help-circle-outline" color="primary" />
-                <v-tooltip v-model="showPaymentTooltip" location="bottom">
-                  If you need to change your payment information either:<br/>
-                  <ol class="list-decimal list-inside">
-                    <li>Cancel your subscription and wait for the current term to end and re-subscribe</li>
-                    <li>Contact Support as evan.robertson77@gmail.com</li>
-                  </ol>
-                  <strong>Improved payment management will be coming soon.</strong>
-                </v-tooltip>
-              </v-btn>
+              <a :href="stripe_manage_url" target="_blank" rel="noopener noreferrer">
+                <v-btn v-if="userPlan?.name !== 'free'" variant="elevated">Manage Subscription</v-btn>
+              </a>
             </v-card-actions>
           </v-card-item>
         </v-card>
@@ -286,8 +281,9 @@
   import { useDisplay } from 'vuetify';
   import api from "@/services/api";
   import { Clerk } from "@clerk/clerk-js";
+  import { cache, CacheKeys } from "@/utils/cache";
+  
 
-// In Settings.vue setup
   const userStore = useUserStore();
   const feedbackStore = useFeedbackStore();
   const settingsStore = useUserSettingsStore();
@@ -321,6 +317,7 @@
   const showSubscriptionCanceledDialog = ref(false);
   const subscriptionCanceledSuccess = ref(false);
   const subscriptionCanceledError = ref("");
+  const stripe_manage_url = import.meta.env.VITE_STRIPE_MANAGE_URL;
 
   // Token refresh interval
   let tokenRefreshInterval: number | undefined;
@@ -489,6 +486,16 @@
       throw new Error("User email not found");
     }
     try {
+      let reasons: CancellationReason | null = feedbackStore.reasons as CancellationReason;
+      let feedback_comment: String | null = feedbackStore.feedbackComment;
+      console.log("reasons", reasons);
+      console.log("feedback_comment", feedback_comment);      
+      if (reasons === "") {
+        reasons = null;
+      }
+      if (feedback_comment === "") {
+        feedback_comment = null;
+      }
       const response = await api.post(API.CANCEL_SUBSCRIPTION, {
         reasons: feedbackStore.reasons as CancellationReason,
         feedback_comment: feedbackStore.feedbackComment,
@@ -532,6 +539,10 @@
 
   const reportError = () => {
     window.location.href = "mailto:evan.robertson77@gmail.com";
+  };
+
+  const clearSearchHistory = () => {
+    cache.clear(CacheKeys.SEARCH_HISTORY);
   };
 
   onMounted(() => {

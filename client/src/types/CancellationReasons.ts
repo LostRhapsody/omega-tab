@@ -7,4 +7,5 @@ export type CancellationReason =
   | "switched_service"
   | "too_complex"
   | "too_expensive"
-  | "unused";
+  | "unused"
+  | "";

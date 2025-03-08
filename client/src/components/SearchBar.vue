@@ -48,27 +48,47 @@
 				</v-row>
 				<div v-if="fuzzyResults.length || (getFilteredHistory.length && searchQuery) || autoSuggestions.length" class="dropdown-menu">
 					<div>
-
-						<!-- Tool section -->
-						<div v-for="(result, index) in fuzzyResults" :key="result.item.title" class="dropdown-item"
-							:class="{ focused: focusedIndex === index }" @mouseover="focusedIndex = index">
-							<div>
-								<a :href="result.item.url">
-									<div> <v-icon icon="mdi-link" /> {{ result.item.title }}</div>
-									<span v-if="result.item.description">{{ result.item.description }}</span>
-								</a>
+						<!-- my links section -->
+						<div v-if="fuzzyResults.length">
+							<em>My Links</em>
+							<v-divider class="mb-2" />						
+							<div v-for="(result, index) in fuzzyResults" :key="result.item.title" class="dropdown-item"
+								:class="{ focused: focusedIndex === index}" @mouseover="focusedIndex = index">
+								<div>
+									<a :href="result.item.url">
+										<div> <v-icon icon="mdi-link" /> {{ result.item.title }}</div>
+										<span v-if="result.item.description">{{ result.item.description }}</span>
+									</a>
+								</div>
 							</div>
 						</div>
-
 						<!-- Suggestions -->
-						<div v-for="(suggestion, index) in autoSuggestions" :key="suggestion.query" class="dropdown-item"
-							:class="{ focused: focusedIndex === index }"
-							@mouseover="focusedIndex = index">
-							<a variant="plain" @click="() => suggestionHandler(suggestion.query)">{{ suggestion.query }}</a>
-						</div>
-						<div v-if="autoSuggestions.length">
+						<div v-else-if="autoSuggestions.length">
+							<em>Suggestions</em>
 							<v-divider class="mb-2" />
-							<em>Suggestions POWERED BY BRAVE</em>
+							<div v-for="(suggestion, index) in autoSuggestions" :key="suggestion.query" class="dropdown-item"
+								:class="{ focused: focusedIndex === index }"
+								@mouseover="focusedIndex = index">
+								<a variant="plain" @click="() => suggestionHandler(suggestion.query)" class="d-flex align-center">
+									<div v-if="suggestion.isHistory" class="flex justify-between w-full">
+										<div>
+											<v-icon v-if="suggestion.isHistory" icon="mdi-history" size="small" class="mr-1" />
+											{{ suggestion.query }}
+										</div>
+										<v-icon 
+											icon="mdi-trash-can" 
+											size="small" 
+											class="mr-1 trash-can"
+										/>
+									</div>
+									<div v-else>
+										{{ suggestion.query }}
+									</div>
+								</a>
+							</div>
+							<div v-if="autoSuggestions.some(s => !s.isHistory)">
+								<em>Suggestions POWERED BY BRAVE</em>
+							</div>
 						</div>
 					</div>
 				</div>
@@ -95,20 +115,30 @@ import { useUserStore } from "@/stores/user";
 import { openUrl } from '../utils/openUrl';
 import { useDisplay } from 'vuetify';
 import api from "@/services/api";
-import { Axios, AxiosError } from "axios";
+import { AxiosError } from "axios";
+import { CacheKeys, cache } from "@/utils/cache";
 
 const AUTO_SUGGEST_ON = import.meta.env.VITE_AUTO_SUGGEST_ON === 'true';
 const mobile = useDisplay().smAndDown;
 
 interface HistoryItem {
 	query: string;
+	freq: string;
 	timestamp: number;
-	engine: string;
+}
+
+interface ScoredHistoryItem {
+	query: string;
+	score: number; // Combined score for ranking
+	matchScore: number; // How well it matches the search query
+	freqScore: number; // Normalized frequency score
+	recencyScore: number; // Normalized recency score
 }
 
 // consts and refs
-const MAX_STORED_HISTORY = 100; // Maximum number of items to store
-const MAX_DISPLAYED_HISTORY = 5; // Maximum number of items to display
+const MAX_STORED_HISTORY = 500; // Maximum number of items to store
+const MAX_DISPLAYED_HISTORY = 5; // Maximum number of history items to display in suggestions
+const MAX_HISTORY_SUGGESTIONS = 5; // Maximum number of history suggestions to mix with API suggestions
 const STORAGE_KEY = "search_history";
 
 const linksStore = useLinksStore();
@@ -116,7 +146,8 @@ const settingsStore = useUserSettingsStore();
 const { links } = storeToRefs(linksStore)
 
 const searchQuery = ref("");
-const searchHistory = ref<string[]>([]);
+const searchHistory = ref<string[]>([]); // For backward compatibility
+const historyItems = ref<HistoryItem[]>([]); // Complete history items with metadata
 const showHistory = ref(false);
 const searchInput = ref<HTMLElement | null>(null);
 const searchEngineStore = useSearchEngineStore();
@@ -125,10 +156,12 @@ const focusedIndex = ref(-1);
 const fuseInstance = ref<Fuse<Link> | null>(null);
 const textareaHeight = ref(50);
 const maxHeight = 300;
+const MAX_HISTORY_ENTRIES = Number.parseInt(import.meta.env.VITE_MAX_HISTORY_ENTRIES || '500');
 
 // Fuzzy search setup
 const fuzzyResults = ref<FuseResult<Link>[]>([]);
 const autoSuggestions = ref<Suggestions[]>([]);
+const historySuggestions = ref<ScoredHistoryItem[]>([]);
 
 // computed properties
 const placeholder = computed(() => {
@@ -226,56 +259,130 @@ const historyFuse = computed(
 // functions
 const loadSearchHistory = () => {
 	try {
-		const stored = localStorage.getItem(STORAGE_KEY);
+		const stored = cache.get_search_history(CacheKeys.SEARCH_HISTORY);
 		if (stored) {
 			const parsed: HistoryItem[] = JSON.parse(stored);
-			// Sort by timestamp and get just the queries
-			searchHistory.value = parsed
-				.sort((a, b) => b.timestamp - a.timestamp)
-				.map((item) => item.query)
-				.slice(0, MAX_STORED_HISTORY);
+				// Store complete history items
+				historyItems.value = parsed.slice(0, MAX_STORED_HISTORY);
+				// For backward compatibility, still keep searchHistory
+				searchHistory.value = parsed
+					.sort((a, b) => b.timestamp - a.timestamp)
+					.map((item) => item.query)
+					.slice(0, MAX_STORED_HISTORY);
 		}
 	} catch (error) {
 		console.error("Error loading search history:", error);
+		historyItems.value = [];
 		searchHistory.value = [];
 	}
+};
+
+// Calculate history suggestions based on query matching, frequency and recency
+const calculateHistorySuggestions = (query: string): ScoredHistoryItem[] => {
+	if (!query || !historyItems.value.length) return [];
+	
+	const now = Date.now();
+	const maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
+	const queryLower = query.toLowerCase();
+	
+	// Get max frequency for normalization
+	const maxFreq = Math.max(...historyItems.value.map(item => parseInt(item.freq || '1')));
+	
+	// Score each history item
+	const scoredItems = historyItems.value.map(item => {
+		// Calculate match score (exact match gets highest score)
+		let matchScore = 0;
+		if (item.query.toLowerCase() === queryLower) {
+			matchScore = 1;
+		} else if (item.query.toLowerCase().startsWith(queryLower)) {
+			matchScore = 0.8;
+		} else if (item.query.toLowerCase().includes(queryLower)) {
+			matchScore = 0.6;
+		} else {
+			// Fuzzy match based on query length vs item length (simple approximation)
+			const matchLength = Math.min(queryLower.length, item.query.length);
+			const maxLength = Math.max(queryLower.length, item.query.length);
+			matchScore = matchLength / maxLength * 0.4; // max 0.4 for fuzzy matches
+		}
+		
+		// Skip items with very low match score
+		if (matchScore < 0.3) return null;
+		
+		// Calculate frequency score (normalized)
+		const freqScore = parseInt(item.freq || '1') / maxFreq;
+		
+		// Calculate recency score (newer gets higher score)
+		const age = now - item.timestamp;
+		const recencyScore = Math.max(0, 1 - (age / maxAge));
+		
+		// Combined score with weights: match (0.5) + frequency (0.3) + recency (0.2)
+		const score = (matchScore * 0.5) + (freqScore * 0.3) + (recencyScore * 0.2);
+		
+		return {
+			query: item.query,
+			score,
+			matchScore,
+			freqScore,
+			recencyScore
+		};
+	}).filter(item => item !== null) as ScoredHistoryItem[];
+	
+	// Sort by combined score and return top results
+	return scoredItems.sort((a, b) => b.score - a.score)
+		.slice(0, MAX_HISTORY_SUGGESTIONS);
 };
 
 const addToHistory = (query: string) => {
 	if (!query || !query.trim()) return;
 
 	try {
-		const stored = localStorage.getItem(STORAGE_KEY);
+		const stored = cache.get_search_history(CacheKeys.SEARCH_HISTORY);
 		const history: HistoryItem[] = stored ? JSON.parse(stored) : [];
 
-		// Remove any existing entry with the same query
-		const filtered = history.filter(
-			(item) => item.query.toLowerCase() !== query.toLowerCase(),
+		// Check if query already exists
+		const existingIndex = history.findIndex(
+			(item) => item.query.toLowerCase() === query.toLowerCase()
 		);
 
-		// Add new entry
-		filtered.unshift({
-			query,
-			timestamp: Date.now(),
-			engine: selectedEngine.value,
-		});
+		if (existingIndex !== -1) {
+			// Increment frequency count
+			history[existingIndex].freq = (parseInt(history[existingIndex].freq || '0') + 1).toString();			
+			history[existingIndex].timestamp = Date.now(); // Update timestamp to now
+			
+			// Move this item to the beginning of the array
+			const item = history.splice(existingIndex, 1)[0];
+			history.unshift(item);
+		} else {
+			// Add new entry
+			history.unshift({
+				query,
+				freq: '1',
+				timestamp: Date.now()
+			});
 
-		// Keep only MAX_STORED_HISTORY items
-		const trimmed = filtered.slice(0, MAX_STORED_HISTORY);
+			// If we've exceeded the maximum, remove the oldest entry
+			if (history.length > MAX_HISTORY_ENTRIES) {
+				history.pop();
+			}
+		}
 
-		// Save to localStorage
-		localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+		// Save to local Storage
+		cache.set_search_history(CacheKeys.SEARCH_HISTORY, JSON.stringify(history));
 
-		// Update the reactive history
-		searchHistory.value = trimmed.map((item) => item.query);
+		// Update the reactive history arrays
+		historyItems.value = history.slice(0, MAX_STORED_HISTORY);
+		searchHistory.value = history.map((item) => item.query);
 	} catch (error) {
 		console.error("Error saving to search history:", error);
 	}
 };
 
-const clearHistory = (query: string) => {
-	searchHistory.value = [];
-	localStorage.removeItem(STORAGE_KEY);
+// Add a function to prepare URL (add protocol if needed)
+const prepareUrl = (url: string) => {
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    return `https://${url}`;
+  }
+  return url;
 };
 
 // Modify your existing performSearch function
@@ -284,8 +391,11 @@ const performSearch = () => {
 		// If there are fuzzy results, open the first result's URL
 		if (fuzzyResults.value.length > 0) {
 			openUrl(fuzzyResults.value[0].item.url);
-		} else {
+			// If it's a valid URL, open it directly
+		} else if (isCompleteURI.value) {
+			openUrl(prepareUrl(searchQuery.value));
 			// Otherwise perform normal search
+		} else {
 			const searchUrl = selectedEngine.value + encodeURIComponent(searchQuery.value);
 			openUrl(searchUrl);
 		}
@@ -349,54 +459,15 @@ const handleKeydown = (event: KeyboardEvent) => {
 						openUrl(fuzzyResults.value[fuzzyIndex].item.url);
 						searchQuery.value = "";
 					}
-				}
-				if(!event.shiftKey){
+				} else if(!event.shiftKey) {
 					performSearch();
 				}
 				return;
 		}
-	}
-	if(event.key === "Enter" && !event.shiftKey){
-		performSearch();
-	}
-	// Handle CS ticket queries
-	// else if (isCSQuery.value) {
-	// 	switch (event.key) {
-	// 		case "ArrowDown":
-	// 			event.preventDefault();
-	// 			focusedIndex.value = (focusedIndex.value + 1) % (pillLinks.length + 3);
-	// 			break;
-	// 		case "ArrowUp":
-	// 			event.preventDefault();
-	// 			focusedIndex.value =
-	// 				(focusedIndex.value - 1 + (pillLinks.length + 3)) %
-	// 				(pillLinks.length + 3);
-	// 			break;
-	// 		case "Enter":
-	// 			event.preventDefault();
-	// 			if (focusedIndex.value === 0) {
-	// 				window.open(jiraLink.value, "_blank");
-	// 			} else if (
-	// 				focusedIndex.value >= 2 &&
-	// 				focusedIndex.value < pillLinks.length + 2
-	// 			) {
-	// 				window.open(pillLinks[focusedIndex.value - 2].link, "_blank");
-	// 			} else if (focusedIndex.value === pillLinks.length + 2) {
-	// 				window.open(confluenceLink.value, "_blank");
-	// 			}
-	// 			searchQuery.value = ""; // Clear the search after opening
-	// 			return; // Prevent further processing
-	// 	}
-	// }
-	// Handle complete URI
-	else if (isCompleteURI.value && event.key === "Enter") {
+	} else if(event.key === "Enter" && !event.shiftKey) {
+		// Handle direct URL input or search
 		event.preventDefault();
-		openUrl(
-			searchQuery.value.startsWith("http")
-				? searchQuery.value
-				: `https://${searchQuery.value}`
-		);
-		searchQuery.value = "";
+		performSearch();
 		return;
 	}
 };
@@ -446,47 +517,76 @@ const handleSearchEngineHotkeys = (event: KeyboardEvent) => {
 };
 
 const getSuggestions = async (query: string) => {
-	if(!AUTO_SUGGEST_ON){
-		autoSuggestions.value = [];
-		return;
-	} 
-	if (!settingsStore.settings.autosuggest) {
-		autoSuggestions.value = [];
-		return;
-	}
-	try {
-		const userStore = useUserStore();
-		const authToken = userStore.getAuthToken();
-		
-		// Only proceed if we have an auth token
-		if (!authToken) {
-			console.warn('No auth token available for suggestions');
-			return;
-		}
-		
-		const response = await api.get(API.SUGGEST(query), {
-			headers: {
-				'X-User-Authorization': authToken
+	// Calculate history suggestions first
+	const historyResults = calculateHistorySuggestions(query);
+	
+	// Convert history suggestions to the same format as API suggestions
+	const historySuggestionsFormatted = historyResults.map(item => ({
+		query: item.query,
+		score: item.score,
+		isHistory: true // Add flag to identify history suggestions
+	}));
+	
+	let apiSuggestions: Suggestions[] = [];
+	
+	// Get API suggestions if enabled
+	if(AUTO_SUGGEST_ON && settingsStore.settings.autosuggest){
+		try {
+			const userStore = useUserStore();
+			const authToken = userStore.getAuthToken();
+			
+			// Only proceed if we have an auth token
+			if (authToken) {
+				const response = await api.get(API.SUGGEST(query), {
+					headers: {
+						'X-User-Authorization': authToken
+					}
+				});
+				
+				// Check for successful response
+				if (response.status === 200) {
+					const suggestionResponse = response.data as SuggestionsResponse;
+					apiSuggestions = suggestionResponse.suggestions;
+				}
 			}
-		});		
-		const suggestionResponse = response.data as SuggestionsResponse;
-		autoSuggestions.value = suggestionResponse.suggestions;
-	} catch (error) {
-		console.error("Error fetching suggestion:", error);
-		if ((error as AxiosError).status === 403) {
-			alert('Auto-suggestions are not available for your account. This feature has been disabled.');
-			settingsStore.updateSetting('autosuggest', false);
-			autoSuggestions.value = [];
-			return;
+		} catch (error) {
+			// Silently handle 429 errors (too many requests)
+			if ((error as AxiosError).response?.status !== 429) {
+				console.error("Error fetching suggestion:", error);
+				if ((error as AxiosError).response?.status === 403) {
+					alert('Auto-suggestions are not available for your account. This feature has been disabled.');
+					settingsStore.updateSetting('autosuggest', false);
+				}
+			}
 		}
-		autoSuggestions.value = []; // Clear suggestions on error
 	}
+	
+	// Combine history and API suggestions, giving preference to history suggestions
+	// We'll show all history suggestions first (up to MAX_HISTORY_SUGGESTIONS),
+	// then fill the rest with API suggestions
+	
+	// Get unique suggestions (avoid duplicates between history and API)
+	const seenQueries = new Set<string>(historySuggestionsFormatted.map(s => s.query.toLowerCase()));
+	const uniqueApiSuggestions = apiSuggestions.filter(s => !seenQueries.has(s.query.toLowerCase()));
+	
+	// Combine the suggestions
+	autoSuggestions.value = [
+		...historySuggestionsFormatted,
+		...uniqueApiSuggestions
+	];
 };
 
 const suggestionHandler = (suggestion: string) => {
 	searchQuery.value = suggestion;
 	performSearch();
 };
+
+// Add these variables near the other refs and constants
+const lastQuery = ref(""); // Keep track of the last query we sent to the API
+const lastQueryTime = ref(0); // Keep track of when we last sent a request
+const DEBOUNCE_TIME = 1000; // milliseconds to wait for user typing to settle
+const REQUEST_TIME = 500; // milliseconds to wait for user typing to settle
+const MIN_TOKEN_SIZE = 3; // minimum characters difference to trigger a new request
 
 // watch, mount, and unmount
 watch(searchQuery, async (newQuery) => {
@@ -506,7 +606,7 @@ watch(searchQuery, async (newQuery) => {
 
     // if is not a complete URI, perform fuzzy search for links
     if (!isCompleteURI.value) {
-
+		// Always perform the local fuzzy search (it's fast and doesn't hit APIs)
 		await debouncedFuzzySearch(newQuery);
 		// this is here on purpose. The debounced search has a 10 ms delay
 		// so we need to wait for it to finish before fetching suggestions
@@ -518,8 +618,22 @@ watch(searchQuery, async (newQuery) => {
             return;
         }
 
-        // if no fuzzy results, get search suggestions
-        await getSuggestions(newQuery);
+        // Rate limit checks before getting search suggestions
+        const now = Date.now();
+        const timeSinceLastQuery = now - lastQueryTime.value;
+        const charDiff = Math.abs(newQuery.length - lastQuery.value.length);
+        
+        // Get suggestions if:
+        // 1. We have enough new characters (tokenization) OR
+        // 2. Enough time has passed since last request AND the query is different
+        if (
+            (charDiff >= MIN_TOKEN_SIZE && timeSinceLastQuery >= REQUEST_TIME) || 
+            (timeSinceLastQuery >= DEBOUNCE_TIME && newQuery !== lastQuery.value)
+        ) {
+            lastQuery.value = newQuery;
+            lastQueryTime.value = now;
+            await getSuggestions(newQuery);
+        }
     } else {
         // If it's a complete URI, clear the fuzzy results and suggestions
         autoSuggestions.value = [];
@@ -666,6 +780,14 @@ onUnmounted(() => {
 .searchBarContainer:focus-within {
 	border: #ffffff1e 1px solid;
 	box-shadow: 0 2px 10px 1px rgba(255, 255, 255, 0.1);
+}
+
+.trash-can {
+	display: none;
+}
+
+:hover.trash-can {
+	display: block;
 }
 
 /* Add responsive styles */

@@ -5,13 +5,13 @@
 			class="group cursor-pointer border-2 rounded-lg p-4 transition-all duration-300 flex flex-col items-center justify-center space-y-2"
 			:class="[
 				isAtMaxPins
-					? 'border-amber-500 bg-amber-50 hover:bg-amber-100'
+					? 'border-amber-500/50 bg-amber-50/50 hover:bg-amber-100/50'
 					: 'border-dashed hover:border-primary border-gray-300'
 			]" @mouseenter="hover = true" @mouseleave="hover = false">
 			<v-icon :color="isAtMaxPins ? 'amber-darken-2' : (hover ? 'primary' : 'grey')" size="24">
 				{{ isAtMaxPins ? 'mdi-arrow-up-circle' : 'mdi-plus' }}
 			</v-icon>
-			<span :class="isAtMaxPins ? 'text-amber-700' : (hover ? 'text-primary' : 'text-grey')">
+			<span :class="isAtMaxPins ? 'text-amber-800' : (hover ? 'text-primary' : 'text-grey')">
 				{{ isAtMaxPins ? 'Upgrade for more pins' : 'Add new link' }}
 			</span>
 		</div>
@@ -24,6 +24,7 @@
 					<v-form @submit.prevent="handleSubmit" ref="form">
 						<v-text-field v-model="formData.url" :rules="[v => !!v || 'URL is required', linksStore.validateUrl]"
 							label="URL" required type="url" @keyup.enter="handleSubmit"></v-text-field>
+						<p v-if="!validLink" class="text-error my-2 text-sm">Invalid URL: Failed to connect with this URL's server, is it spelled correctly?</p>
 
 						<v-text-field @keyup.enter="(e: Event) => { e.preventDefault(); handleSubmit() }"
 							v-model="formData.title" label="Title"></v-text-field>
@@ -89,7 +90,7 @@
 										</template>
 										<span>
 											<span class="kbd">+Plus Feature</span><br/>
-											If title and description are left blank, <strong>Better New Tab</strong> attempts to them this, along
+											If title and description are left blank, <strong>Better New Tab</strong> attempts to get them from the website, along
 											with an icon, from the URL's website.
 										</span>
 									</v-tooltip>
@@ -112,6 +113,7 @@
 	const linksStore = useLinksStore();
 	const userStore = useUserStore();
 	const mobile = useDisplay().smAndDown;
+	const validLink = ref(true);
 
 	type formData = {
 		url: string;
@@ -122,8 +124,6 @@
 
 	const props = defineProps<{
 		columnType: string;
-		tools: Link[];
-		docs: Link[];
 		userId: string | null;
 		maxPins: number;
 		isPlanFree: boolean;
@@ -149,7 +149,7 @@
 	});
 
 	const isAtMaxPins = computed(() => {
-		return props.tools.length + props.docs.length >= props.maxPins;
+		return linksStore.links.length >= props.maxPins;
 	});
 
 	const handleClick = () => {
@@ -161,8 +161,7 @@
 	};
 
 	const openModal = () => {
-		const totalPins = props.tools.length + props.docs.length;
-		if (totalPins >= props.maxPins) {
+		if (linksStore.links.length >= props.maxPins) {
 			alert(
 				`You've reached your maximum number of pins (${props.maxPins}). Please upgrade your plan for more.`,
 			);
@@ -220,14 +219,18 @@
 				title: formData.value.title,
 				description: formData.value.description,
 				url: formData.value.url,
-				next_order_index:
-					props.columnType === "tools" ? linksStore.toolLinks.length + 1 : linksStore.docLinks.length + 1,
+				next_order_index: linksStore.links.length + 1,
 				owner_id: userStore.userId,
 				owner_type: "user",
 				column_type: formData.value.columnType,
 			};
 
 			const savedLink = await linksStore.postLink(linkData);
+			if (savedLink === 502) {
+				validLink.value = false;
+				return;
+			}
+			validLink.value = true;
 			if (!savedLink) console.error("Error saving link");
 			closeModal();
 		} catch (error) {

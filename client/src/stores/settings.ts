@@ -14,12 +14,12 @@ export const useUserSettingsStore = defineStore("userSettings", {
       confluence_api: false,
       linear_api: false,
       new_tabs: false,
+      metadata: false,
     } as UserSettings,
   }),
   actions: {
     async updateSetting(key: keyof UserSettings, value: boolean) {
       this.settings[key] = value;
-      console.log("Updated setting:", key, value);
       try {
         const userStore = useUserStore();
         if (!userStore.userId) return;
@@ -39,7 +39,6 @@ export const useUserSettingsStore = defineStore("userSettings", {
           return;
         }
 
-        console.log("fetching user settings");
 
         try {
           const userStore = useUserStore();

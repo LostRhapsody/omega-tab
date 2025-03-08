@@ -9,7 +9,7 @@ mod user_jwt;
 
 use axum::{
     extract::{Extension, Json, Path, State},
-    http::{HeaderMap, StatusCode},
+    http::{HeaderMap, HeaderValue, Method, StatusCode},
     routing::{delete, get, post},
     Router,
 };
@@ -77,7 +77,7 @@ pub struct SuggestionResponse {
 
 #[derive(Deserialize, Debug)]
 pub struct FeedbackRequest {
-    reasons: Option<stripe::CancellationDetailsFeedback>,
+    reasons: Option<stripe::UpdateSubscriptionCancellationDetailsFeedback>,
     feedback_comment: Option<String>,
 }
 
@@ -89,6 +89,7 @@ pub struct UserSettingsRequest {
     confluence_api: bool,
     linear_api: bool,
     new_tabs: bool,
+    metadata: bool,
 }
 
 #[derive(Serialize)]
@@ -98,6 +99,34 @@ pub struct UserDataResponse {
     plan: Option<supabase::Plan>,
     settings: Option<supabase::UserSettings>,
     links: Vec<supabase::Link>,
+}
+
+// New struct for staging login request
+#[derive(Deserialize, Debug)]
+pub struct StagingLoginRequest {
+    password: String,
+}
+
+// New helper function to disable premium features in user settings
+fn disable_premium_features(settings_blob: &mut serde_json::Value) {
+    if let Some(obj) = settings_blob.as_object_mut() {
+        // Disable all premium features
+        if obj.contains_key("autosuggest") {
+            obj["autosuggest"] = json!(false);
+        }
+        if obj.contains_key("jira_api") {
+            obj["jira_api"] = json!(false);
+        }
+        if obj.contains_key("confluence_api") {
+            obj["confluence_api"] = json!(false);
+        }
+        if obj.contains_key("linear_api") {
+            obj["linear_api"] = json!(false);
+        }
+        if obj.contains_key("metadata") {
+            obj["metadata"] = json!(false);
+        }
+    }
 }
 
 fn main() {
@@ -131,10 +160,50 @@ async fn runtime() {
 
     dotenv().ok();
 
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
+    let cors = {
+        let environment =
+            std::env::var("ENVIRONMENT").unwrap_or_else(|_| "development".to_string());
+
+        match environment.as_str() {
+            "production" => CorsLayer::new()
+                .allow_origin("https://betternewtab.com".parse::<HeaderValue>().unwrap())
+                .allow_methods([
+                    Method::GET,
+                    Method::POST,
+                    Method::PUT,
+                    Method::DELETE,
+                    Method::OPTIONS,
+                ])
+                .allow_headers(Any),
+            "staging" => CorsLayer::new()
+                .allow_origin(
+                    "https://staging.betternewtab.com"
+                        .parse::<HeaderValue>()
+                        .unwrap(),
+                )
+                .allow_methods([
+                    Method::GET,
+                    Method::POST,
+                    Method::PUT,
+                    Method::DELETE,
+                    Method::OPTIONS,
+                ])
+                .allow_headers(Any),
+            _ => {
+                // Development mode
+                CorsLayer::new()
+                    .allow_origin("http://localhost:5173".parse::<HeaderValue>().unwrap())
+                    .allow_methods([
+                        Method::GET,
+                        Method::POST,
+                        Method::PUT,
+                        Method::DELETE,
+                        Method::OPTIONS,
+                    ])
+                    .allow_headers(Any)
+            }
+        }
+    };
 
     let client = reqwest::Client::new();
 
@@ -175,6 +244,8 @@ async fn runtime() {
         // cancel subscription event listener for Stripe
         .route("/stripe_cancel_hook", post(cancel_subscription_hook))
         .route("/user_data", get(get_user_data_handler))
+        // Add staging login route - doesn't need authentication
+        .route("/staging_login", post(staging_login_handler))
         .with_state(client)
         .layer(axum::middleware::from_fn(authenticate_user))
         .layer(axum::middleware::from_fn(extract_user))
@@ -184,6 +255,31 @@ async fn runtime() {
     println!("Server running on http://0.0.0.0:3000");
 
     axum::serve(listener, app).await.unwrap();
+}
+
+// Staging login handler
+async fn staging_login_handler(
+    Json(payload): Json<StagingLoginRequest>,
+) -> Result<StatusCode, StatusCode> {
+    println!("Processing staging login request");
+
+    // Get the staging password from environment variables
+    let staging_password = match env::var("STAGING_PASSWORD") {
+        Ok(pwd) => pwd,
+        Err(_) => {
+            println!("STAGING_PASSWORD environment variable not set");
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+
+    // Simple password validation
+    if payload.password == staging_password {
+        println!("Staging login successful");
+        return Ok(StatusCode::OK);
+    } else {
+        println!("Invalid staging password provided");
+        return Err(StatusCode::FORBIDDEN);
+    }
 }
 
 async fn create_user_handler(
@@ -334,16 +430,32 @@ async fn confirm_handler(
     };
 
     println!("Got subscription from Stripe");
-    // Double check if subscription is active
-    if !subscription.status.eq(&stripe::SubscriptionStatus::Active) {
+    
+    // Check if subscription is still valid based on status and current period end
+    let current_timestamp = chrono::Utc::now().timestamp();
+    
+    // Check both the subscription status and whether the current period has ended
+    let has_valid_subscription = subscription.status.eq(&stripe::SubscriptionStatus::Active) && 
+        subscription.current_period_end > current_timestamp;
+    
+    // Check if subscription is scheduled to be canceled at period end
+    let is_canceling = subscription.cancel_at_period_end;
+    
+    println!("Subscription status: {:?}, Period end: {}, Current time: {}, Is canceling: {}", 
+        subscription.status, 
+        subscription.current_period_end, 
+        current_timestamp,
+        is_canceling);
+    
+    if !has_valid_subscription {
+        println!("Subscription is not active or period has ended");
         return Ok(Json(SubscriptionResponse {
             plan_id: free_plan_id,
             current_period_end: 0,
         }));
     }
 
-    println!("Subscription is active");
-    // Get the subscription- we need the product id for later
+    // Get the subscription item - we need the product id for later
     let item = subscription
         .items
         .data
@@ -393,26 +505,31 @@ async fn confirm_handler(
     // Verify subscription record
     let sub_result = supabase.get_user_subscription(&user.id).await;
 
-    // verify we got the subcription
+    // verify we got the subscription
     match sub_result {
         Ok(sub) => {
             println!("Got subscription from Supabase");
-            // Update existing subscription if plan changed
-            // if plan id has changed (user upgraded/downgraded); or,
-            // the plan exists but has been cancelled and is now being re-activated
-            if (sub.plan_id != supabase_plan.id) || sub.status.eq("cancelled") {
+            // Update existing subscription if plan changed or status has changed
+            let should_update = sub.plan_id != supabase_plan.id || 
+                                sub.status != "active" ||
+                                is_canceling && sub.status != "cancelling";
+            
+            if should_update {
                 let mut updates = HashMap::new();
                 updates.insert("plan_id".to_string(), json!(supabase_plan.id));
                 updates.insert(
                     "current_period_end".to_string(),
                     json!(Utc
-                        .timestamp(subscription.current_period_end, 0)
+                        .timestamp_opt(subscription.current_period_end, 0).unwrap()
                         .to_rfc3339()),
                 );
                 updates.insert("stripe_subscription_id".to_string(), json!(subscription.id));
-                updates.insert("status".to_string(), json!("active"));
+                
+                // If subscription is set to cancel at period end, mark it as "cancelling" in Supabase
+                let status = if is_canceling { "cancelling" } else { "active" };
+                updates.insert("status".to_string(), json!(status));
 
-                println!("Updating subscription");
+                println!("Updating subscription with status: {}", status);
                 println!("updates: {:?}", updates);
                 supabase
                     .update_subscription(&sub.id, updates)
@@ -432,7 +549,7 @@ async fn confirm_handler(
                 entity_id: user.id.clone(),
                 entity_type: "user".to_string(),
                 plan_id: supabase_plan.clone().id,
-                status: "active".to_string(),
+                status: if is_canceling { "cancelling" } else { "active" }.to_string(),
                 stripe_subscription_id: subscription.id.to_string(),
                 current_period_end: Utc
                     .timestamp_opt(subscription.current_period_end, 0)
@@ -594,6 +711,12 @@ async fn create_link(
             StatusCode::BAD_REQUEST
         })?;
 
+    let metadata_on = headers
+        .get("X-Fetch-Metadata")
+        .and_then(|m| m.to_str().ok())
+        .map(|s| s.to_lowercase() == "true")
+        .unwrap_or(false);
+
     // Validate the JWT token
     let user_claims = match user_jwt::validate_jwt(auth_token) {
         Ok(claims) => claims,
@@ -609,19 +732,24 @@ async fn create_link(
         return Err(StatusCode::UNAUTHORIZED);
     }
 
-    // init metadata, if plus plan retrieve from link's URL, else use defaults
-    let metadata = if user_claims.plan == "plus" {
-        get_metadata(State(client.clone()), &url)
-            .await
-            .map_err(|e| {
-                tracing::error!("Error getting metadata: {:?}", e);
-            })
-            .unwrap_or_else(|_| Metadata {
-                title: Some(url.clone()),
-                description: None,
-                favicon: None,
-                mime_type: None,
-            })
+    // init metadata, if not free plan retrieve from link's URL, else use defaults
+    let metadata = if user_claims.plan != "free" && metadata_on {
+        match get_metadata(State(client.clone()), &url).await {
+            Ok(metadata) => metadata,
+            Err(StatusCode::BAD_GATEWAY) => {
+                // If we get BAD_GATEWAY from get_metadata, return it directly to the client
+                return Err(StatusCode::BAD_GATEWAY);
+            },
+            Err(_) => {
+                // For any other errors, use default metadata
+                Metadata {
+                    title: Some(url.clone()),
+                    description: None,
+                    favicon: None,
+                    mime_type: None,
+                }
+            }
+        }
     } else {
         Metadata {
             title: Some(url.clone()),
@@ -641,7 +769,7 @@ async fn create_link(
     };
 
     // grab the favicon, or just pass an empty string
-    let favicon = if user_claims.plan == "plus" {
+    let favicon = if user_claims.plan != "free" && metadata_on {
         get_favicon(
             State(client),
             &url,
@@ -994,10 +1122,15 @@ async fn get_metadata(client: State<reqwest::Client>, url: &str) -> Result<Metad
 
     println!("Fetching metadata for URL: {}", url);
 
-    let response = client.get(url).send().await.map_err(|e| {
-        tracing::error!("Failed to fetch URL {}: {:?}", url, e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    // Attempt to fetch the URL with proper error handling
+    let response = match client.get(url).send().await {
+        Ok(response) => response,
+        Err(e) => {
+            tracing::info!("Failed to fetch URL {}: {:?}", url, e);
+            println!("Error fetching metadata: {:?}", e);
+            return Err(StatusCode::BAD_GATEWAY);
+        }
+    };
 
     if !response.status().is_success() {
         return Err(StatusCode::BAD_REQUEST);
@@ -1050,7 +1183,7 @@ async fn get_favicon(
     client: State<reqwest::Client>,
     url: &str,
     favicon_source: Option<String>,
-    mime_type: Option<String>,
+    mime_type: Option<String>
 ) -> Result<String, StatusCode> {
     let parsed_url = Url::parse(url).expect("Invalid URL");
     let domain = parsed_url.host_str().unwrap_or("").to_string();
@@ -1166,8 +1299,8 @@ async fn suggest_handler(
         return Err(StatusCode::UNAUTHORIZED);
     }
 
-    // Check if token is for a "plus" plan user or if their plan allows this feature
-    if user_claims.plan != "plus" {
+    // Check if token is for a "free" plan user or if their plan allows this feature
+    if user_claims.plan == "free" {
         println!("User plan does not allow auto-suggestions");
         return Err(StatusCode::FORBIDDEN);
     }
@@ -1184,6 +1317,11 @@ async fn suggest_handler(
     })?;
 
     let response = brave.get_suggestions(&query).await.map_err(|e| {
+        // Check for rate limit error specifically
+        if e.to_string().contains("429") {
+            println!("Rate limit exceeded for Brave API");
+            return StatusCode::TOO_MANY_REQUESTS;
+        }
         println!("Error getting suggestions: {:?}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
@@ -1501,6 +1639,8 @@ async fn get_user_data_handler(
 ) -> Result<Json<UserDataResponse>, StatusCode> {
     let user_email = user_context.email.clone();
     let user_id = user_context.user_id.clone();
+    let mut new_user_created = false;
+    let mut settings: Option<supabase::UserSettings> = None;
     println!("Fetching user data!");
 
     sentry::configure_scope(|scope| {
@@ -1544,6 +1684,7 @@ async fn get_user_data_handler(
                 tracing::error!("Failed to create user: {:?}", e);
                 StatusCode::INTERNAL_SERVER_ERROR
             })?;
+            new_user_created = true;
             let create_settings_result = create_user_default_settings(&new_user).await;
             if let Err(e) = create_settings_result {
                 if e == StatusCode::INTERNAL_SERVER_ERROR {
@@ -1552,43 +1693,58 @@ async fn get_user_data_handler(
                         new_user.email
                     );
                 }
+            } else {
+                settings = Some(create_settings_result.unwrap());
             }
             new_user
         }
     };
 
     tracing::info!("Fetching subscription info for {}", user_email);
+    
+    // Track if the subscription is active
+    let mut has_active_subscription = false;
+    
     // Get subscription info
     let subscription = match StripeClient::get_customer(&user_email).await {
         Some(customer) => match StripeClient::get_subscription(&customer).await {
-            Some(sub) if sub.status.eq(&stripe::SubscriptionStatus::Active) => {
-                let item = sub
-                    .items
-                    .data
-                    .first()
-                    .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
-                let plan = item
-                    .plan
-                    .as_ref()
-                    .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
-                let product_id = plan
-                    .product
-                    .as_ref()
-                    .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?
-                    .id();
+            Some(sub) => {
+                // Check if subscription is still valid based on status and current period end
+                let current_timestamp = chrono::Utc::now().timestamp();
+                has_active_subscription = sub.status.eq(&stripe::SubscriptionStatus::Active) && 
+                    sub.current_period_end > current_timestamp;
+                
+                if has_active_subscription {
+                    let item = sub
+                        .items
+                        .data
+                        .first()
+                        .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+                    let plan = item
+                        .plan
+                        .as_ref()
+                        .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+                    let product_id = plan
+                        .product
+                        .as_ref()
+                        .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?
+                        .id();
 
-                let supabase_plan = supabase
-                    .get_plan_by_stripe_id(&product_id.to_string())
-                    .await
-                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                    let supabase_plan = supabase
+                        .get_plan_by_stripe_id(&product_id.to_string())
+                        .await
+                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-                Some((
-                    SubscriptionResponse {
-                        plan_id: supabase_plan.id.clone(),
-                        current_period_end: sub.current_period_end,
-                    },
-                    supabase_plan,
-                ))
+                    Some((
+                        SubscriptionResponse {
+                            plan_id: supabase_plan.id.clone(),
+                            current_period_end: sub.current_period_end,
+                        },
+                        supabase_plan,
+                    ))
+                } else {
+                    None
+                }
             }
             _ => None,
         },
@@ -1596,18 +1752,46 @@ async fn get_user_data_handler(
     };
 
     tracing::info!("Fetching user settings for {}", user_id);
-    let settings = match supabase.get_user_settings(&user_id).await {
-        Ok(settings) => Some(settings),
-        Err(_) => match create_user_default_settings(&user).await {
-            Ok(new_settings) => Some(new_settings),
-            Err(e) => {
-                if e == StatusCode::INTERNAL_SERVER_ERROR {
-                    tracing::error!("Failed to create user settings for user: {}", user.email);
+    // only fetch settings if this is an existing user, otherwise we already created the default settings for new users
+    if !new_user_created {
+        settings = match supabase.get_user_settings(&user_id).await {
+            Ok(settings) => Some(settings),
+            Err(_) => match create_user_default_settings(&user).await {
+                Ok(new_settings) => Some(new_settings),
+                Err(e) => {
+                    if e == StatusCode::INTERNAL_SERVER_ERROR {
+                        tracing::error!("Failed to create user settings for user: {}", user.email);
+                    }
+                    None
                 }
-                None
-            }
-        },
-    };
+            },
+        };
+    }
+
+    // If subscription is not active but we have settings, disable premium features
+    if !has_active_subscription && settings.is_some() {
+        let mut user_settings = settings.unwrap();
+        let mut settings_blob = user_settings.settings_blob.clone();
+        
+        // Disable premium features in the settings
+        disable_premium_features(&mut settings_blob);
+        
+        // Update the settings object
+        user_settings.settings_blob = settings_blob;
+        
+        // Save changes to database if settings were modified
+        let mut updates = HashMap::new();
+        updates.insert("settings_blob".to_string(), user_settings.settings_blob.clone());
+        
+        if let Err(e) = supabase.update_user_settings(&user_id, updates).await {
+            tracing::error!("Failed to update user settings after disabling premium features: {:?}", e);
+        } else {
+            tracing::info!("Successfully disabled premium features for user with expired subscription");
+        }
+        
+        // Update the settings value for the response
+        settings = Some(user_settings);
+    }
 
     tracing::info!("Fetching links for user {}", user_id);
     let links = supabase.get_links(&user_id, "user").await.map_err(|e| {
@@ -1682,6 +1866,7 @@ async fn create_user_default_settings(
         confluence_api: false,
         linear_api: false,
         new_tabs: false,
+        metadata: false,
     };
 
     let user_settings = supabase::UserSettings {

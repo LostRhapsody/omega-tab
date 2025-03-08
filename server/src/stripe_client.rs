@@ -64,7 +64,7 @@ impl StripeClient {
     pub async fn cancel_subscription(
         email: String,
         reason: Option<String>,
-        feedback: Option<stripe::CancellationDetailsFeedback>
+        feedback: Option<stripe::UpdateSubscriptionCancellationDetailsFeedback>
     ) -> Option<stripe::Subscription> {
         tracing::info!("Cancelling subscription for email: {}", email);
 
@@ -79,30 +79,31 @@ impl StripeClient {
 
         tracing::info!("Processing cancellation for subscription: {}", subscription.id);
 
-        let cancel_options = if reason.is_some() || feedback.is_some() {
-            let cancellation_details = stripe::CancellationDetails {
+        let cancellation_details = if reason.is_some() || feedback.is_some() {
+            Some(stripe::UpdateSubscriptionCancellationDetails {
                 comment: reason,
                 feedback,
-                reason: None,
-            };
-            stripe::CancelSubscription {
-                cancellation_details: Some(cancellation_details),
-                invoice_now: None,
-                prorate: None,
-            }
+            })
         } else {
-            stripe::CancelSubscription::new()
+            None
         };
 
-        match stripe::Subscription::cancel(
+        // Instead of immediately cancelling, set the cancel_at_period_end flag to true
+        let cancel_params = stripe::UpdateSubscription {
+            cancel_at_period_end: Some(true),
+            cancellation_details: cancellation_details,
+            ..Default::default()
+        };
+
+        match stripe::Subscription::update(
             &client,
             &subscription.id,
-            cancel_options,
+            cancel_params,
         )
         .await
         {
             Ok(sub) => {
-                tracing::info!("Successfully cancelled subscription: {}", sub.id);
+                tracing::info!("Successfully cancelled subscription at period end: {}", sub.id);
                 Some(sub)
             },
             Err(err) => {

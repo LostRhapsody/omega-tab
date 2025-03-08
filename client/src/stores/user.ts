@@ -43,7 +43,6 @@ export const useUserStore = defineStore("user", {
       const cachedData = cache.get<UserState>(CacheKeys.USER);
       if (cachedData) {
         Object.assign(this.$state, cachedData);
-        console.log("Loaded user data from cache temporarily");
       }
 
       try {

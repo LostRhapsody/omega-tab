@@ -1,9 +1,17 @@
 import { API } from "@/constants/api";
 import api from "@/services/api";
+import { useUserSettingsStore } from "@/stores/settings";
+import { useUserStore } from "@/stores/user";
 import type { CreateLinkRequest, Link, UpdateLinkRequest } from "@/types/Link";
 import { CacheKeys, cache } from "@/utils/cache";
+import type { AxiosError } from "axios";
 import { defineStore } from "pinia";
-import { useUserStore } from "@/stores/user";
+
+// Define shortcut mapping for columns
+export const SHORTCUT_MAPPINGS = [
+  { key: "ctrl", label: "Ctrl" }, // First column
+  { key: "ctrlalt", label: "Ctrl+Alt" }, // Second column
+];
 
 interface LinksState {
   links: Link[];
@@ -19,13 +27,16 @@ export const useLinksStore = defineStore("links", {
   }),
 
   getters: {
-    toolLinks: (state) =>
-      state.links.filter((link) => link.column_type === "tools"),
-    docLinks: (state) =>
-      state.links.filter((link) => link.column_type === "docs"),
     uniqueColumnTypes: (state) => {
       const columnTypes = new Set(state.links.map((link) => link.column_type));
       return Array.from(columnTypes);
+    },
+    getColumnShortcut: (state) => (columnType: string) => {
+      const columnIndex = state.uniqueColumnTypes.indexOf(columnType);
+      if (columnIndex >= 0 && columnIndex < SHORTCUT_MAPPINGS.length) {
+        return SHORTCUT_MAPPINGS[columnIndex].label;
+      }
+      return "";
     },
   },
 
@@ -67,19 +78,22 @@ export const useLinksStore = defineStore("links", {
 
     async postLink(link: CreateLinkRequest) {
       this.isLoading = true;
-		  const userStore = useUserStore();
+      const userStore = useUserStore();
       const authToken = userStore.getAuthToken();
-		
+      const settingsStore = useUserSettingsStore();
+      const metadata_on = settingsStore.settings.metadata;
+
       // Only proceed if we have an auth token
       if (!authToken) {
-        console.warn('No auth token available for create link');
+        console.warn("No auth token available for create link");
         return;
       }
-      
+
       try {
         const response = await api.post(API.CREATE_LINK, link, {
           headers: {
-            'X-User-Authorization': authToken
+            "X-User-Authorization": authToken,
+            "X-Fetch-Metadata": metadata_on,
           },
         });
         if (response.status !== 201) {
@@ -94,6 +108,9 @@ export const useLinksStore = defineStore("links", {
       } catch (error) {
         this.error = error as string;
         this.isLoading = false;
+        if ((error as AxiosError).status === 502) {
+          return 502;
+        }
         return false;
       } finally {
         this.isLoading = false;

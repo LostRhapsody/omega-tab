@@ -9,7 +9,7 @@
 
       <h1 class="text-center text-4xl font-bold mb-12">Choose Your Plan</h1>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         <!-- Free Plan -->
         <v-card class="plan-card">
           <v-card-item>
@@ -19,16 +19,13 @@
             <v-divider class="mb-4"></v-divider>
             <v-list>
               <v-list-item prepend-icon="mdi-check">
-                <v-list-item-title>Up to 6 pinned items</v-list-item-title>
+                <v-list-item-title>Up to 6 links</v-list-item-title>
               </v-list-item>
               <v-list-item prepend-icon="mdi-check">
-                <v-list-item-title>Choose from 3 search enginges</v-list-item-title>
+                <v-list-item-title>Multiple search engines to choose from</v-list-item-title>
               </v-list-item>
               <v-list-item prepend-icon="mdi-check">
-                <v-list-item-title>Quick launch items by typing their name</v-list-item-title>
-              </v-list-item>
-              <v-list-item prepend-icon="mdi-check">
-                <v-list-item-title>Personal launch page</v-list-item-title>
+                <v-list-item-title>Quick launch links via shortcuts or search bar</v-list-item-title>
               </v-list-item>
             </v-list>
           </v-card-item>
@@ -41,12 +38,12 @@
         <v-card class="plan-card">
           <v-card-item>
             <v-card-title class="text-h4 mb-2">Plus</v-card-title>
-            <div class="text-h3 mb-1">$8</div>
+            <div class="text-h3 mb-1">$5</div>
             <div class="text-caption mb-4">per month</div>
             <v-divider class="mb-4"></v-divider>
             <v-list>
               <v-list-item prepend-icon="mdi-check">
-                <v-list-item-title>Up to 18 pinned items</v-list-item-title>
+                <v-list-item-title>Unlimited links</v-list-item-title>
               </v-list-item>
               <v-list-item prepend-icon="mdi-check">
                 <v-list-item-title>Search history</v-list-item-title>
@@ -55,16 +52,34 @@
                 <v-list-item-title>Search autocomplete</v-list-item-title>
               </v-list-item>
               <v-list-item prepend-icon="mdi-check">
-                <v-list-item-title>Integrations (Jira, Confluence, GitHub, Linear)*</v-list-item-title>
-              </v-list-item>
-              <v-list-item prepend-icon="mdi-check">
-                <v-list-item-title>Custom themes</v-list-item-title>
+                <v-list-item-title>Automatically fetch links' titles, descriptions, and icons when adding</v-list-item-title>
               </v-list-item>
             </v-list>
           </v-card-item>
           <v-card-actions class="pa-4">
             <a class="w-full" color="primary" :href=PlusPlanUrl><v-btn block variant="flat" color="primary">Upgrade to
                 Plus</v-btn></a>
+          </v-card-actions>
+        </v-card>
+
+        <!-- Pro Plan -->
+        <v-card class="plan-card">
+          <v-card-item>
+            <v-card-title class="text-h4 mb-2">Pro</v-card-title>
+            <div class="text-h3 mb-1">$10</div>
+            <div class="text-caption mb-4">per month</div>
+            <v-divider class="mb-4"></v-divider>
+            <v-list>
+              <v-list-item prepend-icon="mdi-check">
+                <v-list-item-title>All the benefits of Plus</v-list-item-title>
+              </v-list-item>
+              <v-list-item prepend-icon="mdi-check">
+                <v-list-item-title>Integrations (Jira, Confluence, GitHub, Linear)*</v-list-item-title>
+              </v-list-item>
+            </v-list>
+          </v-card-item>
+          <v-card-actions class="pa-4">
+            <v-btn block variant="flat" color="primary">Coming Soon</v-btn>
           </v-card-actions>
         </v-card>
 
@@ -169,6 +184,7 @@
     price: 0,
   });
   const PlusPlanUrl = import.meta.env.VITE_PLUS_PLAN_URL;
+  const ProPlanUrl = import.meta.env.VITE_PRO_PLAN_URL;
   const TeamPlanUrl = import.meta.env.VITE_TEAM_PLAN_URL;
 
   const handleBack = () => {

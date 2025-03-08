@@ -6,6 +6,8 @@ export const CacheKeys = {
   LINKS: `${CACHE_PREFIX}${CACHE_VERSION}links`,
   SETTINGS: `${CACHE_PREFIX}${CACHE_VERSION}settings`,
   SEARCH_ENGINE: `${CACHE_PREFIX}${CACHE_VERSION}search_engine`,
+  STAGING_LOGGED_IN: `${CACHE_PREFIX}${CACHE_VERSION}staging_logged_in`,
+  SEARCH_HISTORY: `${CACHE_PREFIX}${CACHE_VERSION}search_history`,
 } as const;
 
 export const cache = {
@@ -36,6 +38,27 @@ export const cache = {
     }
   },
 
+  // search history uses it's own timestamp
+  get_search_history: <T>(key: string): T | null => {
+    try {
+      const item = localStorage.getItem(key);
+      if (!item) return null;
+      return item;
+    } catch (error) {
+      console.error("Cache read failed:", error);
+      return null;
+    }
+  },
+
+  // search history is stored unqiuely
+  set_search_history: <T>(key: string, data: T): void => {
+    try {
+      localStorage.setItem(key, data);
+    } catch (error) {
+      console.error("Cache write failed:", error);
+    }
+  },
+
   clear: (key: string): void => {
     try {
       localStorage.removeItem(key);
@@ -53,7 +76,6 @@ export const cache = {
       for (const key of Object.values(CacheKeys)) {
         localStorage.removeItem(key);
       }
-      console.log("All cache cleared successfully");
     } catch (error) {
       console.error("Cache clear all failed:", error);
     }
