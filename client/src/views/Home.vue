@@ -118,7 +118,7 @@
                       down arrow
                     </span>
                     to jump between links when you are not focused on the search bar.
-                  </p>                  
+                  </p>
                 </div>
                 <h4 class="text-xl mb-4">Other Shortcuts</h4>
                 <div class="border p-4 rounded-lg mb-4">
@@ -528,12 +528,10 @@ const showShortcutDivider = (index:number, linksInColumn:number, currentColumn:n
   const numberOfColumns = linksStore.uniqueColumnTypes.length;
   if(numberOfColumns === 1){
     return index !== linksInColumn - 1;
-  } else {
-    const isLastLink = index === linksInColumn - 1;
-    const isLastColumn = currentColumn === numberOfColumns - 1;
-    return  !(isLastLink && isLastColumn);
   }
-
+  const isLastLink = index === linksInColumn - 1;
+  const isLastColumn = currentColumn === numberOfColumns - 1;
+  return  !(isLastLink && isLastColumn);
 }
 
 // Lifecycle hooks
