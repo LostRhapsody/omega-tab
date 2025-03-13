@@ -28,6 +28,7 @@ use supabase::Supabase;
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::prelude::*;
 use url::Url;
+use sqlx::postgres::PgPoolOptions;
 
 #[derive(Serialize, Clone)]
 pub struct SubscriptionResponse {
@@ -214,6 +215,16 @@ async fn runtime() {
             }
         }
     };
+
+    // let pool = match PgPoolOptions::new()
+    //     .max_connections(5)
+    //     .connect("postgres://postgres:password@localhost/test").await {
+    //     Ok(pool) => pool,
+    //     Err(e) => {
+    //         tracing::error!("Error connecting to database: {:?}", e);
+    //         println!("Error connecting to database: {:?}", e);
+    //         return;
+    // }};
 
     let client = reqwest::Client::new();
     let supabase = match Supabase::new(
