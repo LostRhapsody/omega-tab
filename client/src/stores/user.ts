@@ -11,6 +11,7 @@ import { CacheKeys, cache } from "@/utils/cache";
 import { defineStore } from "pinia";
 import { useLinksStore } from "./links";
 import { useUserSettingsStore } from "./settings";
+import type { Link } from "@/types/Link";
 
 export const useUserStore = defineStore("user", {
   state: (): UserState => ({
@@ -26,24 +27,49 @@ export const useUserStore = defineStore("user", {
 
   actions: {
     /**
-     * Fetches user data from the API using the Clerk user information and updates the store state.
+     * Fetches user data from the cache if available
+     * @param clerk_user - The Clerk user object containing authentication details.
+     * @returns true if data was retrieved from cache, false otherwise
+     */
+    fetchUserDataFromCache(clerk_user: ClerkUser): boolean {
+      // set ID and Email from Clerk user initially to use in middleware
+      this.setEmail(clerk_user.email);
+      this.setUserId(clerk_user.id);
+
+      // Load from cache for fast page load
+      const cachedData = cache.get<UserState>(CacheKeys.USER);
+      if (cachedData) {
+        Object.assign(this.$state, cachedData);
+        
+        // Also load settings and links from cache if available
+        const linksStore = useLinksStore();
+        const settingsStore = useUserSettingsStore();
+        
+        const cachedLinks: Link[] | null = cache.get(CacheKeys.LINKS);
+        if (cachedLinks) {
+          linksStore.$patch({ links: cachedLinks });
+        }
+        
+        const cachedSettings = cache.get(CacheKeys.SETTINGS);
+        if (cachedSettings) {
+          settingsStore.$patch({ settings: cachedSettings });
+        }
+        
+        return true;
+      }
+      
+      return false;
+    },
+
+    /**
+     * Fetches user data from the API and updates the store state.
      * This includes the user record, subscription record, and plan record.
      * @param clerk_user - The Clerk user object containing authentication details.
      * @returns true if the user data was successfully fetched, false otherwise.
      * @throws Error if the user data could not be fetched.
      */
-    async fetchUserData(clerk_user: ClerkUser): Promise<boolean> {
+    async fetchUserDataFromServer(clerk_user: ClerkUser): Promise<boolean> {
       this.isLoading = true;
-
-      // set ID and Email from Clerk user initially to use in middleware
-      this.setEmail(clerk_user.email);
-      this.setUserId(clerk_user.id);
-
-      // Load from cache initially for fast page load
-      const cachedData = cache.get<UserState>(CacheKeys.USER);
-      if (cachedData) {
-        Object.assign(this.$state, cachedData);
-      }
 
       try {
         const response = await api.get<UserDataResponse>(API.GET_USER_DATA);
@@ -55,13 +81,8 @@ export const useUserStore = defineStore("user", {
         }
 
         const data = response.data;
-
-        // Reset all stores to ensure clean state
-        this.$reset();
         const linksStore = useLinksStore();
-        linksStore.$reset();
         const settingsStore = useUserSettingsStore();
-        settingsStore.$reset();
 
         // Update stores with fresh data from DB
         if (data.user) {
@@ -83,31 +104,43 @@ export const useUserStore = defineStore("user", {
         if (data.links) {
           linksStore.$patch({ links: data.links });
           cache.set(CacheKeys.LINKS, data.links);
-        } else {
-          cache.clear(CacheKeys.LINKS);
         }
 
         if (data.settings?.settings_blob) {
           settingsStore.$patch({ settings: data.settings.settings_blob });
           cache.set(CacheKeys.SETTINGS, data.settings.settings_blob);
-        } else {
-          cache.clear(CacheKeys.SETTINGS);
         }
 
         // Update user cache with latest state
         cache.set(CacheKeys.USER, this.$state);
         return true;
       } catch (error) {
-        // On error, clear all caches and reset stores
-        this.$reset();
-        cache.clear(CacheKeys.USER);
-        cache.clear(CacheKeys.LINKS);
-        cache.clear(CacheKeys.SETTINGS);
         this.error = error as string;
         return false;
       } finally {
         this.isLoading = false;
       }
+    },
+
+    /**
+     * Legacy method that combines cache and server operations
+     * @param clerk_user - The Clerk user object
+     * @returns true if the data was successfully fetched
+     */
+    async fetchUserData(clerk_user: ClerkUser): Promise<boolean> {
+      const gotCachedData = this.fetchUserDataFromCache(clerk_user);
+      
+      if (!gotCachedData) {
+        // If no cache data, we must wait for the server data
+        return await this.fetchUserDataFromServer(clerk_user);
+      }
+      
+      // If we had cache data, still fetch from server but don't wait
+      this.fetchUserDataFromServer(clerk_user).catch(error => {
+        console.error("Error fetching user data from server:", error);
+      });
+      
+      return true;
     },
 
     async confirmSubscription(): Promise<boolean> {

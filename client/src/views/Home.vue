@@ -558,29 +558,44 @@ onMounted(async () => {
       // Start token refresh interval
       startTokenRefreshInterval();
 
-      let gotUser = false;
       try {
-        // if user store is already initialized, no need to fetch user data
-        if (!userStore.userId) {
-          // Fetch user data and wait for it to complete
-          gotUser = await userStore.fetchUserData({
+        // Check cache first - this is synchronous
+        const gotCachedData = userStore.fetchUserDataFromCache({
+          id: clerk.user.id,
+          firstName: clerk.user.firstName || "",
+          lastName: clerk.user.lastName || "",
+          email: clerk.user.emailAddresses[0].emailAddress,
+        });
+        
+        if (gotCachedData) {
+          // We have cache data, fetch from server asynchronously (don't await)
+          userStore.fetchUserDataFromServer({
+            id: clerk.user.id,
+            firstName: clerk.user.firstName || "",
+            lastName: clerk.user.lastName || "",
+            email: clerk.user.emailAddresses[0].emailAddress,
+          }).catch(error => {
+            console.error("Background refresh of user data failed:", error);
+          });
+        } else {
+          // No cache data, must wait for server data
+          const serverDataSuccess = await userStore.fetchUserDataFromServer({
             id: clerk.user.id,
             firstName: clerk.user.firstName || "",
             lastName: clerk.user.lastName || "",
             email: clerk.user.emailAddresses[0].emailAddress,
           });
-        } else {
-          gotUser = true;
+          
+          if (!serverDataSuccess) {
+            throw new Error("Failed to fetch user data from server");
+          }
         }
       } catch (error) {
         console.error("Error fetching user data:", error);
-      }
-
-      if (!gotUser) {
         throw new Error("Error fetching user data");
       }
 
-      // always fetch settings with User
+      // Always fetch settings - these will come from cache if available
       userSettingsStore.fetchSettings();
 
       // this is def not gonna happen but for type errors
