@@ -1,5 +1,6 @@
 import { API } from "@/constants/api";
 import api from "@/services/api";
+import type { Link } from "@/types/Link";
 import type { Subscription, SubscriptionResponse } from "@/types/Subscription";
 import type {
   ClerkUser,
@@ -11,7 +12,6 @@ import { CacheKeys, cache } from "@/utils/cache";
 import { defineStore } from "pinia";
 import { useLinksStore } from "./links";
 import { useUserSettingsStore } from "./settings";
-import type { Link } from "@/types/Link";
 
 export const useUserStore = defineStore("user", {
   state: (): UserState => ({
@@ -40,24 +40,24 @@ export const useUserStore = defineStore("user", {
       const cachedData = cache.get<UserState>(CacheKeys.USER);
       if (cachedData) {
         Object.assign(this.$state, cachedData);
-        
+
         // Also load settings and links from cache if available
         const linksStore = useLinksStore();
         const settingsStore = useUserSettingsStore();
-        
+
         const cachedLinks: Link[] | null = cache.get(CacheKeys.LINKS);
         if (cachedLinks) {
           linksStore.$patch({ links: cachedLinks });
         }
-        
+
         const cachedSettings = cache.get(CacheKeys.SETTINGS);
         if (cachedSettings) {
           settingsStore.$patch({ settings: cachedSettings });
         }
-        
+
         return true;
       }
-      
+
       return false;
     },
 
@@ -129,17 +129,17 @@ export const useUserStore = defineStore("user", {
      */
     async fetchUserData(clerk_user: ClerkUser): Promise<boolean> {
       const gotCachedData = this.fetchUserDataFromCache(clerk_user);
-      
+
       if (!gotCachedData) {
         // If no cache data, we must wait for the server data
         return await this.fetchUserDataFromServer(clerk_user);
       }
-      
+
       // If we had cache data, still fetch from server but don't wait
-      this.fetchUserDataFromServer(clerk_user).catch(error => {
+      this.fetchUserDataFromServer(clerk_user).catch((error) => {
         console.error("Error fetching user data from server:", error);
       });
-      
+
       return true;
     },
 
