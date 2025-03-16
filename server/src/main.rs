@@ -329,7 +329,7 @@ async fn create_user_handler(
     let user = supabase::User {
         id: payload.user_id,
         email: payload.email,
-        created_at: Utc::now().to_rfc3339(),
+        created_at: Utc::now(),
         auth_token: None,
     };
 
@@ -1640,13 +1640,14 @@ async fn get_user_data_handler(
             println!("Found existing user: {}", user.email);
             user
         }
-        Err(_) => {
+        Err(e) => {
+            println!("Error fetching user: {:?}", e);
             tracing::info!("Creating new user: {}", user_email);
             println!("Creating new user: {}", user_email);
             let new_user = supabase::User {
                 id: user_id.clone(),
                 email: user_email.clone(),
-                created_at: Utc::now().to_rfc3339(),
+                created_at: Utc::now(),
                 auth_token: None,
             };
             supabase.create_user(new_user.clone()).await.map_err(|e| {
@@ -1691,21 +1692,33 @@ async fn get_user_data_handler(
                         .items
                         .data
                         .first()
-                        .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+                        .ok_or_else(|| {
+                            println!("Error: No subscription item found in subscription data");
+                            StatusCode::INTERNAL_SERVER_ERROR
+                        })?;
                     let plan = item
                         .plan
                         .as_ref()
-                        .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+                        .ok_or_else(|| {
+                            println!("Error: No plan found in subscription item");
+                            StatusCode::INTERNAL_SERVER_ERROR
+                        })?;
                     let product_id = plan
                         .product
                         .as_ref()
-                        .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?
+                        .ok_or_else(|| {
+                            println!("Error: No product ID found in subscription plan");
+                            StatusCode::INTERNAL_SERVER_ERROR
+                        })?
                         .id();
 
                     let supabase_plan = supabase
                         .get_plan_by_stripe_id(&product_id.to_string())
                         .await
-                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                        .map_err(|e| {
+                            println!("Error fetching plan from Supabase: {:?}", e);
+                            StatusCode::INTERNAL_SERVER_ERROR
+                        })?;
 
                     Some((
                         SubscriptionResponse {

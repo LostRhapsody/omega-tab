@@ -38,6 +38,7 @@ impl StripeClient {
 
     pub async fn get_subscription(customer: &Customer) -> Option<stripe::Subscription> {
         tracing::info!("Fetching Stripe subscription for customer: {}", customer.id);
+        println!("Fetching Stripe subscription for customer: {}", customer.id);
         let secret_key = std::env::var("STRIPE_SECRET_KEY").expect("STRIPE_SECRET_KEY must be set");
         let client = Client::new(secret_key);
 
@@ -49,13 +50,16 @@ impl StripeClient {
                 let subscription = subscriptions.data.into_iter().next();
                 if subscription.is_some() {
                     tracing::info!("Found active subscription for customer: {}", customer.id);
+                    println!("Found active subscription for customer: {}", customer.id);
                 } else {
                     tracing::info!("No active subscription found for customer: {}", customer.id);
+                    println!("No active subscription found for customer: {}", customer.id);
                 }
                 subscription
             },
             Err(err) => {
                 tracing::error!("Error retrieving subscription: {:?}", err);
+                println!("Error retrieving subscription: {:?}", err);
                 None
             }
         }

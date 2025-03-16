@@ -4,15 +4,16 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::postgres::PgPool;
-use sqlx::Row;
+use sqlx::FromRow;
+use chrono::{DateTime, Utc};
 
 // Type definitions matching Database.ts
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, FromRow)]
 pub struct User {
     pub id: String,
     pub email: String,
-    pub created_at: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: DateTime<Utc>,
+    #[sqlx(skip)]
     pub auth_token: Option<String>,
 }
 
@@ -87,6 +88,9 @@ pub struct UserSettings {
 
 #[derive(Clone)]
 pub struct Supabase {
+    pub url: String,
+    pub api_key: String,
+    pub client: Client,
     pool: PgPool,
 }
 
@@ -99,9 +103,12 @@ impl Supabase {
         .connect(&postgres_url).await?;
 
         Ok(Self {
+            url: "asd".to_string(),
+            api_key: "ase".to_string(),
+            client: Client::new(),
             pool,
         })
-        
+
     }
 
     fn build_headers(&self) -> Result<HeaderMap> {
@@ -130,18 +137,15 @@ impl Supabase {
         tracing::info!("Fetching user by ID from database: {}", id);
         println!("Fetching user by ID from database: {}", id);
         
-        let user = sqlx::query("SELECT * FROM USERS WHERE id = $1")
+        let user = sqlx::query_as::<_, User>("SELECT * FROM USERS WHERE id = $1")
             .bind(id)
-            .fetch_one(&self.pool)
-            .await?;
+            .fetch_optional(&self.pool)
+            .await?
+            .map(|mut user| {
+                user.auth_token = None;
+                user
+            });
 
-        let user = Some(User {
-            id: user.try_get("id")?,
-            email: user.try_get("email")?,
-            created_at: user.try_get("created_at")?,
-            auth_token: user.try_get("auth_token")?,
-        });
-        
         match user {
             Some(user) => {
                 tracing::info!("Successfully fetched user: {}", user.email);
@@ -196,7 +200,6 @@ impl Supabase {
         println!("Creating new user: {}", user.email);    
         println!("User id: {}", user.id);
         println!("User created_at: {}", user.created_at);
-        let timestamp = sqlx::types::chrono::DateTime::parse_from_rfc3339(&user.created_at)?;
         
         // Insert new user
         let result = sqlx::query(
@@ -204,7 +207,7 @@ impl Supabase {
         )
         .bind(&user.id)
         .bind(&user.email)
-        .bind(timestamp)
+        .bind(&user.created_at)
         .execute(&self.pool)
         .await?;
         
