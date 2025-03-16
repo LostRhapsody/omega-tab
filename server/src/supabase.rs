@@ -1,6 +1,7 @@
 use anyhow::Result;
 use reqwest::{header::HeaderMap, Client};
 use serde::{Deserialize, Serialize};
+use stripe::generated::billing::subscription;
 use std::collections::HashMap;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::postgres::PgPool;
@@ -72,6 +73,14 @@ pub struct UserSettings {
     pub user_id: String,
     pub settings_blob: serde_json::Value,
     pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UserData {
+    pub user: User,
+    pub links: Vec<Link>,
+    pub subscription: Option<Subscription>,
+    pub settings: Option<UserSettings>,
 }
 
 #[derive(Clone)]
@@ -707,5 +716,104 @@ impl Supabase {
         
         tracing::info!("Successfully deleted user settings");
         Ok(())
+    }
+
+    pub async fn get_user_data(&self, user_id: &str) -> Result<UserData> {
+        let rows = sqlx::query("
+        select
+            u.*,
+            l.id as link_id,
+            l.title as link_title,
+            l.url as link_url,
+            l.icon as link_icon,
+            l.order_index as link_order_index,
+            l.owner_type as link_owner_type,
+            l.owner_id as link_owner_id,
+            l.created_at as link_created_at,
+            l.description as link_description,
+            l.column_type as link_column_type,
+            s.id as subscription_id,
+            s.entity_id as subscription_entity_id,
+            s.entity_type as subscription_entity_type,
+            s.plan_id as subscription_plan_id,
+            s.status as subscription_status,
+            s.stripe_subscription_id as subscription_stripe_subscription_id,
+            s.current_period_end as subscription_current_period_end,
+            s.created_at as subscription_created_at,
+            us.settings_blob as settings_blob,
+            us.created_at as settings_created_at            
+            from users u
+            left join links l on u.id = l.owner_id
+            left join subscriptions s on u.id = s.entity_id
+            left join user_settings us on u.id = us.user_id
+            where u.id = $1
+            order by l.order_index asc;"
+        ).bind(user_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        if rows.is_empty() {
+            return Err(anyhow::anyhow!("User not found"));
+        }
+
+        let first_row = &rows[0];
+        let user = User {
+            id: first_row.get("id"),
+            email: first_row.get("email"),
+            created_at: first_row.get("created_at"),
+            auth_token: None,
+        };
+        let settings_blob: serde_json::Value = first_row.get("settings_blob");
+        let settings = Some(UserSettings {
+            user_id: first_row.get("id"),
+            settings_blob,
+            created_at: first_row.get("settings_created_at"),
+        });
+        let subscription = if let Ok(sub_id) = first_row.try_get::<uuid::Uuid, _>("subscription_id") {
+                Some(Subscription {
+                    id: sub_id.to_string(),
+                    entity_id: first_row
+                        .get::<Option<String>, _>("subscription_entity_id")
+                        .unwrap_or_default(),
+                    entity_type: first_row
+                        .get::<Option<String>, _>("subscription_entity_type")
+                        .unwrap_or_default(),
+                    plan_id: first_row.get::<uuid::Uuid, _>("subscription_plan_id").to_string(),
+                    status: first_row.get("subscription_status"),
+                    stripe_subscription_id: first_row.get("subscription_stripe_subscription_id"),
+                    current_period_end: first_row.get("subscription_current_period_end"),
+                    created_at: first_row.get("subscription_created_at"),
+                })
+        } else {
+            None
+        };
+        let links = rows
+            .iter()
+            .filter_map(|row| {
+                if let Ok(link_id) = row.try_get::<uuid::Uuid, _>("link_id") {
+                    Some(Link {
+                        id: link_id.to_string(),
+                        title: row.get("link_title"),
+                        url: row.get("link_url"),
+                        icon: row.get("link_icon"),
+                        order_index: row.get("link_order_index"),
+                        owner_type: row.get("link_owner_type"),
+                        owner_id: row.get("link_owner_id"),
+                        created_at: row.get("link_created_at"),
+                        description: row.get("link_description"),
+                        column_type: row.get("link_column_type"),
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<Link>>();
+
+        Ok(UserData {
+            user,
+            links,
+            subscription,
+            settings,
+        })
     }
 }
