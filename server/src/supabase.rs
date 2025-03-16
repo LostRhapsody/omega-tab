@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::postgres::PgPool;
+use sqlx::Row;
 
 // Type definitions matching Database.ts
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -86,25 +87,21 @@ pub struct UserSettings {
 
 #[derive(Clone)]
 pub struct Supabase {
-    client: Client,
-    url: String,
-    api_key: String,
     pool: PgPool,
 }
 
 #[allow(dead_code)]
 impl Supabase {
-    pub async fn new(url: String, api_key: String) -> Result<Self> {
-        let client = Client::new();
+    pub async fn new(postgres_url: String,) -> Result<Self> {
+
         let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect("postgres://postgres:password@localhost/test").await?;
+        .max_connections(50)
+        .connect(&postgres_url).await?;
+
         Ok(Self {
-            client,
-            url,
-            api_key,
             pool,
         })
+        
     }
 
     fn build_headers(&self) -> Result<HeaderMap> {
@@ -130,16 +127,22 @@ impl Supabase {
     }
 
     pub async fn get_user(&self, id: &str) -> Result<User> {
-        tracing::info!("Fetching user by ID: {}", id);
-        let response = self
-            .client
-            .get(format!("{}/rest/v1/users?id=eq.{}", self.url, id))
-            .headers(self.build_headers()?)
-            .send()
+        tracing::info!("Fetching user by ID from database: {}", id);
+        println!("Fetching user by ID from database: {}", id);
+        
+        let user = sqlx::query("SELECT * FROM USERS WHERE id = $1")
+            .bind(id)
+            .fetch_one(&self.pool)
             .await?;
 
-        let mut users: Vec<User> = response.json().await?;
-        match users.pop() {
+        let user = Some(User {
+            id: user.try_get("id")?,
+            email: user.try_get("email")?,
+            created_at: user.try_get("created_at")?,
+            auth_token: user.try_get("auth_token")?,
+        });
+        
+        match user {
             Some(user) => {
                 tracing::info!("Successfully fetched user: {}", user.email);
                 Ok(user)
@@ -190,28 +193,26 @@ impl Supabase {
 
     pub async fn create_user(&self, user: User) -> Result<User> {
         tracing::info!("Creating new user: {}", user.email);
-
-        // Check if user exists
-        let existing_user = self.get_user(&user.id).await;
-        if existing_user.is_ok() {
-            tracing::error!("User already exists: {}", user.email);
-            return Err(anyhow::anyhow!("409"));
+        println!("Creating new user: {}", user.email);    
+        println!("User id: {}", user.id);
+        println!("User created_at: {}", user.created_at);
+        let timestamp = sqlx::types::chrono::DateTime::parse_from_rfc3339(&user.created_at)?;
+        
+        // Insert new user
+        let result = sqlx::query(
+            "INSERT INTO USERS (id, email, created_at) VALUES ($1, $2, $3)"
+        )
+        .bind(&user.id)
+        .bind(&user.email)
+        .bind(timestamp)
+        .execute(&self.pool)
+        .await?;
+        
+        if result.rows_affected() == 0 {
+            tracing::error!("Failed to create user: {}", user.email);
+            return Err(anyhow::anyhow!("Failed to create user: database error"));
         }
-
-        let response = self
-            .client
-            .post(format!("{}/rest/v1/users", self.url))
-            .headers(self.build_headers()?)
-            .json(&user)
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            let error_text = response.text().await?;
-            tracing::error!("Failed to create user: {}", error_text);
-            return Err(anyhow::anyhow!("Failed to create user: {}", error_text));
-        }
-
+        
         tracing::info!("Successfully created user: {}", user.email);
         Ok(user)
     }

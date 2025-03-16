@@ -217,8 +217,7 @@ async fn runtime() {
 
     let client = reqwest::Client::new();
     let supabase = match Supabase::new(
-        std::env::var("SUPABASE_URL").expect("SUPABASE_URL must be set"),
-        std::env::var("SUPABASE_KEY").expect("SUPABASE_KEY must be set"),
+        std::env::var("POSTGRES_URL").expect("POSTGRES_URL must be set"),
     ).await {
         Ok(supabase) => supabase,
         Err(e) => {
