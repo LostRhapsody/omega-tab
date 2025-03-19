@@ -229,7 +229,7 @@
       </v-dialog>
     </div>
 
-    <Login  />
+    <Login />
 
     <Feedback v-model="showFeedbackDialog" @update:modelValue="handleFeedbackDialogClose" :cancelSubscription=false />
 
@@ -271,10 +271,10 @@ const supabase = createClient(
 );
 
 // to sign in
-// supabase.auth.signInWithPassword({
-//   email: "evan.robertson77@gmail.com",
-//   password: "password",
-// });
+supabase.auth.signInWithPassword({
+  email: "evan.robertson77@gmail.com",
+  password: "password",
+});
 
 
 // Set SEO metadata using Unhead

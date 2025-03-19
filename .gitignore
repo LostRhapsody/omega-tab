@@ -33,5 +33,6 @@ tailwind.css
 server/target/*
 .env.sentry-build-plugin
 
-client/.vitepress/cache/
-client/.vitepress/dist/
+client/.vitepress/cache/*
+client/.vitepress/dist/*
+client/.vitepress/node_modules/*
