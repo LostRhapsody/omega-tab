@@ -1,0 +1,37 @@
+# Git
+.git/
+.gitignore
+
+# Rust
+target/
+Cargo.lock
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Frontend
+client/
+node_modules/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Database
+*.db
+*.sqlite
+
+# Documentation
+README.md
+docs/

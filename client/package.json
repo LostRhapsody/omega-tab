@@ -24,10 +24,8 @@
     "build:all": "NODE_ENV=production run-s tailwind:build \"build-only --mode production --minify\""
   },
   "dependencies": {
-    "@clerk/clerk-js": "^5.52.0",
     "@sentry/vite-plugin": "^3.1.2",
     "@sentry/vue": "^8.54.0",
-    "@supabase/supabase-js": "^2.49.1",
     "@tailwindcss/vite": "^4.0.1",
     "@types/axios": "^0.14.4",
     "@types/lodash": "^4.17.15",
