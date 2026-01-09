@@ -1,22 +1,20 @@
 <template>
   <div>
     <div
-      v-if="!isAtMaxPins || (isAtMaxPins && isPlanFree)"
       class="add-link-card"
-      :class="{ 'add-link-card--upgrade': isAtMaxPins }"
       @click="handleClick"
       @mouseenter="hover = true"
       @mouseleave="hover = false"
     >
       <TpIcon
-        :name="isAtMaxPins ? 'arrow-up' : 'plus'"
+        name="plus"
         :class="[
           'add-link-card__icon',
-          { 'add-link-card__icon--active': hover && !isAtMaxPins }
+          { 'add-link-card__icon--active': hover }
         ]"
       />
       <span class="add-link-card__text">
-        {{ isAtMaxPins ? 'Upgrade for more pins' : 'Add new link' }}
+        Add new link
       </span>
     </div>
 
@@ -97,7 +95,6 @@
 
 <script setup lang="ts">
 import { computed, ref, watch, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
 import { useLinksStore } from '../stores/links'
 import { useUserStore } from '../stores/user'
 import { useBreakpoint } from '@/composables/useBreakpoint'
@@ -117,15 +114,8 @@ const userStore = useUserStore()
 const { smAndDown: mobile } = useBreakpoint()
 const validLink = ref(true)
 const urlError = ref('')
+const props = defineProps<{ columnType: string }>()
 
-const props = defineProps<{
-  columnType: string
-  userId: string | null
-  maxPins: number
-  isPlanFree: boolean
-}>()
-
-const router = useRouter()
 const isModalOpen = ref(false)
 const isLoading = ref(false)
 const hover = ref(false)
@@ -149,23 +139,11 @@ const columnTypeOptions = computed(() =>
   }))
 )
 
-const isAtMaxPins = computed(() => linksStore.links.length >= props.maxPins)
-
 const handleClick = () => {
-  if (isAtMaxPins.value) {
-    router.push('/plans')
-    return
-  }
   openModal()
 }
 
 const openModal = () => {
-  if (linksStore.links.length >= props.maxPins) {
-    alert(
-      `You've reached your maximum number of pins (${props.maxPins}). Please upgrade your plan for more.`
-    )
-    return
-  }
   isModalOpen.value = true
   nextTick(() => {
     const urlField = document.querySelector('input[type="url"]')
@@ -284,16 +262,6 @@ watch(isModalOpen, (newVal) => {
   background: var(--tp-accent-glow);
 }
 
-.add-link-card--upgrade {
-  border-color: var(--tp-warning);
-  border-style: solid;
-  background: rgba(245, 158, 11, 0.1);
-}
-
-.add-link-card--upgrade:hover {
-  background: rgba(245, 158, 11, 0.2);
-}
-
 .add-link-card__icon {
   color: var(--tp-text-muted);
   transition: color var(--tp-transition-fast);
@@ -303,17 +271,9 @@ watch(isModalOpen, (newVal) => {
   color: var(--tp-accent);
 }
 
-.add-link-card--upgrade .add-link-card__icon {
-  color: var(--tp-warning);
-}
-
 .add-link-card__text {
   font-size: var(--tp-text-sm);
   color: var(--tp-text-muted);
-}
-
-.add-link-card--upgrade .add-link-card__text {
-  color: var(--tp-warning);
 }
 
 /* Form styles */

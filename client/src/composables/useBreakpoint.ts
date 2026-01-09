@@ -1,4 +1,4 @@
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from "vue";
 
 // Breakpoint values matching common conventions
 const BREAKPOINTS = {
@@ -7,16 +7,16 @@ const BREAKPOINTS = {
   md: 768,
   lg: 1024,
   xl: 1280,
-  '2xl': 1536
-} as const
+  "2xl": 1536,
+} as const;
 
-export type Breakpoint = keyof typeof BREAKPOINTS
+export type Breakpoint = keyof typeof BREAKPOINTS;
 
 // Shared state across all instances
-const width = ref(typeof window !== 'undefined' ? window.innerWidth : 1024)
-const height = ref(typeof window !== 'undefined' ? window.innerHeight : 768)
-let resizeHandler: (() => void) | null = null
-let listenerCount = 0
+const width = ref(typeof window !== "undefined" ? window.innerWidth : 1024);
+const height = ref(typeof window !== "undefined" ? window.innerHeight : 768);
+let resizeHandler: (() => void) | null = null;
+let listenerCount = 0;
 
 /**
  * Composable for responsive breakpoint detection
@@ -24,64 +24,66 @@ let listenerCount = 0
  */
 export function useBreakpoint() {
   const handleResize = () => {
-    width.value = window.innerWidth
-    height.value = window.innerHeight
-  }
+    width.value = window.innerWidth;
+    height.value = window.innerHeight;
+  };
 
   onMounted(() => {
     if (listenerCount === 0) {
-      resizeHandler = handleResize
-      window.addEventListener('resize', resizeHandler, { passive: true })
+      resizeHandler = handleResize;
+      window.addEventListener("resize", resizeHandler, { passive: true });
     }
-    listenerCount++
+    listenerCount++;
     // Initial measurement
-    handleResize()
-  })
+    handleResize();
+  });
 
   onUnmounted(() => {
-    listenerCount--
+    listenerCount--;
     if (listenerCount === 0 && resizeHandler) {
-      window.removeEventListener('resize', resizeHandler)
-      resizeHandler = null
+      window.removeEventListener("resize", resizeHandler);
+      resizeHandler = null;
     }
-  })
+  });
 
   // Current breakpoint name
   const current = computed<Breakpoint>(() => {
-    if (width.value >= BREAKPOINTS['2xl']) return '2xl'
-    if (width.value >= BREAKPOINTS.xl) return 'xl'
-    if (width.value >= BREAKPOINTS.lg) return 'lg'
-    if (width.value >= BREAKPOINTS.md) return 'md'
-    if (width.value >= BREAKPOINTS.sm) return 'sm'
-    return 'xs'
-  })
+    if (width.value >= BREAKPOINTS["2xl"]) return "2xl";
+    if (width.value >= BREAKPOINTS.xl) return "xl";
+    if (width.value >= BREAKPOINTS.lg) return "lg";
+    if (width.value >= BREAKPOINTS.md) return "md";
+    if (width.value >= BREAKPOINTS.sm) return "sm";
+    return "xs";
+  });
 
   // Boolean breakpoint checks (matching Vuetify's useDisplay API)
-  const xs = computed(() => current.value === 'xs')
-  const sm = computed(() => current.value === 'sm')
-  const md = computed(() => current.value === 'md')
-  const lg = computed(() => current.value === 'lg')
-  const xl = computed(() => current.value === 'xl')
-  const xxl = computed(() => current.value === '2xl')
+  const xs = computed(() => current.value === "xs");
+  const sm = computed(() => current.value === "sm");
+  const md = computed(() => current.value === "md");
+  const lg = computed(() => current.value === "lg");
+  const xl = computed(() => current.value === "xl");
+  const xxl = computed(() => current.value === "2xl");
 
   // "And down" breakpoints (width <= breakpoint max)
-  const xsOnly = computed(() => width.value < BREAKPOINTS.sm)
-  const smAndDown = computed(() => width.value < BREAKPOINTS.md)
-  const mdAndDown = computed(() => width.value < BREAKPOINTS.lg)
-  const lgAndDown = computed(() => width.value < BREAKPOINTS.xl)
-  const xlAndDown = computed(() => width.value < BREAKPOINTS['2xl'])
+  const xsOnly = computed(() => width.value < BREAKPOINTS.sm);
+  const smAndDown = computed(() => width.value < BREAKPOINTS.md);
+  const mdAndDown = computed(() => width.value < BREAKPOINTS.lg);
+  const lgAndDown = computed(() => width.value < BREAKPOINTS.xl);
+  const xlAndDown = computed(() => width.value < BREAKPOINTS["2xl"]);
 
   // "And up" breakpoints (width >= breakpoint min)
-  const smAndUp = computed(() => width.value >= BREAKPOINTS.sm)
-  const mdAndUp = computed(() => width.value >= BREAKPOINTS.md)
-  const lgAndUp = computed(() => width.value >= BREAKPOINTS.lg)
-  const xlAndUp = computed(() => width.value >= BREAKPOINTS.xl)
-  const xxlAndUp = computed(() => width.value >= BREAKPOINTS['2xl'])
+  const smAndUp = computed(() => width.value >= BREAKPOINTS.sm);
+  const mdAndUp = computed(() => width.value >= BREAKPOINTS.md);
+  const lgAndUp = computed(() => width.value >= BREAKPOINTS.lg);
+  const xlAndUp = computed(() => width.value >= BREAKPOINTS.xl);
+  const xxlAndUp = computed(() => width.value >= BREAKPOINTS["2xl"]);
 
   // Mobile detection (commonly used)
-  const mobile = computed(() => width.value < BREAKPOINTS.md)
-  const tablet = computed(() => width.value >= BREAKPOINTS.md && width.value < BREAKPOINTS.lg)
-  const desktop = computed(() => width.value >= BREAKPOINTS.lg)
+  const mobile = computed(() => width.value < BREAKPOINTS.md);
+  const tablet = computed(
+    () => width.value >= BREAKPOINTS.md && width.value < BREAKPOINTS.lg,
+  );
+  const desktop = computed(() => width.value >= BREAKPOINTS.lg);
 
   return {
     // Raw dimensions
@@ -119,6 +121,6 @@ export function useBreakpoint() {
     desktop,
 
     // Breakpoint values for reference
-    breakpoints: BREAKPOINTS
-  }
+    breakpoints: BREAKPOINTS,
+  };
 }

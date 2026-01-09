@@ -20,9 +20,6 @@
         <section aria-label="Link columns">
           <LinkColumns
             :userId="userId"
-            :maxPins="userStore.userPlan?.max_pins || 6"
-            :canAddLinks="canShowAddLink"
-            :isPlanFree="userStore.userPlan?.name === 'free'"
           />
         </section>
 
@@ -141,39 +138,21 @@
             <TpIcon name="cog" size="sm" />
             Keyboard Shortcuts
           </TpMenuItem>
-          <TpMenuItem @click="router.push('/plans')">
-            <TpIcon name="plus" size="sm" />
-            Better New Tab Plus & Pro
-          </TpMenuItem>
           <TpMenuItem>
             <a href="/docs/" class="home-help-menu__link">
               <TpIcon name="book" size="sm" />
               Guides
             </a>
           </TpMenuItem>
-          <TpMenuItem @click="showFeedbackDialog = true">
-            <TpIcon name="help" size="sm" />
-            Send Feedback
+          <TpMenuItem>
+            <a href="https://github.com/LostRhapsody/betternewtab/issues" class="home-help-menu__link">
+              <TpIcon name="help" size="sm" />
+              Report Issues
+            </a>
           </TpMenuItem>
         </TpMenu>
       </div>
     </div>
-
-    <Feedback
-      v-model="showFeedbackDialog"
-      @update:modelValue="handleFeedbackDialogClose"
-      :cancelSubscription="false"
-    />
-
-    <!-- Feedback Message Modal -->
-    <TpModal v-model="showFeedbackMessageDialog" :title="feedbackMessageTitle" size="sm">
-      <p>{{ feedbackMessage }}</p>
-      <template #actions>
-        <TpButton variant="secondary" @click="showFeedbackMessageDialog = false">
-          Close
-        </TpButton>
-      </template>
-    </TpModal>
 
     <CommandPalette />
   </div>
@@ -185,7 +164,6 @@ import { computed, onMounted, ref, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import LinkColumns from '../components/LinkColumns.vue'
 import SearchBar from '../components/SearchBar.vue'
-import Feedback from '../components/Feedback.vue'
 import UserMenu from '../components/UserMenu.vue'
 import { useUserStore } from '../stores/user'
 import { useLinksStore, SHORTCUT_MAPPINGS } from '../stores/links'
@@ -304,28 +282,6 @@ const getShortcut = (columnType: string) => {
 const getLinksByColumnType = (columnType: string) => {
   return linksStore.links.filter((link) => link.column_type === columnType)
 }
-
-const canShowAddLink = computed(() => {
-  if (userStore.userPlan?.name === 'free' || userStore.userPlan?.name === 'plus') {
-    return true
-  }
-
-  if (
-    userStore.userPlan?.name === 'team' &&
-    (currentRole.value === 'admin' || currentRole.value === 'owner')
-  ) {
-    return true
-  }
-
-  if (
-    userStore.userPlan?.name === 'enterprise' &&
-    (currentRole.value === 'admin' || currentRole.value === 'owner')
-  ) {
-    return true
-  }
-
-  return false
-})
 
 const handleShowKeyboardShortcuts = (event: KeyboardEvent) => {
   if (event.key === '?') {
@@ -471,7 +427,6 @@ onUnmounted(() => {
 
 .home-header__logo a::after {
   content: '';
-  animation: tp-cursor-blink 1s step-end infinite;
   border-right: 2px solid var(--tp-accent);
   margin-left: 2px;
 }

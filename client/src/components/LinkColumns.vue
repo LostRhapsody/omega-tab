@@ -4,8 +4,6 @@
       <AddLinkCard
         :columnType="'default'"
         :userId="props.userId"
-        :maxPins="props.maxPins"
-        :isPlanFree="isPlanFree"
       />
     </div>
 
@@ -38,11 +36,8 @@
       />
 
       <AddLinkCard
-        v-if="canAddLinks"
         :columnType="columnType"
         :userId="props.userId"
-        :maxPins="props.maxPins"
-        :isPlanFree="isPlanFree"
       />
     </div>
 
@@ -51,7 +46,7 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, onMounted, onUnmounted, ref, computed, nextTick } from 'vue'
+import { onMounted, onUnmounted, ref, computed, nextTick } from 'vue'
 import AddLinkCard from './AddLinkCard.vue'
 import EditLinkModal from './EditLinkModal.vue'
 import LinkCard from './LinkCard.vue'
@@ -66,10 +61,7 @@ const linkRefs = ref<any[]>([])
 const currentFocus = ref<{ columnType: string; index: number } | null>(null)
 
 const props = defineProps<{
-  canAddLinks?: boolean
   userId: string | null
-  maxPins: number
-  isPlanFree: boolean
 }>()
 
 const uniqueColumnTypes = computed(() => linkStore.uniqueColumnTypes)
