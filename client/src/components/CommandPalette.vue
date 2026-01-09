@@ -1,28 +1,29 @@
 <template>
-  <TpModal v-model="isOpen" title="Command Palette" size="md">
+  <TpModal v-model="isOpen" title="Command Palette" size="md" initial-focus="#command-palette-input">
     <div class="command-palette">
-      <TpInput
+      <input
+        id="command-palette-input"
         v-model="query"
+        type="text"
         placeholder="Type a command or search..."
         @keydown="handleKeydown"
-        ref="inputRef"
         class="command-palette__input"
+        autocomplete="off"
       />
 
-      <TpList v-if="filteredResults.length > 0" class="command-palette__results">
-        <TpListItem
+      <ul v-if="filteredResults.length > 0" ref="listRef" class="command-palette__results">
+        <li
           v-for="(result, index) in filteredResults"
           :key="index"
-          :class="{ 'command-palette__item--focused': focusedIndex === index }"
+          :class="['command-palette__item', { 'command-palette__item--focused': focusedIndex === index }]"
+          :ref="el => setItemRef(el, index)"
           @click="handleSelect(result)"
           @mouseenter="focusedIndex = index"
         >
-          <div class="command-palette__item-content">
-            <span class="command-palette__title">{{ result.title }}</span>
-            <span class="command-palette__subtitle">{{ result.subtitle }}</span>
-          </div>
-        </TpListItem>
-      </TpList>
+          <span class="command-palette__title">{{ result.title }}</span>
+          <span class="command-palette__subtitle">{{ result.subtitle }}</span>
+        </li>
+      </ul>
 
       <div v-else class="command-palette__empty">
         No results found
@@ -32,13 +33,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useLinksStore } from '../stores/links'
 import { useSearchEngineStore } from '../stores/searchEngine'
 import { storeToRefs } from 'pinia'
 import { openUrl } from '../utils/openUrl'
-import { TpModal, TpInput, TpList, TpListItem } from '@/components/ui'
+import { TpModal } from '@/components/ui'
 
 type Result = {
   title: string
@@ -48,8 +49,9 @@ type Result = {
 
 const isOpen = ref(false)
 const query = ref('')
-const focusedIndex = ref(-1)
-const inputRef = ref<InstanceType<typeof TpInput> | null>(null)
+const focusedIndex = ref(0)
+const listRef = ref<HTMLUListElement | null>(null)
+const itemRefs = ref<Map<number, HTMLLIElement>>(new Map())
 
 const router = useRouter()
 const linksStore = useLinksStore()
@@ -94,24 +96,42 @@ const filteredResults = computed(() => {
   return [...linkResults, ...commandResults, ...searchEngineResults]
 })
 
+const setItemRef = (el: HTMLLIElement | null, index: number) => {
+  if (el) {
+    itemRefs.value.set(index, el)
+  } else {
+    itemRefs.value.delete(index)
+  }
+}
+
+const scrollToFocused = () => {
+  nextTick(() => {
+    const item = itemRefs.value.get(focusedIndex.value)
+    if (item) {
+      item.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    }
+  })
+}
+
 const handleKeydown = (event: KeyboardEvent) => {
   const totalItems = filteredResults.value.length
+  if (totalItems === 0) return
 
   switch (event.key) {
     case 'ArrowDown':
       event.preventDefault()
       focusedIndex.value = (focusedIndex.value + 1) % totalItems
+      scrollToFocused()
       break
     case 'ArrowUp':
       event.preventDefault()
       focusedIndex.value = (focusedIndex.value - 1 + totalItems) % totalItems
+      scrollToFocused()
       break
     case 'Enter':
       event.preventDefault()
-      if (focusedIndex.value >= 0) {
+      if (focusedIndex.value >= 0 && focusedIndex.value < totalItems) {
         filteredResults.value[focusedIndex.value].action()
-      } else if (filteredResults.value.length > 0) {
-        filteredResults.value[0].action()
       }
       closePalette()
       break
@@ -133,20 +153,10 @@ const openPalette = (event: KeyboardEvent) => {
   }
 }
 
-// Focus input when modal opens
-watch(isOpen, (newVal) => {
-  if (newVal) {
-    nextTick(() => {
-      const inputEl = inputRef.value?.$el?.querySelector('input')
-      inputEl?.focus()
-    })
-  }
-})
-
 const closePalette = () => {
   isOpen.value = false
   query.value = ''
-  focusedIndex.value = -1
+  focusedIndex.value = 0
 }
 
 const triggerAddLink = () => {
@@ -162,6 +172,20 @@ const handleTriggerAddLink = (event: KeyboardEvent) => {
     triggerAddLink()
   }
 }
+
+// Reset focus index when query changes
+watch(query, () => {
+  focusedIndex.value = 0
+})
+
+// Reset state when modal opens
+watch(isOpen, (newVal) => {
+  if (newVal) {
+    query.value = ''
+    focusedIndex.value = 0
+    itemRefs.value.clear()
+  }
+})
 
 onMounted(() => {
   window.addEventListener('keydown', openPalette)
@@ -182,18 +206,56 @@ onUnmounted(() => {
 }
 
 .command-palette__input {
-  margin-bottom: var(--tp-space-2);
+  width: 100%;
+  padding: var(--tp-space-3) var(--tp-space-4);
+  background: var(--tp-surface);
+  border: var(--tp-border-width) solid var(--tp-border);
+  border-radius: var(--tp-radius-sm);
+  color: var(--tp-text-primary);
+  font-size: var(--tp-text-base);
+  font-family: var(--tp-font-mono);
+  outline: none;
+  transition: border-color var(--tp-transition-fast);
+}
+
+.command-palette__input:focus {
+  border-color: var(--tp-accent);
+}
+
+.command-palette__input::placeholder {
+  color: var(--tp-text-muted);
 }
 
 .command-palette__results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   max-height: 300px;
   overflow-y: auto;
+  border: var(--tp-border-width) solid var(--tp-border);
+  border-radius: var(--tp-radius-sm);
 }
 
-.command-palette__item-content {
+.command-palette__item {
   display: flex;
   flex-direction: column;
   gap: var(--tp-space-1);
+  padding: var(--tp-space-3) var(--tp-space-4);
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  transition:
+    background-color var(--tp-transition-fast),
+    border-color var(--tp-transition-fast);
+}
+
+.command-palette__item:not(:last-child) {
+  border-bottom: var(--tp-border-width) solid var(--tp-border);
+}
+
+.command-palette__item:hover,
+.command-palette__item--focused {
+  background: var(--tp-accent-glow);
+  border-left-color: var(--tp-accent);
 }
 
 .command-palette__title {
@@ -206,11 +268,9 @@ onUnmounted(() => {
   font-size: var(--tp-text-sm);
   color: var(--tp-text-muted);
   font-family: var(--tp-font-mono);
-}
-
-.command-palette__item--focused {
-  background: var(--tp-accent-glow);
-  border-left: 2px solid var(--tp-accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .command-palette__empty {
