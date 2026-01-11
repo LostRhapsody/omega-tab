@@ -1,0 +1,218 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Build the Vue frontend (shared across all platform builds)
+  build-frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install dependencies
+        working-directory: client
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: client
+        run: npm run build
+
+      - name: Upload frontend dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: client/dist/
+          retention-days: 1
+
+  # Build binaries for each platform
+  build:
+    name: Build ${{ matrix.name }}
+    needs: build-frontend
+    runs-on: ${{ matrix.os }}
+    # Continue with release even if some builds fail (e.g., linux-aarch64 cross-compilation)
+    continue-on-error: ${{ matrix.experimental || false }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux x86_64
+          - name: linux-x86_64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact: BetterNewTab-linux-x86_64
+            cross: false
+            experimental: false
+
+          # Linux aarch64 (cross-compiled) - experimental due to GTK cross-compilation complexity
+          - name: linux-aarch64
+            os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            artifact: BetterNewTab-linux-aarch64
+            cross: true
+            experimental: true
+
+          # macOS x86_64 (Intel)
+          - name: macos-x86_64
+            os: macos-13
+            target: x86_64-apple-darwin
+            artifact: BetterNewTab-macos-x86_64
+            cross: false
+            experimental: false
+
+          # macOS aarch64 (Apple Silicon)
+          - name: macos-aarch64
+            os: macos-latest
+            target: aarch64-apple-darwin
+            artifact: BetterNewTab-macos-aarch64
+            cross: false
+            experimental: false
+
+          # Windows x86_64
+          - name: windows-x86_64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: BetterNewTab-windows-x86_64.exe
+            cross: false
+            experimental: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download frontend dist
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: client/dist/
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-action@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      # Linux dependencies for GTK/tray support
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux' && !matrix.cross
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            libssl-dev \
+            pkg-config
+
+      # Install cross for cross-compilation
+      - name: Install cross
+        if: matrix.cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      # Build with cross (for cross-compilation)
+      - name: Build with cross
+        if: matrix.cross
+        working-directory: server
+        run: cross build --release --target ${{ matrix.target }}
+
+      # Build natively
+      - name: Build native
+        if: ${{ !matrix.cross }}
+        working-directory: server
+        run: cargo build --release --target ${{ matrix.target }}
+
+      # Prepare artifact (Unix)
+      - name: Prepare artifact (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          cp server/target/${{ matrix.target }}/release/BetterNewTab ${{ matrix.artifact }}
+          chmod +x ${{ matrix.artifact }}
+
+      # Prepare artifact (Windows)
+      - name: Prepare artifact (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cp server/target/${{ matrix.target }}/release/BetterNewTab.exe ${{ matrix.artifact }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}
+          retention-days: 1
+
+  # Create GitHub Release and upload all artifacts
+  release:
+    name: Create Release
+    needs: build
+    # Run even if some builds failed (experimental builds may fail)
+    if: ${{ always() && !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+          pattern: BetterNewTab-*
+          merge-multiple: false
+
+      - name: Prepare release files
+        run: |
+          mkdir -p release-files
+          # Move all binaries to release-files, flattening the directory structure
+          find artifacts -type f -name 'BetterNewTab*' -exec mv {} release-files/ \;
+          ls -la release-files/
+
+      - name: Generate Release Notes
+        id: release_notes
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          # Generate changelog from commits since last tag
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -n "$PREVIOUS_TAG" ]; then
+            echo "## What's Changed" > release_notes.md
+            git log ${PREVIOUS_TAG}..HEAD --pretty=format:"- %s" >> release_notes.md
+          else
+            echo "## Initial Release" > release_notes.md
+            echo "" >> release_notes.md
+            echo "First release of BetterNewTab!" >> release_notes.md
+          fi
+
+          echo "" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "## Installation" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### Quick Install (Linux/macOS)" >> release_notes.md
+          echo '```bash' >> release_notes.md
+          echo 'curl -fsSL https://raw.githubusercontent.com/LostRhapsody/betternewtab/main/install.sh | bash' >> release_notes.md
+          echo '```' >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### Manual Download" >> release_notes.md
+          echo "Download the appropriate binary for your platform from the assets below." >> release_notes.md
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: BetterNewTab ${{ github.ref_name }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          files: release-files/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
