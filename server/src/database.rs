@@ -274,7 +274,7 @@ impl Database {
         tracing::info!("Fetching link: {} for owner: {}", id, owner_id);
 
         let link = sqlx::query_as::<_, Link>("SELECT * FROM links WHERE id = $1 AND owner_id = $2")
-            .bind(id)
+            .bind(uuid::Uuid::parse_str(id).expect("Invalid UUID format"))
             .bind(owner_id)
             .fetch_optional(&self.pool)
             .await?;
