@@ -1,7 +1,12 @@
+// Hide console window on Windows in release builds
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
+mod assets;
 mod brave;
 mod database;
 mod middleware;
 mod resend;
+mod tray;
 mod user_jwt;
 
 use axum::{
@@ -19,8 +24,9 @@ use middleware::{authenticate_user, UserContext};
 use resend::ResendClient;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::{collections::HashMap, env};
+use std::{collections::HashMap, env, sync::mpsc, thread};
 use tower_http::cors::{Any, CorsLayer};
+use tray::TrayMessage;
 use tracing_subscriber::prelude::*;
 use url::Url;
 
@@ -121,37 +127,92 @@ pub struct AppState {
 
 fn main() {
     dotenv().ok();
+
+    // Initialize Sentry
     let sample_rate = std::env::var("TRACING_SAMPLE_RATE")
         .unwrap_or_else(|_| "0.2".to_string())
         .parse::<f32>()
         .unwrap_or(0.2);
-    let _guard = sentry::init(("https://dacfc75c4bbf7f8a70134067d078c21a@o4508773394153472.ingest.us.sentry.io/4508773395857408", sentry::ClientOptions {
-        release: sentry::release_name!(),
-
-        // 1.0 is send 100% of traces to Sentry, 0.2 is 20%, etc.
-        traces_sample_rate: sample_rate,
-
-        ..sentry::ClientOptions::default()
-    }));
+    let _guard = sentry::init((
+        "https://dacfc75c4bbf7f8a70134067d078c21a@o4508773394153472.ingest.us.sentry.io/4508773395857408",
+        sentry::ClientOptions {
+            release: sentry::release_name!(),
+            traces_sample_rate: sample_rate,
+            ..sentry::ClientOptions::default()
+        },
+    ));
 
     tracing_subscriber::Registry::default()
         .with(sentry::integrations::tracing::layer())
         .init();
 
-    tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .unwrap()
-        .block_on(async {
-            runtime().await;
-        });
+    // Create channel for shutdown signal
+    let (shutdown_tx, shutdown_rx) = mpsc::channel();
 
-    println!("Ending request");
-    tracing::info!("Ending request");
+    // Spawn tokio runtime in a separate thread
+    let server_handle = thread::spawn(move || {
+        tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(async {
+                runtime(shutdown_rx).await;
+            });
+    });
+
+    // Create system tray on main thread (required for macOS)
+    match tray::create_tray() {
+        Ok((_tray, rx)) => {
+            println!("System tray created successfully");
+            tracing::info!("System tray created successfully");
+
+            // Wait for exit message from tray
+            loop {
+                match rx.recv() {
+                    Ok(TrayMessage::Exit) => {
+                        println!("Exit requested from tray");
+                        tracing::info!("Exit requested from tray");
+                        let _ = shutdown_tx.send(());
+                        break;
+                    }
+                    Err(_) => {
+                        // Channel closed, tray thread exited
+                        break;
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            // If tray creation fails (e.g., headless environment), just run the server
+            eprintln!("Failed to create system tray: {:?}", e);
+            tracing::warn!("Failed to create system tray: {:?}", e);
+            println!("Running in headless mode. Press Ctrl+C to exit.");
+
+            // Wait for Ctrl+C
+            let _ = ctrlc_channel();
+            let _ = shutdown_tx.send(());
+        }
+    }
+
+    // Wait for server to finish
+    let _ = server_handle.join();
+
+    println!("Better New Tab shutting down");
+    tracing::info!("Better New Tab shutting down");
 }
 
-async fn runtime() {
-    tracing::info!("Starting request");
+/// Create a simple channel that receives when Ctrl+C is pressed
+fn ctrlc_channel() -> mpsc::Receiver<()> {
+    let (tx, rx) = mpsc::channel();
+    ctrlc::set_handler(move || {
+        let _ = tx.send(());
+    })
+    .expect("Error setting Ctrl+C handler");
+    rx
+}
+
+async fn runtime(shutdown_rx: mpsc::Receiver<()>) {
+    tracing::info!("Starting Better New Tab server");
 
     let cors = {
         let environment =
@@ -183,9 +244,13 @@ async fn runtime() {
                 ])
                 .allow_headers(Any),
             _ => {
-                // Development mode
+                // Development mode - also allow localhost for single binary
                 CorsLayer::new()
-                    .allow_origin("http://localhost:5173".parse::<HeaderValue>().unwrap())
+                    .allow_origin([
+                        "http://localhost:5173".parse::<HeaderValue>().unwrap(),
+                        "http://localhost:3000".parse::<HeaderValue>().unwrap(),
+                        "http://127.0.0.1:3000".parse::<HeaderValue>().unwrap(),
+                    ])
                     .allow_methods([
                         Method::GET,
                         Method::POST,
@@ -199,19 +264,21 @@ async fn runtime() {
     };
 
     let client = reqwest::Client::new();
-    let database =
-        match Database::new(std::env::var("DATABASE_URL").expect("DATABASE_URL must be set")).await
-        {
-            Ok(database) => database,
-            Err(e) => {
-                tracing::error!("Error initializing database connection: {:?}", e);
-                return;
-            }
-        };
+
+    // DATABASE_URL is optional now - we use SQLite with a platform-appropriate path
+    let database_url = std::env::var("DATABASE_URL").unwrap_or_default();
+    let database = match Database::new(database_url).await {
+        Ok(database) => database,
+        Err(e) => {
+            tracing::error!("Error initializing database connection: {:?}", e);
+            eprintln!("Error initializing database: {:?}", e);
+            return;
+        }
+    };
 
     let app_state = AppState { client, database };
 
-    // Reminder! Anything you return must be serializable
+    // Build router with API routes and static file fallback
     let app = Router::new()
         // Authentication routes (public - no middleware)
         .route("/register", post(register_handler))
@@ -247,12 +314,28 @@ async fn runtime() {
         .route("/staging_login", post(staging_login_handler))
         .with_state(app_state)
         .layer(axum::middleware::from_fn(authenticate_user))
-        .layer(cors);
+        .layer(cors)
+        // Fallback to static file serving for SPA
+        .fallback(assets::serve_static);
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    println!("Server running on http://0.0.0.0:3000");
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
+        .await
+        .unwrap();
+    println!("Server running on http://127.0.0.1:3000");
+    tracing::info!("Server running on http://127.0.0.1:3000");
 
-    axum::serve(listener, app).await.unwrap();
+    // Serve with graceful shutdown
+    axum::serve(listener, app)
+        .with_graceful_shutdown(async move {
+            // Wait for shutdown signal in a tokio-compatible way
+            tokio::task::spawn_blocking(move || {
+                let _ = shutdown_rx.recv();
+            })
+            .await
+            .ok();
+        })
+        .await
+        .unwrap();
 }
 
 // Health check endpoint
@@ -378,15 +461,13 @@ async fn create_user_handler(
     let user = database::User {
         id: payload.user_id,
         email: payload.email,
-        created_at: Utc::now(),
+        created_at: Utc::now().to_rfc3339(),
         password_hash: String::new(), // Legacy endpoint - password not used
         auth_token: None,
     };
 
     match database.create_user(user.clone()).await {
-        Ok(_) => {
-            Ok(Json(user))
-        }
+        Ok(_) => Ok(Json(user)),
         Err(e) => {
             tracing::error!("Failed to create user: {}", e);
             match e.to_string().as_str() {
@@ -416,7 +497,7 @@ async fn links_handler(
 
     tracing::info!("Fetching links for user: {}", user_id);
 
-    // Use app_state's Supabase instance
+    // Use app_state's database instance
     let database = &app_state.database;
 
     let links = database.get_links(&user_id, "user").await.map_err(|e| {
@@ -569,7 +650,7 @@ async fn create_link(
         id: uuid::Uuid::new_v4().to_string(),
         url: url,
         description: Some(description),
-        created_at: Utc::now(),
+        created_at: Utc::now().to_rfc3339(),
         title: title,
         icon: Some(favicon),
         order_index: payload.next_order_index,
@@ -608,7 +689,7 @@ async fn update_link(
 
     tracing::info!("Updating link: {}", payload.id);
 
-    // Use app_state's Supabase instance
+    // Use app_state's database instance
     let database = &app_state.database;
 
     let link = database::Link {
@@ -618,7 +699,7 @@ async fn update_link(
         title: payload.title.clone().unwrap(),
         icon: payload.icon.clone(),
         column_type: payload.column_type.clone().unwrap(),
-        created_at: Utc::now(),
+        created_at: Utc::now().to_rfc3339(),
         order_index: 0,
         owner_type: "".to_string(),
         owner_id: "".to_string(),
@@ -701,7 +782,7 @@ async fn get_user_handler(
         scope.set_tag("http.method", "GET");
     });
 
-    // Use app_state's Supabase instance
+    // Use app_state's database instance
     let database = &app_state.database;
 
     let user = database
@@ -945,7 +1026,7 @@ async fn feedback_handler(
     let user_email = user_context.email.clone();
     println!("Feedback for user: {}", user_id);
 
-    // Use app_state's Supabase instance
+    // Use app_state's database instance
     let database = &app_state.database;
 
     // Check if the user has sent feedback in the last 24 hours
@@ -1018,13 +1099,13 @@ async fn create_settings(
     println!("Creating settings for user: {}", user_id);
     println!("Payload: {:?}", payload);
 
-    // Use app_state's Supabase instance
+    // Use app_state's database instance
     let database = &app_state.database;
 
     let settings = database::UserSettings {
         user_id: user_id.clone(),
-        settings_blob: json!(payload),
-        created_at: Utc::now(),
+        settings_blob: serde_json::to_string(&payload).unwrap_or_default(),
+        created_at: Utc::now().to_rfc3339(),
     };
 
     if let Err(e) = database.create_user_settings(settings).await {
@@ -1056,7 +1137,7 @@ async fn update_settings(
     println!("Updating settings for user: {}", user_id);
     println!("Payload: {:?}", payload);
 
-    // Use app_state's Supabase instance
+    // Use app_state's database instance
     let database = &app_state.database;
 
     let mut updates = HashMap::new();
@@ -1089,7 +1170,7 @@ async fn get_settings(
 
     println!("Getting settings for user: {}", user_id);
 
-    // Use app_state's Supabase instance
+    // Use app_state's database instance
     let database = &app_state.database;
 
     let settings =
@@ -1140,7 +1221,7 @@ async fn get_user_data_handler(
             let new_user = database::User {
                 id: user_id.clone(),
                 email: user_email.clone(),
-                created_at: Utc::now(),
+                created_at: Utc::now().to_rfc3339(),
                 auth_token: None,
                 password_hash: String::new(),
             };
@@ -1229,7 +1310,7 @@ async fn create_user_default_settings(
 ) -> Result<database::UserSettings, StatusCode> {
     println!("Creating default user settings");
 
-    // Use app_state's Supabase instance
+    // Use app_state's database instance
     let database = &app_state.database;
 
     let settings_blob = UserSettingsRequest {
@@ -1244,8 +1325,8 @@ async fn create_user_default_settings(
 
     let user_settings = database::UserSettings {
         user_id: user.id.clone(),
-        settings_blob: json!(settings_blob),
-        created_at: Utc::now(),
+        settings_blob: serde_json::to_string(&settings_blob).unwrap_or_default(),
+        created_at: Utc::now().to_rfc3339(),
     };
 
     let settings = database.get_user_settings(&user.id).await.ok();

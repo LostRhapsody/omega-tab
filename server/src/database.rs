@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use anyhow::Result;
 use bcrypt::{hash, verify, DEFAULT_COST};
@@ -6,7 +7,7 @@ use chrono::{DateTime, Utc};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use sqlx::{
-    postgres::{PgPool, PgPoolOptions},
+    sqlite::{SqlitePool, SqlitePoolOptions},
     FromRow, Row,
 };
 
@@ -17,7 +18,7 @@ pub struct User {
     pub email: String,
     #[serde(skip_serializing)]
     pub password_hash: String,
-    pub created_at: DateTime<Utc>,
+    pub created_at: String,
     #[sqlx(skip)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub auth_token: Option<String>,
@@ -25,7 +26,6 @@ pub struct User {
 
 #[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
 pub struct Link {
-    #[sqlx(try_from = "sqlx::types::Uuid")]
     pub id: String,
     pub title: String,
     pub url: String,
@@ -33,32 +33,29 @@ pub struct Link {
     pub order_index: i32,
     pub owner_type: String,
     pub owner_id: String,
-    pub created_at: DateTime<Utc>,
+    pub created_at: String,
     pub description: Option<String>,
     pub column_type: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
 pub struct Plan {
-    #[sqlx(try_from = "sqlx::types::Uuid")]
     pub id: String,
     pub name: String,
     pub max_pins: i32,
-    pub features: serde_json::Value,
-    pub created_at: DateTime<Utc>,
+    pub features: String,
+    pub created_at: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone, FromRow)]
 pub struct Subscription {
-    #[sqlx(try_from = "sqlx::types::Uuid")]
     pub id: String,
     pub entity_id: String,
     pub entity_type: String,
-    #[sqlx(try_from = "sqlx::types::Uuid")]
     pub plan_id: String,
     pub status: String,
-    pub current_period_end: DateTime<Utc>,
-    pub created_at: DateTime<Utc>,
+    pub current_period_end: String,
+    pub created_at: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, FromRow)]
@@ -67,14 +64,14 @@ pub struct UserMembership {
     pub entity_id: String,
     pub entity_type: String,
     pub role: String,
-    pub created_at: DateTime<Utc>,
+    pub created_at: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
 pub struct UserSettings {
     pub user_id: String,
-    pub settings_blob: serde_json::Value,
-    pub created_at: DateTime<Utc>,
+    pub settings_blob: String,
+    pub created_at: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -88,15 +85,41 @@ pub struct UserData {
 #[derive(Clone)]
 pub struct Database {
     pub client: Client,
-    pool: PgPool,
+    pool: SqlitePool,
+}
+
+/// Get the platform-appropriate data directory for storing the database
+fn get_data_dir() -> PathBuf {
+    if let Some(data_dir) = dirs::data_local_dir() {
+        data_dir.join("betternewtab")
+    } else {
+        // Fallback to current directory
+        PathBuf::from(".")
+    }
 }
 
 impl Database {
-    pub async fn new(postgres_url: String) -> Result<Self> {
-        let pool = PgPoolOptions::new()
-            .max_connections(50)
-            .connect(&postgres_url)
+    pub async fn new(_database_url: String) -> Result<Self> {
+        // Create data directory if it doesn't exist
+        let data_dir = get_data_dir();
+        std::fs::create_dir_all(&data_dir)?;
+
+        let db_path = data_dir.join("data.db");
+        let db_url = format!("sqlite:{}?mode=rwc", db_path.display());
+
+        tracing::info!("Connecting to SQLite database at: {}", db_path.display());
+
+        let pool = SqlitePoolOptions::new()
+            .max_connections(5)
+            .connect(&db_url)
             .await?;
+
+        // Run migrations
+        sqlx::migrate!("./migrations_sqlite")
+            .run(&pool)
+            .await?;
+
+        tracing::info!("Database migrations completed successfully");
 
         Ok(Self {
             client: Client::new(),
@@ -107,7 +130,7 @@ impl Database {
     pub async fn get_user(&self, id: &str) -> Result<User> {
         tracing::info!("Fetching user by ID from database: {}", id);
 
-        let user = sqlx::query_as::<_, User>("SELECT * FROM USERS WHERE id = $1")
+        let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = ?")
             .bind(id)
             .fetch_optional(&self.pool)
             .await?
@@ -131,7 +154,7 @@ impl Database {
     pub async fn get_user_by_email(&self, email: &str) -> Result<User> {
         tracing::info!("Fetching user by email: {}", email);
 
-        let user = sqlx::query_as::<_, User>("SELECT * FROM USERS WHERE email = $1")
+        let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = ?")
             .bind(email)
             .fetch_optional(&self.pool)
             .await?
@@ -166,13 +189,13 @@ impl Database {
         let password_hash = hash(password, DEFAULT_COST)
             .map_err(|e| anyhow::anyhow!("Failed to hash password: {}", e))?;
 
-        // Generate user ID (using email as ID for now, matching Clerk pattern)
+        // Generate user ID
         let user_id = format!("user_{}", uuid::Uuid::new_v4());
-        let created_at = Utc::now();
+        let created_at = Utc::now().to_rfc3339();
 
         // Insert user
         let result = sqlx::query(
-            "INSERT INTO USERS (id, email, password_hash, created_at) VALUES ($1, $2, $3, $4)",
+            "INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)",
         )
         .bind(&user_id)
         .bind(email)
@@ -217,9 +240,9 @@ impl Database {
     pub async fn create_user(&self, user: User) -> Result<User> {
         tracing::info!("Creating new user: {}", user.email);
 
-        // Insert new user (with password_hash now required)
+        // Insert new user
         let result = sqlx::query(
-            "INSERT INTO USERS (id, email, password_hash, created_at) VALUES ($1, $2, $3, $4)",
+            "INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)",
         )
         .bind(&user.id)
         .bind(&user.email)
@@ -240,7 +263,7 @@ impl Database {
     pub async fn delete_user(&self, id: &str) -> Result<()> {
         tracing::info!("Deleting user: {}", id);
 
-        let result = sqlx::query("DELETE FROM USERS WHERE id = $1")
+        let result = sqlx::query("DELETE FROM users WHERE id = ?")
             .bind(id)
             .execute(&self.pool)
             .await?;
@@ -259,7 +282,7 @@ impl Database {
         tracing::info!("Fetching links for owner {}: {}", owner_type, owner_id);
 
         let links = sqlx::query_as::<_, Link>(
-            "SELECT * FROM links WHERE owner_id = $1 AND owner_type = $2",
+            "SELECT * FROM links WHERE owner_id = ? AND owner_type = ?",
         )
         .bind(owner_id)
         .bind(owner_type)
@@ -273,8 +296,8 @@ impl Database {
     pub async fn get_link(&self, id: &str, owner_id: &str) -> Result<Link> {
         tracing::info!("Fetching link: {} for owner: {}", id, owner_id);
 
-        let link = sqlx::query_as::<_, Link>("SELECT * FROM links WHERE id = $1 AND owner_id = $2")
-            .bind(uuid::Uuid::parse_str(id).expect("Invalid UUID format"))
+        let link = sqlx::query_as::<_, Link>("SELECT * FROM links WHERE id = ? AND owner_id = ?")
+            .bind(id)
             .bind(owner_id)
             .fetch_optional(&self.pool)
             .await?;
@@ -300,9 +323,9 @@ impl Database {
 
         let result = sqlx::query(
             "INSERT INTO links (id, title, url, icon, order_index, owner_type, owner_id, created_at, description, column_type)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         )
-        .bind(uuid::Uuid::parse_str(&link.id).expect("Invalid UUID format"))
+        .bind(&link.id)
         .bind(&link.title)
         .bind(&link.url)
         .bind(&link.icon)
@@ -329,9 +352,9 @@ impl Database {
 
         let result = sqlx::query(
             "UPDATE links
-            SET title = $1, url = $2, icon = $3,
-            order_index = $4, description = $5, column_type = $6
-            WHERE id = $7",
+            SET title = ?, url = ?, icon = ?,
+            order_index = ?, description = ?, column_type = ?
+            WHERE id = ?",
         )
         .bind(&link.title)
         .bind(&link.url)
@@ -339,7 +362,7 @@ impl Database {
         .bind(&link.order_index)
         .bind(&link.description)
         .bind(&link.column_type)
-        .bind(uuid::Uuid::parse_str(&link.id).expect("Invalid UUID format"))
+        .bind(&link.id)
         .execute(&self.pool)
         .await?;
 
@@ -354,8 +377,8 @@ impl Database {
     pub async fn delete_link(&self, id: &str) -> Result<()> {
         tracing::info!("Deleting link: {}", id);
 
-        let result = sqlx::query("DELETE FROM links WHERE id = $1")
-            .bind(uuid::Uuid::parse_str(&id).expect("Invalid UUID format"))
+        let result = sqlx::query("DELETE FROM links WHERE id = ?")
+            .bind(id)
             .execute(&self.pool)
             .await?;
 
@@ -373,7 +396,7 @@ impl Database {
         tracing::info!("Fetching memberships for user: {}", user_id);
 
         let memberships = sqlx::query_as::<_, UserMembership>(
-            "SELECT * FROM user_memberships WHERE user_id = $1",
+            "SELECT * FROM user_memberships WHERE user_id = ?",
         )
         .bind(user_id)
         .fetch_all(&self.pool)
@@ -392,7 +415,7 @@ impl Database {
 
         let result = sqlx::query(
             "INSERT INTO user_memberships (user_id, entity_id, entity_type, role, created_at)
-             VALUES ($1, $2, $3, $4, $5)",
+             VALUES (?, ?, ?, ?, ?)",
         )
         .bind(&membership.user_id)
         .bind(&membership.entity_id)
@@ -424,7 +447,7 @@ impl Database {
         );
 
         let result = sqlx::query(
-            "UPDATE user_memberships SET role = $1 WHERE user_id = $2 AND entity_id = $3",
+            "UPDATE user_memberships SET role = ? WHERE user_id = ? AND entity_id = ?",
         )
         .bind(role)
         .bind(user_id)
@@ -438,7 +461,7 @@ impl Database {
 
         // Fetch and return the updated membership
         let membership = sqlx::query_as::<_, UserMembership>(
-            "SELECT * FROM user_memberships WHERE user_id = $1 AND entity_id = $2",
+            "SELECT * FROM user_memberships WHERE user_id = ? AND entity_id = ?",
         )
         .bind(user_id)
         .bind(entity_id)
@@ -453,7 +476,7 @@ impl Database {
         tracing::info!("Removing member: {} from entity: {}", user_id, entity_id);
 
         let result =
-            sqlx::query("DELETE FROM user_memberships WHERE user_id = $1 AND entity_id = $2")
+            sqlx::query("DELETE FROM user_memberships WHERE user_id = ? AND entity_id = ?")
                 .bind(user_id)
                 .bind(entity_id)
                 .execute(&self.pool)
@@ -483,8 +506,8 @@ impl Database {
     pub async fn get_plan(&self, id: &str) -> Result<Plan> {
         tracing::info!("Fetching plan: {}", id);
 
-        let plan = sqlx::query_as::<_, Plan>("SELECT * FROM plans WHERE id = $1")
-            .bind(uuid::Uuid::parse_str(id).expect("Invalid UUID format"))
+        let plan = sqlx::query_as::<_, Plan>("SELECT * FROM plans WHERE id = ?")
+            .bind(id)
             .fetch_optional(&self.pool)
             .await?;
 
@@ -505,7 +528,7 @@ impl Database {
         tracing::info!("Fetching subscription for user: {}", user_id);
 
         let subscription = sqlx::query_as::<_, Subscription>(
-            "SELECT * FROM subscriptions WHERE entity_id = $1 AND entity_type = 'user'",
+            "SELECT * FROM subscriptions WHERE entity_id = ? AND entity_type = 'user'",
         )
         .bind(user_id)
         .fetch_optional(&self.pool)
@@ -533,30 +556,33 @@ impl Database {
         status: &str,
         current_period_end: DateTime<Utc>,
     ) -> Result<Subscription> {
-        let sub_uuid = uuid::Uuid::new_v4();
-        let subscription: Subscription = Subscription {
-            id: sub_uuid.to_string(),
+        let sub_uuid = uuid::Uuid::new_v4().to_string();
+        let created_at = Utc::now().to_rfc3339();
+        let period_end = current_period_end.to_rfc3339();
+
+        let subscription = Subscription {
+            id: sub_uuid.clone(),
             entity_id: entity_id.to_string(),
             entity_type: entity_type.to_string(),
             plan_id: plan_id.to_string(),
             status: status.to_string(),
-            current_period_end,
-            created_at: chrono::Utc::now(),
+            current_period_end: period_end.clone(),
+            created_at: created_at.clone(),
         };
 
         tracing::info!("Creating subscription with payload: {:?}", subscription);
 
         let result = sqlx::query(
             "INSERT INTO subscriptions (id, entity_id, entity_type, plan_id, status, current_period_end, created_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)"
+             VALUES (?, ?, ?, ?, ?, ?, ?)"
         )
         .bind(&sub_uuid)
-        .bind(&subscription.entity_id)
-        .bind(&subscription.entity_type)
-        .bind(uuid::Uuid::parse_str(&subscription.plan_id).expect("Invalid UUID format"))
-        .bind(&subscription.status)
-        .bind(&subscription.current_period_end)
-        .bind(&subscription.created_at)
+        .bind(entity_id)
+        .bind(entity_type)
+        .bind(plan_id)
+        .bind(status)
+        .bind(&period_end)
+        .bind(&created_at)
         .execute(&self.pool)
         .await?;
 
@@ -576,9 +602,9 @@ impl Database {
 
         let result = sqlx::query(
             "UPDATE subscriptions
-            SET entity_id = $1, entity_type = $2, plan_id = $3,
-            status = $4, current_period_end = $5
-            WHERE id = $6",
+            SET entity_id = ?, entity_type = ?, plan_id = ?,
+            status = ?, current_period_end = ?
+            WHERE id = ?",
         )
         .bind(&subscription.entity_id)
         .bind(&subscription.entity_type)
@@ -605,10 +631,12 @@ impl Database {
     ) -> Result<()> {
         tracing::info!("Creating feedback timestamp for user: {}", user_id);
 
+        let created_at_str = created_at.to_rfc3339();
+
         let result =
-            sqlx::query("INSERT INTO feedback_timestamps (user_id, created_at) VALUES ($1, $2)")
+            sqlx::query("INSERT INTO feedback_timestamps (user_id, created_at) VALUES (?, ?)")
                 .bind(user_id)
-                .bind(created_at)
+                .bind(&created_at_str)
                 .execute(&self.pool)
                 .await?;
 
@@ -627,7 +655,7 @@ impl Database {
         tracing::info!("Checking feedback timestamp for user: {}", user_id);
 
         let timestamp =
-            sqlx::query("SELECT created_at FROM feedback_timestamps WHERE user_id = $1")
+            sqlx::query("SELECT created_at FROM feedback_timestamps WHERE user_id = ?")
                 .bind(user_id)
                 .fetch_optional(&self.pool)
                 .await?;
@@ -642,7 +670,7 @@ impl Database {
             }
 
             // Delete the record if it's older than 24 hours
-            let result = sqlx::query("DELETE FROM feedback_timestamps WHERE user_id = $1")
+            let result = sqlx::query("DELETE FROM feedback_timestamps WHERE user_id = ?")
                 .bind(user_id)
                 .execute(&self.pool)
                 .await?;
@@ -661,7 +689,7 @@ impl Database {
         tracing::info!("Fetching settings for user: {}", user_id);
 
         let settings =
-            sqlx::query_as::<_, UserSettings>("SELECT * FROM user_settings WHERE user_id = $1")
+            sqlx::query_as::<_, UserSettings>("SELECT * FROM user_settings WHERE user_id = ?")
                 .bind(user_id)
                 .fetch_optional(&self.pool)
                 .await?;
@@ -682,7 +710,7 @@ impl Database {
         tracing::info!("Creating settings for user: {}", user_settings.user_id);
 
         let result = sqlx::query(
-            "INSERT INTO user_settings (user_id, settings_blob, created_at) VALUES ($1, $2, $3)",
+            "INSERT INTO user_settings (user_id, settings_blob, created_at) VALUES (?, ?, ?)",
         )
         .bind(&user_settings.user_id)
         .bind(&user_settings.settings_blob)
@@ -708,9 +736,10 @@ impl Database {
 
         // Since user_settings typically only has one JSON blob column, simplify the update
         if let Some(settings_blob) = updates.get("settings_blob") {
+            let settings_str = settings_blob.to_string();
             let result =
-                sqlx::query("UPDATE user_settings SET settings_blob = $1 WHERE user_id = $2")
-                    .bind(settings_blob)
+                sqlx::query("UPDATE user_settings SET settings_blob = ? WHERE user_id = ?")
+                    .bind(&settings_str)
                     .bind(user_id)
                     .execute(&self.pool)
                     .await?;
@@ -729,7 +758,7 @@ impl Database {
     pub async fn delete_user_settings(&self, user_id: &str) -> Result<()> {
         tracing::info!("Deleting settings for user: {}", user_id);
 
-        let result = sqlx::query("DELETE FROM user_settings WHERE user_id = $1")
+        let result = sqlx::query("DELETE FROM user_settings WHERE user_id = ?")
             .bind(user_id)
             .execute(&self.pool)
             .await?;
@@ -746,7 +775,7 @@ impl Database {
     pub async fn get_user_data(&self, user_id: &str) -> Result<UserData> {
         let rows = sqlx::query(
             "
-        select
+        SELECT
             u.*,
             l.id as link_id,
             l.title as link_title,
@@ -767,12 +796,12 @@ impl Database {
             s.created_at as subscription_created_at,
             us.settings_blob as settings_blob,
             us.created_at as settings_created_at
-            from users u
-            left join links l on u.id = l.owner_id
-            left join subscriptions s on u.id = s.entity_id
-            left join user_settings us on u.id = us.user_id
-            where u.id = $1
-            order by l.order_index asc;",
+            FROM users u
+            LEFT JOIN links l ON u.id = l.owner_id
+            LEFT JOIN subscriptions s ON u.id = s.entity_id
+            LEFT JOIN user_settings us ON u.id = us.user_id
+            WHERE u.id = ?
+            ORDER BY l.order_index ASC;",
         )
         .bind(user_id)
         .fetch_all(&self.pool)
@@ -790,47 +819,60 @@ impl Database {
             auth_token: None,
             password_hash: first_row.get::<String, _>("password_hash"),
         };
-        let settings_blob: serde_json::Value = first_row.get("settings_blob");
-        let settings = Some(UserSettings {
-            user_id: first_row.get("id"),
-            settings_blob,
-            created_at: first_row.get("settings_created_at"),
-        });
-        let subscription = if let Ok(sub_id) = first_row.try_get::<uuid::Uuid, _>("subscription_id")
-        {
-            Some(Subscription {
-                id: sub_id.to_string(),
-                entity_id: first_row
-                    .get::<Option<String>, _>("subscription_entity_id")
-                    .unwrap_or_default(),
-                entity_type: first_row
-                    .get::<Option<String>, _>("subscription_entity_type")
-                    .unwrap_or_default(),
-                plan_id: first_row
-                    .get::<uuid::Uuid, _>("subscription_plan_id")
-                    .to_string(),
-                status: first_row.get("subscription_status"),
-                current_period_end: first_row.get("subscription_current_period_end"),
-                created_at: first_row.get("subscription_created_at"),
+
+        let settings_blob: Option<String> = first_row.try_get("settings_blob").ok();
+        let settings_created_at: Option<String> = first_row.try_get("settings_created_at").ok();
+        let settings = if let (Some(blob), Some(created)) = (settings_blob, settings_created_at) {
+            Some(UserSettings {
+                user_id: first_row.get("id"),
+                settings_blob: blob,
+                created_at: created,
             })
         } else {
             None
         };
+
+        let subscription = if let Ok(sub_id) = first_row.try_get::<String, _>("subscription_id") {
+            Some(Subscription {
+                id: sub_id,
+                entity_id: first_row
+                    .try_get::<String, _>("subscription_entity_id")
+                    .unwrap_or_default(),
+                entity_type: first_row
+                    .try_get::<String, _>("subscription_entity_type")
+                    .unwrap_or_default(),
+                plan_id: first_row
+                    .try_get::<String, _>("subscription_plan_id")
+                    .unwrap_or_default(),
+                status: first_row
+                    .try_get::<String, _>("subscription_status")
+                    .unwrap_or_default(),
+                current_period_end: first_row
+                    .try_get::<String, _>("subscription_current_period_end")
+                    .unwrap_or_default(),
+                created_at: first_row
+                    .try_get::<String, _>("subscription_created_at")
+                    .unwrap_or_default(),
+            })
+        } else {
+            None
+        };
+
         let links = rows
             .iter()
             .filter_map(|row| {
-                if let Ok(link_id) = row.try_get::<uuid::Uuid, _>("link_id") {
+                if let Ok(link_id) = row.try_get::<String, _>("link_id") {
                     Some(Link {
-                        id: link_id.to_string(),
-                        title: row.get("link_title"),
-                        url: row.get("link_url"),
-                        icon: row.get("link_icon"),
-                        order_index: row.get("link_order_index"),
-                        owner_type: row.get("link_owner_type"),
-                        owner_id: row.get("link_owner_id"),
-                        created_at: row.get("link_created_at"),
-                        description: row.get("link_description"),
-                        column_type: row.get("link_column_type"),
+                        id: link_id,
+                        title: row.try_get("link_title").unwrap_or_default(),
+                        url: row.try_get("link_url").unwrap_or_default(),
+                        icon: row.try_get("link_icon").ok(),
+                        order_index: row.try_get("link_order_index").unwrap_or(0),
+                        owner_type: row.try_get("link_owner_type").unwrap_or_default(),
+                        owner_id: row.try_get("link_owner_id").unwrap_or_default(),
+                        created_at: row.try_get("link_created_at").unwrap_or_default(),
+                        description: row.try_get("link_description").ok(),
+                        column_type: row.try_get("link_column_type").unwrap_or_default(),
                     })
                 } else {
                     None
@@ -844,5 +886,110 @@ impl Database {
             subscription,
             settings,
         })
+    }
+
+    // Organization and Team functions (reimplemented from PL/pgSQL)
+    pub async fn create_organization(
+        &self,
+        org_name: &str,
+        owner_id: &str,
+        plan_id: &str,
+    ) -> Result<String> {
+        tracing::info!("Creating organization: {} for owner: {}", org_name, owner_id);
+
+        // Start a transaction
+        let mut tx = self.pool.begin().await?;
+
+        let org_id = uuid::Uuid::new_v4().to_string();
+        let created_at = Utc::now().to_rfc3339();
+
+        // Create the organization
+        sqlx::query("INSERT INTO organizations (id, name, owner_id, created_at) VALUES (?, ?, ?, ?)")
+            .bind(&org_id)
+            .bind(org_name)
+            .bind(owner_id)
+            .bind(&created_at)
+            .execute(&mut *tx)
+            .await?;
+
+        // Create subscription for the organization
+        let sub_id = uuid::Uuid::new_v4().to_string();
+        sqlx::query(
+            "INSERT INTO subscriptions (id, entity_id, entity_type, plan_id, status, created_at) VALUES (?, ?, 'organization', ?, 'active', ?)"
+        )
+        .bind(&sub_id)
+        .bind(&org_id)
+        .bind(plan_id)
+        .bind(&created_at)
+        .execute(&mut *tx)
+        .await?;
+
+        // Add owner as admin member
+        sqlx::query(
+            "INSERT INTO user_memberships (user_id, entity_id, entity_type, role, created_at) VALUES (?, ?, 'organization', 'admin', ?)"
+        )
+        .bind(owner_id)
+        .bind(&org_id)
+        .bind(&created_at)
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+
+        tracing::info!("Successfully created organization: {}", org_id);
+        Ok(org_id)
+    }
+
+    pub async fn create_team(
+        &self,
+        team_name: &str,
+        owner_id: &str,
+        plan_id: &str,
+        org_id: Option<&str>,
+    ) -> Result<String> {
+        tracing::info!("Creating team: {} for owner: {}", team_name, owner_id);
+
+        // Start a transaction
+        let mut tx = self.pool.begin().await?;
+
+        let team_id = uuid::Uuid::new_v4().to_string();
+        let created_at = Utc::now().to_rfc3339();
+
+        // Create the team
+        sqlx::query("INSERT INTO teams (id, name, owner_id, organization_id, created_at) VALUES (?, ?, ?, ?, ?)")
+            .bind(&team_id)
+            .bind(team_name)
+            .bind(owner_id)
+            .bind(org_id)
+            .bind(&created_at)
+            .execute(&mut *tx)
+            .await?;
+
+        // Create subscription for the team
+        let sub_id = uuid::Uuid::new_v4().to_string();
+        sqlx::query(
+            "INSERT INTO subscriptions (id, entity_id, entity_type, plan_id, status, created_at) VALUES (?, ?, 'team', ?, 'active', ?)"
+        )
+        .bind(&sub_id)
+        .bind(&team_id)
+        .bind(plan_id)
+        .bind(&created_at)
+        .execute(&mut *tx)
+        .await?;
+
+        // Add owner as admin member
+        sqlx::query(
+            "INSERT INTO user_memberships (user_id, entity_id, entity_type, role, created_at) VALUES (?, ?, 'team', 'admin', ?)"
+        )
+        .bind(owner_id)
+        .bind(&team_id)
+        .bind(&created_at)
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+
+        tracing::info!("Successfully created team: {}", team_id);
+        Ok(team_id)
     }
 }
