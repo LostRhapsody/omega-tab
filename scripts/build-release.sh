@@ -33,13 +33,13 @@ mkdir -p "$DIST_DIR"
 echo -e "${YELLOW}Building Vue frontend...${NC}"
 cd "${PROJECT_ROOT}/client"
 
-if ! command -v npm &> /dev/null; then
-    echo -e "${RED}npm is not installed. Please install Node.js and npm.${NC}"
+if ! command -v bun &> /dev/null; then
+    echo -e "${RED}bun is not installed. Please install Bun.${NC}"
     exit 1
 fi
 
-npm install
-npm run build
+bun install
+bun run build
 
 if [ ! -d "dist" ]; then
     echo -e "${RED}Frontend build failed - dist directory not found${NC}"
