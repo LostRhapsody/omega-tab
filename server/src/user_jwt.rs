@@ -25,8 +25,8 @@ pub fn generate_jwt(user_id: &str, email: &str) -> Result<String> {
     // Get JWT secret from environment variable
     let secret = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
 
-    // Set expiration time to 1 hour from now
-    let exp = get_current_timestamp() + 3600; // 1 hour in seconds
+    // Set expiration time to 100 years from now (effectively forever for a local app)
+    let exp = get_current_timestamp() + (100 * 365 * 24 * 60 * 60); // ~100 years in seconds
     let iat = get_current_timestamp();
 
     let claims = UserClaims {
