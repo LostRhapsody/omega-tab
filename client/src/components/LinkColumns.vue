@@ -189,7 +189,7 @@ const focusSearchBar = () => {
 
 const handleArrowKeys = (event: KeyboardEvent) => {
   if (
-    isSearchInputFocused ||
+    isSearchInputFocused() ||
     isModalOpen() ||
     isDropdownOpen() ||
     event.ctrlKey ||
