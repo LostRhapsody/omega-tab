@@ -12,7 +12,7 @@ We're leaving user-based everything intact, in case anyone want's to host this f
 
 ## Landing Page
 
-[Click here to check out our official landing page](omega-tab.evanrobertson.dev), which has some screenshots and descriptions of features.
+[Click here to check out our official landing page](https://omega-tab.evanrobertson.dev), which has some screenshots and descriptions of features.
 
 ## Getting Started
 
