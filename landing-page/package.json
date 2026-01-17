@@ -5,22 +5,20 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
-		"build": "NODE_ENV=production run-s lint tailwind:build type-check \"build-only --mode production --minify\"",
+		"build": "NODE_ENV=production run-s tailwind:build type-check \"build-only --mode production --minify\"",
 		"preview": "vite preview",
 		"build-only": "vite build",
 		"type-check": "vue-tsc --build",
 		"tailwind:watch": "tailwindcss -i ./src/assets/css/main.css -o ./src/assets/css/tailwind.css --watch",
 		"tailwind:build": "tailwindcss -i ./src/assets/css/main.css -o ./src/assets/css/tailwind.css --minify",
 		"dev:all": "run-p dev tailwind:watch",
-		"lint": "biome check --write",
-		"start": "bun lint && bun dev:all"
+		"start": "bun dev:all"
 	},
 	"dependencies": {
 		"vue": "^3.5.13",
 		"vue-router": "^4.5.0"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "1.9.4",
 		"@vitejs/plugin-vue": "^5.2.1",
 		"@vue/tsconfig": "^0.7.0",
 		"npm-run-all2": "^7.0.2",
