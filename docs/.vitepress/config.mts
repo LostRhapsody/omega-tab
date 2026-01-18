@@ -4,7 +4,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: "OmegaTab",
   description: "Getting started and guides for OmegaTab",
-  base: '/',
+  base: '/docs/',
   themeConfig: {
     logo: '/favicon.svg',    
     search: {
