@@ -3,12 +3,16 @@ title: Guides
 description: Comprehensive guides for OmegaTab features and functionality
 ---
 
+::: warning Out of date images
+Omega Tab recently had a facelift and rebrand, so some images may look different than the interface you see. Most interfaces functionaly remain the same though. We're working to get the documentation site up-to-date quickly.
+:::
+
 # OmegaTab Guides
 
 Here you'll find detailed instructions for using all the features available in OmegaTab.
 
 ::: tip The ❔ Button
-There is a ❔button in the bottom right of the OmegaTab dashboard. This provides quick links for keyboard shortcuts, guides, and providing feedback.
+There is a ❔button in the bottom right of the OmegaTab dashboard. This provides quick links for keyboard shortcuts and guides
 :::
 
 ## Available Guides
@@ -25,7 +29,6 @@ There is a ❔button in the bottom right of the OmegaTab dashboard. This provide
 
 ### User Preferences
 - [User Settings](/guides/user-settings) - Customize your experience with preferences
-- [Manage Your Subscription](/guides/manage-your-subscription) - Learn how to manage your OmegaTab subscription, update payment info, or cancel
 
 ## Getting Started
 
@@ -33,4 +36,4 @@ New to OmegaTab? Check out our [Getting Started](/getting-started) guide first t
 
 ## Need Help?
 
-Can't find what you're looking for? Contact our support team for assistance.
+Can't find what you're looking for? Contact [Evan Robertson](https://x.com/evantypesthings) for assistance.

@@ -3,6 +3,10 @@ title: Geting Started
 description: Getting started with OmegaTab
 ---
 
+::: warning Out of date images
+Omega Tab recently had a facelift and rebrand, so some images may look different than the interface you see. Most interfaces functionaly remain the same though. We're working to get the documentation site up-to-date quickly.
+:::
+
 # Getting Started with OmegaTab
 
 Welcome to OmegaTab! This guide will help you get up and running with the ultimate new tab replacement for your browser.
@@ -19,7 +23,7 @@ OmegaTab transforms your browser's new tab page into a powerful productivity hub
 
 ## Setting up OmegaTab
 
-1. **First Visit**: When you first open OmegaTab, you'll see the landing page, with a sign up button in the top right
+1. **First Visit**: When you first open OmegaTab, you'll be prompted to create a local account. This account only exists on your local PC, no need to worry about a cloud account.
 2. **Sign In**: Create an account or sign in to access OmegaTab
 3. **Add Your Links**: Start adding your favorite websites using the "Add new link" button
 4. **Organize**: Group your links into columns using the column labels
@@ -27,11 +31,11 @@ OmegaTab transforms your browser's new tab page into a powerful productivity hub
 
 ## Basic Features
 
-- **Search Bar**: Use the main search bar to search the web, find your saved links, or utilize 3rd party integrations
+- **Search Bar**: Use the main search bar to search the web, find your saved links, or see search suggestions.
 - **Link Cards**: Each saved website appears as a card with a title and optional description and icon
 - **Command Palette**: Press `Ctrl+K` to open the command palette for keyboard navigation
-- **Add New Link**: Click the "Add new link" card or press `Ctrl+Alt+N` to add a new website
-- **Edit A Link**: Click the `...` three dot menu on a link to Delete, Edit, or copy the URL
+- **Add New Link**: Click the "Add new link" card or press `Alt+N` to add a new website
+- **Edit A Link**: Click the `...` three dot menu on a link or navigate to it with your keyboard and press `E` to Delete, Edit, or copy the URL
 
 ## Next Steps
 

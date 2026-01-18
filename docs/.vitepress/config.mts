@@ -2,7 +2,7 @@ import { defineConfig } from 'vitepress'
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
-  title: "OmegaTab | Guides",
+  title: "OmegaTab | Documentation",
   description: "Getting started and guides for OmegaTab",
   base: '/',
   themeConfig: {
@@ -34,17 +34,16 @@ export default defineConfig({
           { text: 'Keyboard shortcuts', link: '/guides/keyboard-shortcuts' },
           { text: 'Metadata Fetching', link: '/guides/metadata-fetching' },
           { text: 'Search Suggestions', link: '/guides/search-suggestions' },
-          { text: 'Manage Your Subscription', link: '/guides/manage-your-subscription' },
         ],
       },
-      {
-        text: 'Integrations',
-        items: [
-          { text: 'Confluence', link: '/guides/confluence-integration' },
-          { text: 'Jira', link: '/guides/jira-integration' },
-          { text: 'Linear', link: '/guides/linear-integration' },
-        ],
-      }
+      // {
+      //   text: 'Integrations',
+      //   items: [
+      //     { text: 'Confluence', link: '/guides/confluence-integration' },
+      //     { text: 'Jira', link: '/guides/jira-integration' },
+      //     { text: 'Linear', link: '/guides/linear-integration' },
+      //   ],
+      // }
     ],
     footer: {
       message: 'OmegaTab',

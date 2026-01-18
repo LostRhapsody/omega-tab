@@ -13,7 +13,7 @@ OmegaTab offers a variety of keyboard shortcuts to enhance your productivity and
 |--------|----------|
 | Open Command Palette | <kbd>`Ctrl`</kbd> + <kbd>`K`</kbd> |
 | Show Keyboard Shortcuts | <kbd>`?`</kbd> (<kbd>`Shift`</kbd> + <kbd>`/`</kbd>) |
-| Add New Link | <kbd>`Ctrl`</kbd> + <kbd>`Alt`</kbd> + <kbd>`N`</kbd> |
+| Add New Link | <kbd>`Alt`</kbd> + <kbd>`N`</kbd> |
 | Cycle Search Engines | <kbd>`Ctrl`</kbd> + <kbd>`↑`</kbd> / <kbd>`↓`</kbd> |
 | Open Link in Column 1 | <kbd>`Ctrl`</kbd> + <kbd>`Number`</kbd> (1-9) |
 | Open Link in Column 2 | <kbd>`Ctrl`</kbd> + <kbd>`Alt`</kbd> + <kbd>`Number`</kbd> (1-9)|
@@ -46,7 +46,7 @@ The Command Palette gives you keyboard access to all your links and application 
 
 ## Link Management
 
-- **Add New Link**: <kbd>`Ctrl`</kbd> + <kbd>`Alt`</kbd> + <kbd>`N`</kbd>
+- **Add New Link**: <kbd>`Alt`</kbd> + <kbd>`N`</kbd>
 - **Open Link (Column 1)**: <kbd>`Ctrl`</kbd> + <kbd>`Number`</kbd> (1-9)
 - **Open Link (Column 2)**: <kbd>`Ctrl`</kbd> + <kbd>`Alt`</kbd> + <kbd>`Number`</kbd> (1-9)
 
@@ -74,7 +74,7 @@ Alternatively, you can use the Command Palette:
 When a dialog box is open (for example, the "Add New Link" dialog):
 
 - **Navigate Fields**: <kbd>`Tab`</kbd>
-- **Submit Form**: <kbd>`Enter`</kbd>
+- **Submit Form**: <kbd> `Shift` </kbd> + <kbd>`Enter`</kbd>
 - **Close Dialog**: <kbd>`Esc`</kbd>
 
 ## Next Steps

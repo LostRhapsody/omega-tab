@@ -22,6 +22,10 @@ As you type in the search bar, OmegaTab can display a list of suggested search q
 
 OmegaTab's search suggestions are powered by Brave's suggestion API, which provides relevant, privacy-focused search recommendations.
 
+::: warning Brave Search API
+This is temporarily disabled and will require manual setup. We'd like to smooth out the experience before rolling this out.
+:::
+
 ## How to Use Search Suggestions
 
 To use search suggestions:
@@ -42,7 +46,7 @@ When using search suggestions:
 
 ## Enabling or Disabling Suggestions
 
-Search suggestions are a **Plus Feature** and can be toggled on or off:
+Search suggestions can be toggled on or off:
 
 1. Navigate to [User Settings](/guides/user-settings)
 2. Find the "Enable Autosuggest (Powered By Brave)" option

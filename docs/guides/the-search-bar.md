@@ -7,11 +7,17 @@ description: Master the powerful search functionality in OmegaTab
 
 The search bar allows you to search the web, get search suggestions, and open your saved links all from one place.
 
+::: tip Search bar or Omni box?
+The functionality of this bar leans more towards what's sometimes called an "Omni box". This is to indicate it does more than just accept search queries.
+
+We're not too worried about being technically correct; It's a search bar.
+:::
+
 ## Basic Search Functionality
 
 The search bar appears prominently at the top of your OmegaTab dashboard. To use it:
 
-1. Click on the search bar, the search bar is automatically selected when the page loads
+1. Click on the search bar to focus on it. The search bar is automatically focued on when the page loads, so you can start typing right away
 2. Type your search query
 3. Press Enter to search using your selected search engine
 4. Click on a suggestion or navigate to it with arrow keys and press Enter to search with that suggestion
@@ -42,13 +48,13 @@ As you type, OmegaTab automatically searches your saved links:
 
 1. Enter any keywords matching your link's title, URL, or description
 2. Matching links will appear in a dropdown below the search bar
-3. Click on a link or navigate to it with arrow keys and press Enter
+3. Click on a link or navigate to it with arrow keys and press Enter to open it
 
 ## Multi-line Searches
 
 For more complex searches:
-- Press **Shift+Enter** to add a new line in your search query
-- Press **Enter** to execute the search
+- Press `Shift+Enter` to add a new line in your search query
+- Press `Enter` to execute the search
 
 ## Search History
 
@@ -56,12 +62,13 @@ If you've enabled Search History in your [user settings](/guides/user-settings),
 
 1. Click on the search bar to see recent searches
 2. Select any past search to quickly repeat it
+3. As you type, search history is displayed in your suggestions
 
 ## Direct URL Navigation
 
 If you enter a valid URL in the search bar, OmegaTab will navigate directly to that website rather than searching for it:
 
-1. Type a complete URL (e.g., "example.com" or "https://example.com")
+1. Type a complete URL (e.g., `https://omega-tab.evanrobertson.dev`)
 2. Press Enter to go directly to that site
 
 ## Next Steps

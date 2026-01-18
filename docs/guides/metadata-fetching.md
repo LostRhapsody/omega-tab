@@ -9,7 +9,7 @@ OmegaTab includes a smart metadata fetching feature that automatically retrieves
 
 ## What Is Metadata Fetching?
 
-When you add a new link to your dashboard without specifying a title or description, OmegaTab can automatically retrieve:
+When you add a new link to your dashboard, OmegaTab can automatically retrieve:
 
 - Website title
 - Description from meta tags
@@ -22,15 +22,10 @@ This saves you time and ensures your link cards contain relevant information.
 The metadata fetching process works as follows:
 
 1. You enter a URL in the "Add New Link" form
-2. You leave the title and/or description fields empty
 3. When you save the link, OmegaTab connects to the website
 4. Our backend server parses the website's HTML content
 5. The server extracts meta tags, title tags, and icon information
 6. This information is used to populate your link card
-
-## Availability
-
-Metadata fetching is a **Plus Feature** and is available only to Plus or Pro subscribers. For free users, any fields left blank will remain blank, and you'll need to manually enter all details.
 
 ## What Gets Extracted
 
@@ -48,6 +43,7 @@ While metadata fetching is convenient, there are some limitations to be aware of
 - The quality of fetched data depends on how well the website has implemented meta tags
 - Dynamic sites that load content via JavaScript may not have all metadata available
 - Very large pages may timeout during the fetching process
+- If you need to login to the website to see the data you expect, fetched metadata will be the 'logged out' version of the page
 
 If the automatic fetching doesn't produce the results you want, you can always manually edit the link afterward.
 

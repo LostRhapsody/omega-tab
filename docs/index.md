@@ -4,10 +4,10 @@ layout: home
 
 hero:
   name: "OmegaTab"
-  text: "\nThe Ultimate New Tab Page"
+  text: "The Ultimate New Tab Page"
   image: 
     src: "/favicon.svg"
-    alt: "OmegaTab icon, a plus sign"
+    alt: "OmegaTab icon, an omega character with a plus sign inside"
   tagline: Getting started and guides for OmegaTab
   actions:
     - theme: brand
@@ -17,28 +17,25 @@ hero:
       text: Guides
       link: /guides
     - theme: alt
-      text: Return to Omega Tab
+      text: Return to Omega Tab Landing Page
       link: https://omega-tab.evanrobertson.dev
       target: _self
 
 features:
   - title: Search
     icon: 🔍
-    details: Access your favorite search engine, get fast access to your links, and search suggestions
-  - title: Blazing Fast
+    details: Instant acess to your quick links, search history, search suggestions, and the web.
+  - title: Fast
     icon: 🔥
-    details: Add your favorite tools and launch them in no time with shortcuts or by typing into the search bar
+    details: Built to be near instant for all actions.
   - title: Inuitive Keyboard Shortcuts
     icon: ⌨️
-    details: Keyboard-first design lets you search, add links, open links, etc
-  - title: Third-Party Integrations
-    icon: 🔗
-    details: Search your organization's Jira or Linear issues or knowledgebase, straight from OmegaTab
-  - title: Automatic Link Details
+    details: Keyboard-first design lets you search, add, edit, open links, and more, all keyboard driven.
+  - title: Automatic Link Metadata
     icon: 🤖
     details: Automatically retrieve the title, description, and icon of your links by just entering the URL
-  - title: Powerful command palette
-    icon: 💲
+  - title: Command palette
+    icon: $_
     details: Access a command palette with `ctrl+k` to open links, change settings, and perform actions
 ---
 

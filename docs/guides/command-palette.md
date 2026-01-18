@@ -57,7 +57,6 @@ The Command Palette makes finding your links incredibly fast:
 
 ## Keyboard Navigation Tips
 
-- `Tab`: Cycle through different sections of the results
 - `Arrow keys`: Move up and down through the results list
 - `Enter`: Select the highlighted item
 - `Esc`: Close the command palette
@@ -66,4 +65,4 @@ The Command Palette makes finding your links incredibly fast:
 
 After mastering the command palette, you might want to explore:
 - [The Search Bar](/guides/the-search-bar) for web searching
-- [Creating a New Link](/guides/creating-a-new-link) using the keyboard shortcut **Ctrl+Alt+N**
+- [Creating a New Link](/guides/creating-a-new-link) using the keyboard shortcut **Alt+N**
