@@ -14,6 +14,17 @@ We're leaving user-based everything intact, in case anyone want's to host this f
 
 [Click here to check out our official landing page](https://omega-tab.evanrobertson.dev), which has some screenshots and descriptions of features.
 
+## Re-brand
+
+"Better New Tab" has been rebranded to "Omega Tab". [Read about it here](https://github.com/LostRhapsody/omega-tab/discussions/24).
+
+Run this command to set your local repository's remote URL:
+
+```bash
+git remote set-url origin https://github.com/LostRhapsody/omega-tab.git
+```
+```
+
 ## Getting Started
 
 A "proper" deployment system is in the works, as Omega Tab can be run as a single executable, so installing and starting up *should* be easy. Right now, there are a few steps. You'll need to clone the repository, have bun and rust installed, then install everything, instructions are below!
