@@ -1,4 +1,81 @@
 :root {
+  /* Brand colors - green */
+  --vp-c-brand-1: #06D7A0;
+  --vp-c-brand-2: #05c090;
+  --vp-c-brand-3: #04a87d;
+  --vp-c-brand-soft: rgba(6, 215, 160, 0.14);
+
+  /* Hero name gradient */
   --vp-home-hero-name-color: transparent;
   --vp-home-hero-name-background: -webkit-linear-gradient(120deg, #9fcec1, #06D7A0);
+
+  /* Button colors */
+  --vp-button-brand-border: transparent;
+  --vp-button-brand-text: #000;
+  --vp-button-brand-bg: #06D7A0;
+  --vp-button-brand-hover-border: transparent;
+  --vp-button-brand-hover-text: #000;
+  --vp-button-brand-hover-bg: #05c090;
+  --vp-button-brand-active-border: transparent;
+  --vp-button-brand-active-text: #000;
+  --vp-button-brand-active-bg: #04a87d;
+}
+
+/* Light mode - black backgrounds instead of grey */
+:root {
+  --vp-c-bg: #ffffff;
+  --vp-c-bg-soft: #f6f6f6;
+  --vp-c-bg-mute: #f0f0f0;
+  --vp-c-bg-alt: #f6f6f6;
+}
+
+/* Dark mode - true black instead of grey */
+.dark {
+  --vp-c-bg: #000000;
+  --vp-c-bg-soft: #0a0a0a;
+  --vp-c-bg-mute: #111111;
+  --vp-c-bg-alt: #0a0a0a;
+
+  /* Slightly brighter green for dark mode contrast */
+  --vp-c-brand-1: #10e8ad;
+  --vp-c-brand-2: #06D7A0;
+  --vp-c-brand-3: #05c090;
+  --vp-c-brand-soft: rgba(6, 215, 160, 0.16);
+
+  --vp-button-brand-bg: #06D7A0;
+  --vp-button-brand-hover-bg: #10e8ad;
+  --vp-button-brand-active-bg: #05c090;
+}
+
+/* Sharp corners - no border radius */
+.custom-block {
+  border-radius: 0;
+}
+
+div.VPLink {
+  border-radius: 0 !important;
+}
+
+a.VPButton {
+  border-radius: 0 !important;
+}
+
+button.DocSearch-Button { 
+  border-radius: 0 !important;
+}
+
+a.VPLink {
+  border-radius: 0 !important;
+}
+
+div.shell {
+  border-radius: 0 !important;
+}
+
+form.search-bar {
+  border-radius: 0 !important;
+}
+
+a.result {
+  border-radius: 0 !important;
 }
