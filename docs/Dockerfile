@@ -1,6 +1,9 @@
 # Build stage
 FROM oven/bun:1 AS builder
 
+# Install git for VitePress lastUpdated feature
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Copy package files
