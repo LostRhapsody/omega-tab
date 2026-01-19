@@ -10,7 +10,6 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [
     vue(),
-    vueJsx(),
     tailwindcss(),
     compression({
       algorithm: 'gzip',
