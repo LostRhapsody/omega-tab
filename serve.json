@@ -1,0 +1,11 @@
+{
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "redirects": [
+    { "source": "/docs", "destination": "/docs/", "type": 301 }
+  ],
+  "rewrites": [
+    { "source": "/docs/**", "destination": "/docs/404.html" },
+    { "source": "**", "destination": "/index.html" }
+  ]
+}

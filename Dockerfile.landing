@@ -35,8 +35,11 @@ COPY --from=builder /app/landing-page/dist ./dist
 # Copy docs build to /docs subdirectory
 COPY --from=builder /app/docs/.vitepress/dist ./dist/docs
 
+# Copy serve configuration
+COPY serve.json ./dist/
+
 # Expose port
 EXPOSE 3000
 
-# Serve the static files
-CMD ["bunx", "serve", "-s", "dist", "-l", "3000"]
+# Serve the static files (config in serve.json handles SPA vs static routing)
+CMD ["bunx", "serve", "dist", "-l", "3000"]
