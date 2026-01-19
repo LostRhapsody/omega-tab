@@ -50,7 +50,12 @@ a:focus-visible {
 }
 
 /* Headings */
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-weight: var(--tp-font-bold);
   line-height: var(--tp-leading-tight);
   color: var(--tp-text-primary);
@@ -70,7 +75,10 @@ h3 {
 }
 
 /* Code and monospace */
-code, kbd, pre, samp {
+code,
+kbd,
+pre,
+samp {
   font-family: var(--tp-font-mono);
   font-size: 0.9em;
   letter-spacing: var(--tp-tracking-mono);
@@ -103,7 +111,8 @@ kbd {
 }
 
 /* Lists */
-ul, ol {
+ul,
+ol {
   padding-left: var(--tp-space-6);
 }
 
@@ -119,7 +128,10 @@ hr {
 }
 
 /* Form elements base */
-input, textarea, select, button {
+input,
+textarea,
+select,
+button {
   font-family: inherit;
   font-size: inherit;
   line-height: inherit;
