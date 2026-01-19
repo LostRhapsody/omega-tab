@@ -1,29 +1,14 @@
 # OmegaTab
 
-A customizable browser new tab replacement that helps you organize your most-used links, search the web, and boost productivity.
-
-## Open Source Migration
-
-This was original built as a for-profit platform, but I've decided to release it as a free, open-source platform that you can host locally. 
-
-With that in mind, all of our current features and functionality needs to be redesigned to be simpler, easier, and faster.
-
-We're leaving user-based everything intact, in case anyone want's to host this for other's to use together, so multiple people can use a single instance and not have to share the same lame links.
+A customizable new tab replacement for your browser that helps you organize your most-used links, search the web, and boost productivity.
 
 ## Landing Page
 
 [Click here to check out our official landing page](https://omega-tab.evanrobertson.dev), which has some screenshots and descriptions of features.
 
-## Re-brand
+## Documenation
 
-"Better New Tab" has been rebranded to "Omega Tab". [Read about it here](https://github.com/LostRhapsody/omega-tab/discussions/24).
-
-Run this command to set your local repository's remote URL:
-
-```bash
-git remote set-url origin https://github.com/LostRhapsody/omega-tab.git
-```
-```
+[Click here to visit the official guides](https://omega-tab.evanrobertson.dev/docs/).
 
 ## Getting Started
 
@@ -33,27 +18,9 @@ There are also instructions on how to set Omega Tab as your new tab page in a fe
 
 ## Tech Stack
 
-### Client App (Vue.js)
-- **Vue.js 3** with Composition API and TypeScript
-- **Vuetify 3** for UI components
-- **Pinia** for state management
-- **Vite** for build tooling
-- **Tailwind CSS** for styling
+Omega Tab is built to be lean and fast. A Vue.js is compiled into static assets and served via a *blazing fast* rust backend. The Landing Page and Docs are also Vue.js and served via a lightweight docker container running Nginx.
 
-### Landing Page (Vue.js)
-- **Vue.js 3** with TypeScript
-- **Vuetify 3** for UI components
-- **Vite** for build tooling
-- **Tailwind CSS** for styling
-
-### Documentation (VitePress)
-- **VitePress** for static site generation
-
-### Backend (Rust)
-- **Rust** with Axum web framework
-- **SQLite** for data persistence (local file-based)
-- **SQLx** for type-safe database queries
-- **JWT** for authentication
+Landing Page and Docs are hosted by me at [omega-tab](https://omega-tab.evanrobertson.dev) and [omega-tab-docs](https://omega-tab.evanrobertson.dev/docs), so you don't need to run them locally if you need either of them.
 
 ## Features
 
