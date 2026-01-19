@@ -21,25 +21,11 @@ RUN bun install
 COPY docs/ ./
 RUN bun run build
 
-# Production stage - serve combined static files
-FROM oven/bun:1-alpine
+# Production stage - nginx serves static files
+FROM nginx:alpine
 
-WORKDIR /app
+COPY --from=builder /app/landing-page/dist /app/dist
+COPY --from=builder /app/docs/.vitepress/dist /app/dist/docs
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Install serve
-RUN bun add serve
-
-# Copy landing page build to root
-COPY --from=builder /app/landing-page/dist ./dist
-
-# Copy docs build to /docs subdirectory
-COPY --from=builder /app/docs/.vitepress/dist ./dist/docs
-
-# Copy serve configuration
-COPY serve.json ./dist/
-
-# Expose port
 EXPOSE 3000
-
-# Serve the static files (config in serve.json handles SPA vs static routing)
-CMD ["bunx", "serve", "dist", "-l", "3000"]
