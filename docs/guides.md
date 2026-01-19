@@ -7,6 +7,7 @@ description: Comprehensive guides for OmegaTab features and functionality
 Omega Tab recently had a facelift and rebrand, so some images may look different than the interface you see. Most interfaces functionaly remain the same though. We're working to get the documentation site up-to-date quickly.
 :::
 
+
 # OmegaTab Guides
 
 Here you'll find detailed instructions for using all the features available in OmegaTab.
