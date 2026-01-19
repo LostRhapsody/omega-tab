@@ -86,7 +86,7 @@ watch(
 )
 
 const getLinksByColumnType = (columnType: string) => {
-  return linkStore.links.filter((link) => link.column_type === columnType)
+  return linkStore.links.filter((link) => link.column_type === columnType).sort((a, b) => a.order_index - b.order_index)
 }
 
 const getShortcut = (columnType: string) => {
