@@ -204,9 +204,10 @@ export const useLinksStore = defineStore("links", {
     },
 
     async reorderLinks(columnType: string, fromIndex: number, toIndex: number) {
-      // Get links for this column (create a copy to avoid mutating original)
+      // Get links for this column sorted by order_index (to match UI display order)
       const columnLinks = this.links
         .filter((link) => link.column_type === columnType)
+        .sort((a, b) => a.order_index - b.order_index)
         .map((link) => ({ ...link }));
 
       if (fromIndex < 0 || fromIndex >= columnLinks.length) return;
