@@ -83,7 +83,7 @@
 
       <div class="edit-link-form__actions">
         <TpTooltip
-          content="Better New Tab will not attempt to fetch the title or description from the URL when editing a link. Add a new link to see this feature in action."
+          content="Omega Tab will not attempt to fetch the title or description from the URL when editing a link. Add a new link to see this feature in action."
           position="left"
         >
           <TpButton variant="ghost" icon-only>

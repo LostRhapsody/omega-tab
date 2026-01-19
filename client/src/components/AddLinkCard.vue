@@ -108,7 +108,7 @@
         </div>
 
         <div class="add-link-form__actions">
-          <TpTooltip content="If title and description are left blank, Better New Tab attempts to fetch them from the website automatically." position="left">
+          <TpTooltip content="If title and description are left blank, Omega Tab attempts to fetch them from the website automatically." position="left">
             <TpButton variant="ghost" icon-only>
               <TpIcon name="help" />
             </TpButton>

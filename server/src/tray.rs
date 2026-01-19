@@ -37,13 +37,13 @@ pub fn create_tray() -> Result<(TrayIcon, Receiver<TrayMessage>), Box<dyn std::e
 
     // Create menu
     let menu = Menu::new();
-    let exit_item = MenuItem::new("Exit Better New Tab", true, None);
+    let exit_item = MenuItem::new("Exit Omega Tab", true, None);
     menu.append(&exit_item)?;
 
     // Create tray icon
     let tray = TrayIconBuilder::new()
         .with_menu(Box::new(menu))
-        .with_tooltip("Better New Tab")
+        .with_tooltip("Omega Tab")
         .with_icon(icon)
         .build()?;
 
@@ -52,13 +52,11 @@ pub fn create_tray() -> Result<(TrayIcon, Receiver<TrayMessage>), Box<dyn std::e
 
     // Listen for menu events in a separate thread
     let exit_id = exit_item.id().clone();
-    std::thread::spawn(move || {
-        loop {
-            if let Ok(event) = MenuEvent::receiver().recv() {
-                if event.id == exit_id {
-                    let _ = tx.send(TrayMessage::Exit);
-                    break;
-                }
+    std::thread::spawn(move || loop {
+        if let Ok(event) = MenuEvent::receiver().recv() {
+            if event.id == exit_id {
+                let _ = tx.send(TrayMessage::Exit);
+                break;
             }
         }
     });
