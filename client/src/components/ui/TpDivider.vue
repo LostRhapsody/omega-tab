@@ -1,11 +1,14 @@
 <script setup lang="ts">
-withDefaults(defineProps<{
-  vertical?: boolean
-  strong?: boolean
-}>(), {
-  vertical: false,
-  strong: false
-})
+withDefaults(
+  defineProps<{
+    vertical?: boolean;
+    strong?: boolean;
+  }>(),
+  {
+    vertical: false,
+    strong: false,
+  },
+);
 </script>
 
 <template>
@@ -14,8 +17,8 @@ withDefaults(defineProps<{
       'tp-divider',
       {
         'tp-divider--vertical': vertical,
-        'tp-divider--strong': strong
-      }
+        'tp-divider--strong': strong,
+      },
     ]"
   />
 </template>

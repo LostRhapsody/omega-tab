@@ -1,37 +1,40 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed } from "vue";
 
 export interface RadioOption {
-  value: string | number
-  label: string
-  disabled?: boolean
+  value: string | number;
+  label: string;
+  disabled?: boolean;
 }
 
-const props = withDefaults(defineProps<{
-  modelValue: string | number | null
-  options: RadioOption[]
-  name?: string
-  label?: string
-  disabled?: boolean
-  inline?: boolean
-}>(), {
-  modelValue: null,
-  disabled: false,
-  inline: false
-})
+const props = withDefaults(
+  defineProps<{
+    modelValue: string | number | null;
+    options: RadioOption[];
+    name?: string;
+    label?: string;
+    disabled?: boolean;
+    inline?: boolean;
+  }>(),
+  {
+    modelValue: null,
+    disabled: false,
+    inline: false,
+  },
+);
 
 const emit = defineEmits<{
-  'update:modelValue': [value: string | number]
-  'change': [value: string | number]
-}>()
+  "update:modelValue": [value: string | number];
+  change: [value: string | number];
+}>();
 
-const groupName = computed(() => props.name || `tp-radio-${Math.random().toString(36).slice(2)}`)
+const groupName = computed(() => props.name || `tp-radio-${Math.random().toString(36).slice(2)}`);
 
 const select = (value: string | number, optionDisabled?: boolean) => {
-  if (props.disabled || optionDisabled) return
-  emit('update:modelValue', value)
-  emit('change', value)
-}
+  if (props.disabled || optionDisabled) return;
+  emit("update:modelValue", value);
+  emit("change", value);
+};
 </script>
 
 <template>
@@ -40,8 +43,8 @@ const select = (value: string | number, optionDisabled?: boolean) => {
       'tp-radio-group',
       {
         'tp-radio-group--inline': inline,
-        'tp-radio-group--disabled': disabled
-      }
+        'tp-radio-group--disabled': disabled,
+      },
     ]"
   >
     <legend v-if="label" class="tp-radio-group__label">
@@ -56,8 +59,8 @@ const select = (value: string | number, optionDisabled?: boolean) => {
           'tp-radio',
           {
             'tp-radio--checked': modelValue === option.value,
-            'tp-radio--disabled': disabled || option.disabled
-          }
+            'tp-radio--disabled': disabled || option.disabled,
+          },
         ]"
       >
         <input

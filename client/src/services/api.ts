@@ -11,10 +11,7 @@ const api: AxiosInstance = axios.create({
 // Request interceptor to add auth header
 api.interceptors.request.use(
   (config) => {
-    config.headers.set(
-      "Authorization",
-      `Bearer ${localStorage.getItem("token") || ""}`,
-    );
+    config.headers.set("Authorization", `Bearer ${localStorage.getItem("token") || ""}`);
     config.headers.set("Content-Type", "application/json");
     return config;
   },

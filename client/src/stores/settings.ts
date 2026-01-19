@@ -41,9 +41,7 @@ export const useUserSettingsStore = defineStore("userSettings", {
         const cachedSettings = cache.get<UserSettings>(CacheKeys.SETTINGS);
         if (cachedSettings) {
           this.settings =
-            typeof cachedSettings === "string"
-              ? JSON.parse(cachedSettings)
-              : cachedSettings;
+            typeof cachedSettings === "string" ? JSON.parse(cachedSettings) : cachedSettings;
           return;
         }
 
@@ -53,9 +51,7 @@ export const useUserSettingsStore = defineStore("userSettings", {
           const response = await api.get(API.GET_SETTINGS);
           const settingsBlob = response.data.settings_blob;
           this.settings =
-            typeof settingsBlob === "string"
-              ? JSON.parse(settingsBlob)
-              : settingsBlob;
+            typeof settingsBlob === "string" ? JSON.parse(settingsBlob) : settingsBlob;
           cache.set(CacheKeys.SETTINGS, this.settings);
         } catch (error) {
           console.error("Failed to fetch settings:", error);

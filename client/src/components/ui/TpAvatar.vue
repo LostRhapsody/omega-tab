@@ -1,33 +1,41 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed } from "vue";
 
-const props = withDefaults(defineProps<{
-  name?: string
-  src?: string
-  size?: 'sm' | 'md' | 'lg' | 'xl'
-  alt?: string
-}>(), {
-  size: 'md'
-})
+const props = withDefaults(
+  defineProps<{
+    name?: string;
+    src?: string;
+    size?: "sm" | "md" | "lg" | "xl";
+    alt?: string;
+  }>(),
+  {
+    size: "md",
+  },
+);
 
 const initials = computed(() => {
-  if (!props.name) return '?'
-  const parts = props.name.trim().split(/\s+/)
+  if (!props.name) return "?";
+  const parts = props.name.trim().split(/\s+/);
   if (parts.length === 1) {
-    return parts[0].charAt(0).toUpperCase()
+    return parts[0].charAt(0).toUpperCase();
   }
-  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase()
-})
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+});
 
 const sizePixels = computed(() => {
   switch (props.size) {
-    case 'sm': return 24
-    case 'md': return 32
-    case 'lg': return 40
-    case 'xl': return 56
-    default: return 32
+    case "sm":
+      return 24;
+    case "md":
+      return 32;
+    case "lg":
+      return 40;
+    case "xl":
+      return 56;
+    default:
+      return 32;
   }
-})
+});
 </script>
 
 <template>
@@ -35,15 +43,10 @@ const sizePixels = computed(() => {
     :class="['tp-avatar', `tp-avatar--${size}`]"
     :style="{
       width: `${sizePixels}px`,
-      height: `${sizePixels}px`
+      height: `${sizePixels}px`,
     }"
   >
-    <img
-      v-if="src"
-      :src="src"
-      :alt="alt || name || 'Avatar'"
-      class="tp-avatar__image"
-    />
+    <img v-if="src" :src="src" :alt="alt || name || 'Avatar'" class="tp-avatar__image" />
     <span v-else class="tp-avatar__initials">
       {{ initials }}
     </span>

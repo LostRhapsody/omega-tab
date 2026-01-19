@@ -19,14 +19,11 @@ export function useTheme() {
 
   const getSystemTheme = (): ResolvedTheme => {
     if (typeof window === "undefined") return "light";
-    return window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "dark"
-      : "light";
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   };
 
   const updateResolvedTheme = () => {
-    resolvedTheme.value =
-      theme.value === "system" ? getSystemTheme() : theme.value;
+    resolvedTheme.value = theme.value === "system" ? getSystemTheme() : theme.value;
   };
 
   const applyTheme = () => {

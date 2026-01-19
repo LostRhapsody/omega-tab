@@ -59,71 +59,69 @@
 
       <p class="signup-form__switch">
         Already have an account?
-        <button type="button" class="signup-form__link" @click="switchToLogin">
-          Login here.
-        </button>
+        <button type="button" class="signup-form__link" @click="switchToLogin">Login here.</button>
       </p>
     </div>
   </TpModal>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { authService } from '@/services/auth'
-import { useUserStore } from '@/stores/user'
-import { TpModal, TpInput, TpButton, TpAlert } from '@/components/ui'
+import { ref, computed } from "vue";
+import { authService } from "@/services/auth";
+import { useUserStore } from "@/stores/user";
+import { TpModal, TpInput, TpButton, TpAlert } from "@/components/ui";
 
-const userStore = useUserStore()
+const userStore = useUserStore();
 
-const dialog = ref(true)
-const email = ref('')
-const password = ref('')
-const confirmPassword = ref('')
-const isLoading = ref(false)
-const errorMessage = ref('')
+const dialog = ref(true);
+const email = ref("");
+const password = ref("");
+const confirmPassword = ref("");
+const isLoading = ref(false);
+const errorMessage = ref("");
 
-const emailError = ref('')
-const passwordError = ref('')
-const confirmPasswordError = ref('')
+const emailError = ref("");
+const passwordError = ref("");
+const confirmPasswordError = ref("");
 
 const validateEmail = () => {
   if (!email.value) {
-    emailError.value = 'Email is required'
-    return false
+    emailError.value = "Email is required";
+    return false;
   }
   if (!/.+@.+\..+/.test(email.value)) {
-    emailError.value = 'Email must be valid'
-    return false
+    emailError.value = "Email must be valid";
+    return false;
   }
-  emailError.value = ''
-  return true
-}
+  emailError.value = "";
+  return true;
+};
 
 const validatePassword = () => {
   if (!password.value) {
-    passwordError.value = 'Password is required'
-    return false
+    passwordError.value = "Password is required";
+    return false;
   }
   if (password.value.length < 6) {
-    passwordError.value = 'Password must be at least 6 characters'
-    return false
+    passwordError.value = "Password must be at least 6 characters";
+    return false;
   }
-  passwordError.value = ''
-  return true
-}
+  passwordError.value = "";
+  return true;
+};
 
 const validateConfirmPassword = () => {
   if (!confirmPassword.value) {
-    confirmPasswordError.value = 'Please confirm your password'
-    return false
+    confirmPasswordError.value = "Please confirm your password";
+    return false;
   }
   if (confirmPassword.value !== password.value) {
-    confirmPasswordError.value = 'Passwords do not match'
-    return false
+    confirmPasswordError.value = "Passwords do not match";
+    return false;
   }
-  confirmPasswordError.value = ''
-  return true
-}
+  confirmPasswordError.value = "";
+  return true;
+};
 
 const isFormValid = computed(() => {
   return (
@@ -133,63 +131,63 @@ const isFormValid = computed(() => {
     !emailError.value &&
     !passwordError.value &&
     !confirmPasswordError.value
-  )
-})
+  );
+});
 
 const open = () => {
-  dialog.value = true
-  errorMessage.value = ''
-}
+  dialog.value = true;
+  errorMessage.value = "";
+};
 
 const close = () => {
-  dialog.value = false
-  errorMessage.value = ''
-}
+  dialog.value = false;
+  errorMessage.value = "";
+};
 
 const switchToLogin = () => {
-  emit('switch-to-login')
-}
+  emit("switch-to-login");
+};
 
 const emit = defineEmits<{
-  'switch-to-login': []
-  'signup-success': []
-}>()
+  "switch-to-login": [];
+  "signup-success": [];
+}>();
 
 const signUp = async () => {
-  const emailValid = validateEmail()
-  const passwordValid = validatePassword()
-  const confirmValid = validateConfirmPassword()
+  const emailValid = validateEmail();
+  const passwordValid = validatePassword();
+  const confirmValid = validateConfirmPassword();
 
-  if (!emailValid || !passwordValid || !confirmValid) return
+  if (!emailValid || !passwordValid || !confirmValid) return;
 
-  isLoading.value = true
-  errorMessage.value = ''
+  isLoading.value = true;
+  errorMessage.value = "";
 
   try {
-    const response = await authService.register(email.value, password.value)
-    authService.setToken(response.token)
+    const response = await authService.register(email.value, password.value);
+    authService.setToken(response.token);
 
     await userStore.fetchUserData({
       id: response.user.id,
-      email: response.user.email
-    })
+      email: response.user.email,
+    });
 
-    emit('signup-success')
-    close()
-    window.location.reload()
+    emit("signup-success");
+    close();
+    window.location.reload();
   } catch (error: unknown) {
-    const err = error as { response?: { status: number } }
+    const err = error as { response?: { status: number } };
     if (err.response?.status === 409) {
-      errorMessage.value = 'Email already registered'
+      errorMessage.value = "Email already registered";
     } else {
-      errorMessage.value = 'Registration failed. Please try again.'
+      errorMessage.value = "Registration failed. Please try again.";
     }
   } finally {
-    isLoading.value = false
+    isLoading.value = false;
   }
-}
+};
 
-defineExpose({ open, close })
+defineExpose({ open, close });
 </script>
 
 <style scoped>

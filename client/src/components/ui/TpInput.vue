@@ -1,68 +1,71 @@
 <script setup lang="ts">
-import { ref, computed, useAttrs } from 'vue'
-import TpIcon from './TpIcon.vue'
+import { ref, computed, useAttrs } from "vue";
+import TpIcon from "./TpIcon.vue";
 
-const props = withDefaults(defineProps<{
-  modelValue?: string
-  inputId?: string
-  label?: string
-  placeholder?: string
-  type?: 'text' | 'email' | 'password' | 'url' | 'search' | 'tel' | 'number'
-  error?: string
-  hint?: string
-  disabled?: boolean
-  required?: boolean
-  showCursor?: boolean
-  prependIcon?: string
-  appendIcon?: string
-}>(), {
-  modelValue: '',
-  inputId: '',
-  type: 'text',
-  disabled: false,
-  required: false,
-  showCursor: false
-})
+const props = withDefaults(
+  defineProps<{
+    modelValue?: string;
+    inputId?: string;
+    label?: string;
+    placeholder?: string;
+    type?: "text" | "email" | "password" | "url" | "search" | "tel" | "number";
+    error?: string;
+    hint?: string;
+    disabled?: boolean;
+    required?: boolean;
+    showCursor?: boolean;
+    prependIcon?: string;
+    appendIcon?: string;
+  }>(),
+  {
+    modelValue: "",
+    inputId: "",
+    type: "text",
+    disabled: false,
+    required: false,
+    showCursor: false,
+  },
+);
 
 const emit = defineEmits<{
-  'update:modelValue': [value: string]
-  'focus': [event: FocusEvent]
-  'blur': [event: FocusEvent]
-  'enter': [event: KeyboardEvent]
-  'prependClick': []
-  'appendClick': []
-}>()
+  "update:modelValue": [value: string];
+  focus: [event: FocusEvent];
+  blur: [event: FocusEvent];
+  enter: [event: KeyboardEvent];
+  prependClick: [];
+  appendClick: [];
+}>();
 
-const attrs = useAttrs()
-const inputRef = ref<HTMLInputElement>()
-const isFocused = ref(false)
+const attrs = useAttrs();
+const inputRef = ref<HTMLInputElement>();
+const isFocused = ref(false);
 
 const inputValue = computed({
   get: () => props.modelValue,
-  set: (value: string) => emit('update:modelValue', value)
-})
+  set: (value: string) => emit("update:modelValue", value),
+});
 
 const handleFocus = (event: FocusEvent) => {
-  isFocused.value = true
-  emit('focus', event)
-}
+  isFocused.value = true;
+  emit("focus", event);
+};
 
 const handleBlur = (event: FocusEvent) => {
-  isFocused.value = false
-  emit('blur', event)
-}
+  isFocused.value = false;
+  emit("blur", event);
+};
 
 const handleKeydown = (event: KeyboardEvent) => {
-  if (event.key === 'Enter') {
-    emit('enter', event)
+  if (event.key === "Enter") {
+    emit("enter", event);
   }
-}
+};
 
-const focus = () => inputRef.value?.focus()
-const blur = () => inputRef.value?.blur()
-const select = () => inputRef.value?.select()
+const focus = () => inputRef.value?.focus();
+const blur = () => inputRef.value?.blur();
+const select = () => inputRef.value?.select();
 
-defineExpose({ focus, blur, select, inputRef })
+defineExpose({ focus, blur, select, inputRef });
 </script>
 
 <template>
@@ -72,8 +75,8 @@ defineExpose({ focus, blur, select, inputRef })
       {
         'tp-input-wrapper--focused': isFocused,
         'tp-input-wrapper--error': error,
-        'tp-input-wrapper--disabled': disabled
-      }
+        'tp-input-wrapper--disabled': disabled,
+      },
     ]"
   >
     <label v-if="label" class="tp-input__label">

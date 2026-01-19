@@ -1,31 +1,34 @@
 <script setup lang="ts">
-import TpIcon from './TpIcon.vue'
+import TpIcon from "./TpIcon.vue";
 
-const props = withDefaults(defineProps<{
-  icon?: string
-  danger?: boolean
-  disabled?: boolean
-}>(), {
-  danger: false,
-  disabled: false
-})
+const props = withDefaults(
+  defineProps<{
+    icon?: string;
+    danger?: boolean;
+    disabled?: boolean;
+  }>(),
+  {
+    danger: false,
+    disabled: false,
+  },
+);
 
 const emit = defineEmits<{
-  click: [event: MouseEvent]
-}>()
+  click: [event: MouseEvent];
+}>();
 
 const handleClick = (event: MouseEvent) => {
   if (!props.disabled) {
-    emit('click', event)
+    emit("click", event);
   }
-}
+};
 
 const handleKeydown = (event: KeyboardEvent) => {
-  if ((event.key === 'Enter' || event.key === ' ') && !props.disabled) {
-    event.preventDefault()
-    emit('click', event as unknown as MouseEvent)
+  if ((event.key === "Enter" || event.key === " ") && !props.disabled) {
+    event.preventDefault();
+    emit("click", event as unknown as MouseEvent);
   }
-}
+};
 </script>
 
 <template>
@@ -34,8 +37,8 @@ const handleKeydown = (event: KeyboardEvent) => {
       'tp-menu-item',
       {
         'tp-menu-item--danger': danger,
-        'tp-menu-item--disabled': disabled
-      }
+        'tp-menu-item--disabled': disabled,
+      },
     ]"
     role="menuitem"
     :tabindex="disabled ? -1 : 0"
@@ -43,12 +46,7 @@ const handleKeydown = (event: KeyboardEvent) => {
     @click="handleClick"
     @keydown="handleKeydown"
   >
-    <TpIcon
-      v-if="icon"
-      :name="icon"
-      size="sm"
-      class="tp-menu-item__icon"
-    />
+    <TpIcon v-if="icon" :name="icon" size="sm" class="tp-menu-item__icon" />
     <span class="tp-menu-item__content">
       <slot />
     </span>

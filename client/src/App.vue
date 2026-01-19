@@ -4,16 +4,16 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
-import { TpSpriteProvider } from '@/components/ui'
-import { useTheme } from '@/composables/useTheme'
+import { onMounted } from "vue";
+import { TpSpriteProvider } from "@/components/ui";
+import { useTheme } from "@/composables/useTheme";
 
 // Initialize theme system
-const { initialize } = useTheme()
+const { initialize } = useTheme();
 
 onMounted(() => {
-  initialize()
-})
+  initialize();
+});
 </script>
 
 <style>

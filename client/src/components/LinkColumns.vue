@@ -1,18 +1,10 @@
 <template>
   <div class="link-columns">
     <div v-if="uniqueColumnTypes.length === 0" class="link-columns__single">
-      <AddLinkCard
-        :columnType="'default'"
-        :userId="props.userId"
-      />
+      <AddLinkCard :columnType="'default'" :userId="props.userId" />
     </div>
 
-    <div
-      v-else
-      v-for="columnType in uniqueColumnTypes"
-      :key="columnType"
-      :class="columnClass"
-    >
+    <div v-else v-for="columnType in uniqueColumnTypes" :key="columnType" :class="columnClass">
       <h2 class="link-columns__title">
         {{ columnType.charAt(0).toUpperCase() + columnType.slice(1) }}
       </h2>
@@ -29,7 +21,11 @@
         class="link-columns__card"
         :onDelete="() => handleDeleteLink(link)"
         :onEdit="() => handleEditLink(link)"
-        :ref="el => { if (el) linkRefs.push(el) }"
+        :ref="
+          (el) => {
+            if (el) linkRefs.push(el);
+          }
+        "
         :tabindex="getFocusableIndex(columnType, index)"
         :data-column="columnType"
         :data-link-index="index"
@@ -40,10 +36,7 @@
         :isDragOver="dragOverState?.columnType === columnType && dragOverState?.index === index"
       />
 
-      <AddLinkCard
-        :columnType="columnType"
-        :userId="props.userId"
-      />
+      <AddLinkCard :columnType="columnType" :userId="props.userId" />
     </div>
 
     <EditLinkModal v-model="showEditModal" :link="editingLink" />
@@ -51,296 +44,288 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, computed, nextTick, watch } from 'vue'
-import AddLinkCard from './AddLinkCard.vue'
-import EditLinkModal from './EditLinkModal.vue'
-import LinkCard from './LinkCard.vue'
-import type { Link } from '../types/Link'
-import { useLinksStore, SHORTCUT_MAPPINGS } from '../stores/links'
-import { openUrl } from '../utils/openUrl'
+import { onMounted, onUnmounted, ref, computed, nextTick, watch } from "vue";
+import AddLinkCard from "./AddLinkCard.vue";
+import EditLinkModal from "./EditLinkModal.vue";
+import LinkCard from "./LinkCard.vue";
+import type { Link } from "../types/Link";
+import { useLinksStore, SHORTCUT_MAPPINGS } from "../stores/links";
+import { openUrl } from "../utils/openUrl";
 
-const linkStore = useLinksStore()
+const linkStore = useLinksStore();
 
-const showEditModal = ref(false)
-const editingLink = ref<Link | undefined>()
-const linkRefs = ref<any[]>([])
-const currentFocus = ref<{ columnType: string; index: number } | null>(null)
+const showEditModal = ref(false);
+const editingLink = ref<Link | undefined>();
+const linkRefs = ref<any[]>([]);
+const currentFocus = ref<{ columnType: string; index: number } | null>(null);
 
 // Drag state
-const dragStartState = ref<{ columnType: string; index: number } | null>(null)
-const dragOverState = ref<{ columnType: string; index: number } | null>(null)
+const dragStartState = ref<{ columnType: string; index: number } | null>(null);
+const dragOverState = ref<{ columnType: string; index: number } | null>(null);
 
 const props = defineProps<{
-  userId: string | null
-}>()
+  userId: string | null;
+}>();
 
-const uniqueColumnTypes = computed(() => linkStore.uniqueColumnTypes)
+const uniqueColumnTypes = computed(() => linkStore.uniqueColumnTypes);
 
 // Reset refs when links change to keep them in sync
 watch(
   () => linkStore.links,
   () => {
-    linkRefs.value = []
-    currentFocus.value = null
-  }
-)
+    linkRefs.value = [];
+    currentFocus.value = null;
+  },
+);
 
 const getLinksByColumnType = (columnType: string) => {
-  return linkStore.links.filter((link) => link.column_type === columnType)
-}
+  return linkStore.links.filter((link) => link.column_type === columnType);
+};
 
 const getShortcut = (columnType: string) => {
-  const columnIndex = uniqueColumnTypes.value.indexOf(columnType)
+  const columnIndex = uniqueColumnTypes.value.indexOf(columnType);
   if (columnIndex >= 0 && columnIndex < SHORTCUT_MAPPINGS.length) {
-    return SHORTCUT_MAPPINGS[columnIndex].label
+    return SHORTCUT_MAPPINGS[columnIndex].label;
   }
-  return ''
-}
+  return "";
+};
 
 const getFocusableIndex = (_columnType: string, _index: number) => {
-  return 0
-}
+  return 0;
+};
 
-const handleDeleteLink = async (link: Link) => linkStore.removeLink(link.id)
+const handleDeleteLink = async (link: Link) => linkStore.removeLink(link.id);
 
 const handleEditLink = (link: Link) => {
-  editingLink.value = link
-  showEditModal.value = true
-}
+  editingLink.value = link;
+  showEditModal.value = true;
+};
 
 // Drag handlers
 const handleDragStart = (columnType: string, index: number) => {
-  dragStartState.value = { columnType, index }
-}
+  dragStartState.value = { columnType, index };
+};
 
 const handleDragOver = (columnType: string, index: number) => {
-  if (!dragStartState.value) return
+  if (!dragStartState.value) return;
   // Only allow reordering within the same column
-  if (dragStartState.value.columnType !== columnType) return
-  dragOverState.value = { columnType, index }
-}
+  if (dragStartState.value.columnType !== columnType) return;
+  dragOverState.value = { columnType, index };
+};
 
 const handleDragEnd = () => {
   if (dragStartState.value && dragOverState.value) {
-    const { columnType: startColumn, index: startIndex } = dragStartState.value
-    const { columnType: endColumn, index: endIndex } = dragOverState.value
+    const { columnType: startColumn, index: startIndex } = dragStartState.value;
+    const { columnType: endColumn, index: endIndex } = dragOverState.value;
 
     if (startColumn === endColumn && startIndex !== endIndex) {
       // Reorder links within the column
-      const columnLinks = getLinksByColumnType(startColumn)
-      const movedLink = columnLinks[startIndex]
-      const targetLink = columnLinks[endIndex]
+      const columnLinks = getLinksByColumnType(startColumn);
+      const movedLink = columnLinks[startIndex];
+      const targetLink = columnLinks[endIndex];
 
       if (movedLink && targetLink) {
-        linkStore.reorderLinks(startColumn, startIndex, endIndex)
+        linkStore.reorderLinks(startColumn, startIndex, endIndex);
       }
     }
   }
 
-  dragStartState.value = null
-  dragOverState.value = null
-}
+  dragStartState.value = null;
+  dragOverState.value = null;
+};
 
 const isSearchInputFocused = () => {
-  const activeElement = document.activeElement
+  const activeElement = document.activeElement;
   return (
     activeElement &&
-    (activeElement.tagName === 'TEXTAREA' ||
-      activeElement.classList.contains('searchBar'))
-  )
-}
+    (activeElement.tagName === "TEXTAREA" || activeElement.classList.contains("searchBar"))
+  );
+};
 
 const isModalOpen = () => {
-  return document.querySelector('.tp-modal-overlay') !== null
-}
+  return document.querySelector(".tp-modal-overlay") !== null;
+};
 
 const isDropdownOpen = () => {
   // Check if any TpSelect dropdown is open (it uses --open class)
-  return document.querySelector('.tp-select--open') !== null
-}
+  return document.querySelector(".tp-select--open") !== null;
+};
 
 const focusLinkCard = (columnType: string, index: number) => {
   nextTick(() => {
     const targetLink = linkRefs.value.find(
       (ref) =>
-        ref.$el?.dataset.column === columnType &&
-        parseInt(ref.$el?.dataset.linkIndex) === index
-    )
+        ref.$el?.dataset.column === columnType && parseInt(ref.$el?.dataset.linkIndex) === index,
+    );
 
     if (targetLink && targetLink.$el) {
-      const anchorElement = targetLink.$el.querySelector('a')
+      const anchorElement = targetLink.$el.querySelector("a");
       if (anchorElement) {
-        anchorElement.focus()
+        anchorElement.focus();
       } else {
-        targetLink.$el.focus()
+        targetLink.$el.focus();
       }
-      currentFocus.value = { columnType, index }
+      currentFocus.value = { columnType, index };
     }
-  })
-}
+  });
+};
 
 const focusSearchBar = () => {
-  const searchBar = document.querySelector('.search-bar__input') as HTMLInputElement
+  const searchBar = document.querySelector(".search-bar__input") as HTMLInputElement;
   if (searchBar) {
-    searchBar.focus()
-    currentFocus.value = null
+    searchBar.focus();
+    currentFocus.value = null;
   }
-}
+};
 
 const handleArrowKeys = (event: KeyboardEvent) => {
-  if (
-    isModalOpen() ||
-    isDropdownOpen() ||
-    event.ctrlKey ||
-    event.altKey ||
-    event.metaKey
-  ) {
-    return
+  if (isModalOpen() || isDropdownOpen() || event.ctrlKey || event.altKey || event.metaKey) {
+    return;
   }
 
-  const arrowKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']
+  const arrowKeys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
   if (!arrowKeys.includes(event.key)) {
-    return
+    return;
   }
 
-  event.preventDefault()
+  event.preventDefault();
 
   if (!currentFocus.value) {
     if (uniqueColumnTypes.value.length > 0) {
-      const firstColumnType = uniqueColumnTypes.value[0]
-      const columnLinks = getLinksByColumnType(firstColumnType)
+      const firstColumnType = uniqueColumnTypes.value[0];
+      const columnLinks = getLinksByColumnType(firstColumnType);
       if (columnLinks.length > 0) {
-        focusLinkCard(firstColumnType, 0)
+        focusLinkCard(firstColumnType, 0);
       }
     }
-    return
+    return;
   }
 
-  const { columnType, index } = currentFocus.value
-  const columnLinks = getLinksByColumnType(columnType)
-  const currentColumnIndex = uniqueColumnTypes.value.indexOf(columnType)
+  const { columnType, index } = currentFocus.value;
+  const columnLinks = getLinksByColumnType(columnType);
+  const currentColumnIndex = uniqueColumnTypes.value.indexOf(columnType);
 
-  if (event.key === 'ArrowDown') {
+  if (event.key === "ArrowDown") {
     if (index < columnLinks.length - 1) {
-      focusLinkCard(columnType, index + 1)
+      focusLinkCard(columnType, index + 1);
     } else {
-      focusSearchBar()
+      focusSearchBar();
     }
-  } else if (event.key === 'ArrowUp') {
+  } else if (event.key === "ArrowUp") {
     if (index > 0) {
-      focusLinkCard(columnType, index - 1)
+      focusLinkCard(columnType, index - 1);
     } else {
-      focusSearchBar()
+      focusSearchBar();
     }
-  } else if (event.key === 'ArrowLeft') {
+  } else if (event.key === "ArrowLeft") {
     if (currentColumnIndex > 0) {
-      const prevColumnType = uniqueColumnTypes.value[currentColumnIndex - 1]
-      const prevColumnLinks = getLinksByColumnType(prevColumnType)
+      const prevColumnType = uniqueColumnTypes.value[currentColumnIndex - 1];
+      const prevColumnLinks = getLinksByColumnType(prevColumnType);
       if (prevColumnLinks.length > 0) {
-        const targetIndex = Math.min(index, prevColumnLinks.length - 1)
-        focusLinkCard(prevColumnType, targetIndex)
+        const targetIndex = Math.min(index, prevColumnLinks.length - 1);
+        focusLinkCard(prevColumnType, targetIndex);
       }
     }
-  } else if (event.key === 'ArrowRight') {
+  } else if (event.key === "ArrowRight") {
     if (currentColumnIndex < uniqueColumnTypes.value.length - 1) {
-      const nextColumnType = uniqueColumnTypes.value[currentColumnIndex + 1]
-      const nextColumnLinks = getLinksByColumnType(nextColumnType)
+      const nextColumnType = uniqueColumnTypes.value[currentColumnIndex + 1];
+      const nextColumnLinks = getLinksByColumnType(nextColumnType);
       if (nextColumnLinks.length > 0) {
-        const targetIndex = Math.min(index, nextColumnLinks.length - 1)
-        focusLinkCard(nextColumnType, targetIndex)
+        const targetIndex = Math.min(index, nextColumnLinks.length - 1);
+        focusLinkCard(nextColumnType, targetIndex);
       }
     }
   }
-}
+};
 
 const handleEditShortcut = (event: KeyboardEvent) => {
-  if (event.key !== 'e') return
-  if (isSearchInputFocused() || isModalOpen() || isDropdownOpen()) return
-  if (event.ctrlKey || event.altKey || event.metaKey) return
-  if (!currentFocus.value) return
+  if (event.key !== "e") return;
+  if (isSearchInputFocused() || isModalOpen() || isDropdownOpen()) return;
+  if (event.ctrlKey || event.altKey || event.metaKey) return;
+  if (!currentFocus.value) return;
 
-  event.preventDefault()
-  const { columnType, index } = currentFocus.value
-  const links = getLinksByColumnType(columnType)
+  event.preventDefault();
+  const { columnType, index } = currentFocus.value;
+  const links = getLinksByColumnType(columnType);
   if (index >= 0 && index < links.length) {
-    handleEditLink(links[index])
+    handleEditLink(links[index]);
   }
-}
+};
 
 const handleDeleteShortcut = (event: KeyboardEvent) => {
-  if (event.key !== 'd') return
-  if (isSearchInputFocused() || isModalOpen() || isDropdownOpen()) return
-  if (event.ctrlKey || event.altKey || event.metaKey) return
-  if (!currentFocus.value) return
+  if (event.key !== "d") return;
+  if (isSearchInputFocused() || isModalOpen() || isDropdownOpen()) return;
+  if (event.ctrlKey || event.altKey || event.metaKey) return;
+  if (!currentFocus.value) return;
 
-  event.preventDefault()
-  const { columnType, index } = currentFocus.value
-  const links = getLinksByColumnType(columnType)
+  event.preventDefault();
+  const { columnType, index } = currentFocus.value;
+  const links = getLinksByColumnType(columnType);
   if (index >= 0 && index < links.length) {
-    handleDeleteLink(links[index])
+    handleDeleteLink(links[index]);
   }
-}
+};
 
 const handleLinkFocus = (event: FocusEvent) => {
-  const target = event.target as HTMLElement
-  const linkCard = target.closest('.link-columns__card') as HTMLElement
+  const target = event.target as HTMLElement;
+  const linkCard = target.closest(".link-columns__card") as HTMLElement;
   if (linkCard) {
-    const columnType = linkCard.dataset.column
-    const linkIndex = parseInt(linkCard.dataset.linkIndex || '0')
+    const columnType = linkCard.dataset.column;
+    const linkIndex = parseInt(linkCard.dataset.linkIndex || "0");
     if (columnType !== undefined) {
-      currentFocus.value = { columnType, index: linkIndex }
+      currentFocus.value = { columnType, index: linkIndex };
     }
   }
-}
+};
 
 onMounted(() => {
-  window.addEventListener('keydown', handleKeydown)
-  window.addEventListener('keydown', handleArrowKeys)
-  window.addEventListener('keydown', handleEditShortcut)
-  window.addEventListener('keydown', handleDeleteShortcut)
-  document.addEventListener('focusin', handleLinkFocus)
-  linkRefs.value = []
-})
+  window.addEventListener("keydown", handleKeydown);
+  window.addEventListener("keydown", handleArrowKeys);
+  window.addEventListener("keydown", handleEditShortcut);
+  window.addEventListener("keydown", handleDeleteShortcut);
+  document.addEventListener("focusin", handleLinkFocus);
+  linkRefs.value = [];
+});
 
 onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeydown)
-  window.removeEventListener('keydown', handleArrowKeys)
-  window.removeEventListener('keydown', handleEditShortcut)
-  window.removeEventListener('keydown', handleDeleteShortcut)
-  document.removeEventListener('focusin', handleLinkFocus)
-})
+  window.removeEventListener("keydown", handleKeydown);
+  window.removeEventListener("keydown", handleArrowKeys);
+  window.removeEventListener("keydown", handleEditShortcut);
+  window.removeEventListener("keydown", handleDeleteShortcut);
+  document.removeEventListener("focusin", handleLinkFocus);
+});
 
 const handleKeydown = (event: KeyboardEvent) => {
-  if (!/^[1-9]$/.test(event.key)) return
-  if (isModalOpen() || isDropdownOpen()) return
+  if (!/^[1-9]$/.test(event.key)) return;
+  if (isModalOpen() || isDropdownOpen()) return;
 
-  const numKey = Number.parseInt(event.key) - 1
+  const numKey = Number.parseInt(event.key) - 1;
 
-  let columnIndex = -1
+  let columnIndex = -1;
   if (event.ctrlKey && event.altKey) {
-    columnIndex = 1
+    columnIndex = 1;
   } else if (event.ctrlKey) {
-    columnIndex = 0
+    columnIndex = 0;
   }
 
   if (columnIndex >= 0 && columnIndex < uniqueColumnTypes.value.length) {
-    const columnType = uniqueColumnTypes.value[columnIndex]
-    const links = getLinksByColumnType(columnType)
+    const columnType = uniqueColumnTypes.value[columnIndex];
+    const links = getLinksByColumnType(columnType);
 
     if (numKey >= 0 && numKey < links.length) {
-      openUrl(links[numKey].url)
+      openUrl(links[numKey].url);
     }
   }
-}
+};
 
 const columnClass = computed(() => {
-  const columnCount = uniqueColumnTypes.value.length
-  if (columnCount === 1) return 'link-columns__single'
-  if (columnCount === 2) return 'link-columns__two'
-  if (columnCount === 3) return 'link-columns__three'
-  if (columnCount === 4) return 'link-columns__four'
-  return 'link-columns__grid'
-})
+  const columnCount = uniqueColumnTypes.value.length;
+  if (columnCount === 1) return "link-columns__single";
+  if (columnCount === 2) return "link-columns__two";
+  if (columnCount === 3) return "link-columns__three";
+  if (columnCount === 4) return "link-columns__four";
+  return "link-columns__grid";
+});
 </script>
 
 <style scoped>
@@ -364,7 +349,7 @@ const columnClass = computed(() => {
 }
 
 .link-columns__title::before {
-  content: '// ';
+  content: "// ";
   color: var(--tp-accent);
 }
 

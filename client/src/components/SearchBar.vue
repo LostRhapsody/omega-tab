@@ -95,10 +95,7 @@
             :class="{ 'search-bar__item--focused': focusedIndex === index }"
             @mouseover="focusedIndex = index"
           >
-            <a
-              class="search-bar__item-link"
-              @click="() => suggestionHandler(suggestion.query)"
-            >
+            <a class="search-bar__item-link" @click="() => suggestionHandler(suggestion.query)">
               <div v-if="suggestion.isHistory" class="search-bar__history-item">
                 <div class="search-bar__history-query">
                   <TpIcon name="clock" size="sm" />
@@ -121,155 +118,155 @@
 </template>
 
 <script setup lang="ts">
-import Fuse from 'fuse.js'
-import type { FuseResult } from 'fuse.js'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import type { Link } from '../types/Link'
-import type { Suggestions, SuggestionsResponse } from '@/types/Suggestion'
-import { debounce } from 'lodash'
-import { searchEngines } from '../data/SearchEngines'
-import { useLinksStore } from '../stores/links'
-import { useUserSettingsStore } from '../stores/settings'
-import { storeToRefs } from 'pinia'
-import { API } from '../constants/api'
-import { useSearchEngineStore } from '../stores/searchEngine'
-import { useUserStore } from '@/stores/user'
-import { openUrl } from '../utils/openUrl'
-import { useBreakpoint } from '@/composables/useBreakpoint'
-import api from '@/services/api'
-import { AxiosError } from 'axios'
-import { CacheKeys, cache } from '@/utils/cache'
-import { TpSelect, TpButton, TpIcon, TpDivider } from '@/components/ui'
+import Fuse from "fuse.js";
+import type { FuseResult } from "fuse.js";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import type { Link } from "../types/Link";
+import type { Suggestions, SuggestionsResponse } from "@/types/Suggestion";
+import { debounce } from "lodash";
+import { searchEngines } from "../data/SearchEngines";
+import { useLinksStore } from "../stores/links";
+import { useUserSettingsStore } from "../stores/settings";
+import { storeToRefs } from "pinia";
+import { API } from "../constants/api";
+import { useSearchEngineStore } from "../stores/searchEngine";
+import { useUserStore } from "@/stores/user";
+import { openUrl } from "../utils/openUrl";
+import { useBreakpoint } from "@/composables/useBreakpoint";
+import api from "@/services/api";
+import { AxiosError } from "axios";
+import { CacheKeys, cache } from "@/utils/cache";
+import { TpSelect, TpButton, TpIcon, TpDivider } from "@/components/ui";
 
-const AUTO_SUGGEST_ON = import.meta.env.VITE_AUTO_SUGGEST_ON === 'true'
-const { smAndDown: mobile } = useBreakpoint()
+const AUTO_SUGGEST_ON = import.meta.env.VITE_AUTO_SUGGEST_ON === "true";
+const { smAndDown: mobile } = useBreakpoint();
 
 interface HistoryItem {
-  query: string
-  freq: string
-  timestamp: number
+  query: string;
+  freq: string;
+  timestamp: number;
 }
 
 interface ScoredHistoryItem {
-  query: string
-  score: number
-  matchScore: number
-  freqScore: number
-  recencyScore: number
+  query: string;
+  score: number;
+  matchScore: number;
+  freqScore: number;
+  recencyScore: number;
 }
 
-const MAX_STORED_HISTORY = 500
-const MAX_DISPLAYED_HISTORY = 5
-const MAX_HISTORY_SUGGESTIONS = 5
-const STORAGE_KEY = 'search_history'
+const MAX_STORED_HISTORY = 500;
+const MAX_DISPLAYED_HISTORY = 5;
+const MAX_HISTORY_SUGGESTIONS = 5;
+const STORAGE_KEY = "search_history";
 
 interface EnhancedSuggestion extends Suggestions {
-  isHistory?: boolean
-  score?: number
+  isHistory?: boolean;
+  score?: number;
 }
 
-const linksStore = useLinksStore()
-const settingsStore = useUserSettingsStore()
-const { links } = storeToRefs(linksStore)
+const linksStore = useLinksStore();
+const settingsStore = useUserSettingsStore();
+const { links } = storeToRefs(linksStore);
 
-const searchQuery = ref('')
-const searchHistory = ref<string[]>([])
-const historyItems = ref<HistoryItem[]>([])
-const showHistory = ref(false)
-const searchInput = ref<HTMLElement | null>(null)
-const searchEngineStore = useSearchEngineStore()
-const selectedEngine = computed(() => searchEngineStore.selectedEngine)
-const focusedIndex = ref(-1)
-const fuseInstance = ref<Fuse<Link> | null>(null)
-const textareaHeight = ref(50)
-const maxHeight = 300
-const MAX_HISTORY_ENTRIES = Number.parseInt(import.meta.env.VITE_MAX_HISTORY_ENTRIES || '500')
+const searchQuery = ref("");
+const searchHistory = ref<string[]>([]);
+const historyItems = ref<HistoryItem[]>([]);
+const showHistory = ref(false);
+const searchInput = ref<HTMLElement | null>(null);
+const searchEngineStore = useSearchEngineStore();
+const selectedEngine = computed(() => searchEngineStore.selectedEngine);
+const focusedIndex = ref(-1);
+const fuseInstance = ref<Fuse<Link> | null>(null);
+const textareaHeight = ref(50);
+const maxHeight = 300;
+const MAX_HISTORY_ENTRIES = Number.parseInt(import.meta.env.VITE_MAX_HISTORY_ENTRIES || "500");
 
-const fuzzyResults = ref<FuseResult<Link>[]>([])
-const autoSuggestions = ref<EnhancedSuggestion[]>([])
-const historySuggestions = ref<ScoredHistoryItem[]>([])
-const engineChangedViaKeyboard = ref(false)
+const fuzzyResults = ref<FuseResult<Link>[]>([]);
+const autoSuggestions = ref<EnhancedSuggestion[]>([]);
+const historySuggestions = ref<ScoredHistoryItem[]>([]);
+const engineChangedViaKeyboard = ref(false);
 
 const searchEngineOptions = computed(() =>
   searchEngines.map((engine) => ({
     value: engine.url,
-    label: engine.name
-  }))
-)
+    label: engine.name,
+  })),
+);
 
 const getSelectedEngine = computed(() =>
-  searchEngines.find((engine) => engine.url === selectedEngine.value)
-)
+  searchEngines.find((engine) => engine.url === selectedEngine.value),
+);
 
 const mapMdiIcon = (mdiIcon: string) => {
   const iconMap: Record<string, string> = {
-    'mdi-magnify': 'search',
-    'mdi-google': 'search',
-    'mdi-duck': 'search',
-    'mdi-shield-search': 'search'
-  }
-  return iconMap[mdiIcon] || 'search'
-}
+    "mdi-magnify": "search",
+    "mdi-google": "search",
+    "mdi-duck": "search",
+    "mdi-shield-search": "search",
+  };
+  return iconMap[mdiIcon] || "search";
+};
 
 const placeholder = computed(() => {
-  const engineName = searchEngines.find((engine) => engine.url === selectedEngine.value)?.name
-  return `Search ${engineName}...`
-})
+  const engineName = searchEngines.find((engine) => engine.url === selectedEngine.value)?.name;
+  return `Search ${engineName}...`;
+});
 
 const initializeFuse = (data: Link[]) => {
   fuseInstance.value = new Fuse(data, {
-    keys: ['title', 'description', 'url'],
+    keys: ["title", "description", "url"],
     threshold: 0.1,
-    findAllMatches: false
-  })
-}
+    findAllMatches: false,
+  });
+};
 
 watch(
-  links,
+  () => links.value,
   (newData) => {
     if (newData?.length) {
-      initializeFuse(newData)
+      initializeFuse(newData);
     }
   },
-  { immediate: true }
-)
+  { immediate: true },
+);
 
 const adjustHeight = () => {
-  const textarea = searchInput.value
-  if (!textarea) return
+  const textarea = searchInput.value;
+  if (!textarea) return;
 
-  textarea.style.height = 'auto'
-  const newHeight = Math.min(maxHeight, Math.max(50, textarea.scrollHeight))
-  textarea.style.height = `${newHeight}px`
-  textareaHeight.value = newHeight
-}
+  textarea.style.height = "auto";
+  const newHeight = Math.min(maxHeight, Math.max(50, textarea.scrollHeight));
+  textarea.style.height = `${newHeight}px`;
+  textareaHeight.value = newHeight;
+};
 
 const getFilteredHistory = computed(() => {
   if (!searchQuery.value) {
     return searchHistory.value.slice(0, MAX_DISPLAYED_HISTORY).map((item) => ({
       item,
-      score: 0
-    }))
+      score: 0,
+    }));
   }
 
-  return historyFuse.value.search(searchQuery.value).slice(0, MAX_DISPLAYED_HISTORY)
-})
+  return historyFuse.value.search(searchQuery.value).slice(0, MAX_DISPLAYED_HISTORY);
+});
 
 const isCompleteURI = computed(() => {
-  if (!searchQuery.value) return false
+  if (!searchQuery.value) return false;
   // Must have protocol (http:// or https://) to be treated as direct URL navigation
-  if (!searchQuery.value.match(/^https?:\/\//i)) return false
+  if (!searchQuery.value.match(/^https?:\/\//i)) return false;
   // Cannot contain spaces (indicates a search query, not a URL)
-  if (searchQuery.value.includes(' ')) return false
+  if (searchQuery.value.includes(" ")) return false;
   // Must be valid URL format
-  return linksStore.validateUrl(searchQuery.value) === true
-})
+  return linksStore.validateUrl(searchQuery.value) === true;
+});
 
-const jiraLink = computed(() => `https://atlassian.net/browse/${searchQuery.value}`)
+const jiraLink = computed(() => `https://atlassian.net/browse/${searchQuery.value}`);
 
 const confluenceLink = computed(
-  () => `https://atlassian.net/wiki/search?text="${searchQuery.value}"`
-)
+  () => `https://atlassian.net/wiki/search?text="${searchQuery.value}"`,
+);
 
 const historyFuse = computed(
   () =>
@@ -279,400 +276,402 @@ const historyFuse = computed(
       includeScore: true,
       keys: [
         {
-          name: 'query',
-          weight: 2
+          name: "query",
+          weight: 2,
         },
         {
-          name: 'queryLower',
-          weight: 1
-        }
-      ]
-    })
-)
+          name: "queryLower",
+          weight: 1,
+        },
+      ],
+    }),
+);
 
 const loadSearchHistory = () => {
   try {
-    const stored = cache.get_search_history(CacheKeys.SEARCH_HISTORY)
+    const stored = cache.get_search_history(CacheKeys.SEARCH_HISTORY);
     if (stored) {
-      const parsed: HistoryItem[] = JSON.parse(stored)
-      historyItems.value = parsed.slice(0, MAX_STORED_HISTORY)
+      const parsed: HistoryItem[] = JSON.parse(stored);
+      historyItems.value = parsed.slice(0, MAX_STORED_HISTORY);
       searchHistory.value = parsed
         .sort((a, b) => b.timestamp - a.timestamp)
         .map((item) => item.query)
-        .slice(0, MAX_STORED_HISTORY)
+        .slice(0, MAX_STORED_HISTORY);
     }
   } catch (error) {
-    console.error('Error loading search history:', error)
-    historyItems.value = []
-    searchHistory.value = []
+    console.error("Error loading search history:", error);
+    historyItems.value = [];
+    searchHistory.value = [];
   }
-}
+};
 
 const calculateHistorySuggestions = (query: string): ScoredHistoryItem[] => {
-  if (!query || !historyItems.value.length) return []
+  if (!query || !historyItems.value.length) return [];
 
-  const now = Date.now()
-  const maxAge = 30 * 24 * 60 * 60 * 1000
-  const queryLower = query.toLowerCase()
+  const now = Date.now();
+  const maxAge = 30 * 24 * 60 * 60 * 1000;
+  const queryLower = query.toLowerCase();
 
-  const maxFreq = Math.max(...historyItems.value.map((item) => parseInt(item.freq || '1')))
+  const maxFreq = Math.max(...historyItems.value.map((item) => parseInt(item.freq || "1")));
 
   const scoredItems = historyItems.value
     .map((item) => {
-      let matchScore = 0
+      let matchScore = 0;
       if (item.query.toLowerCase() === queryLower) {
-        matchScore = 1
+        matchScore = 1;
       } else if (item.query.toLowerCase().startsWith(queryLower)) {
-        matchScore = 0.8
+        matchScore = 0.8;
       } else if (item.query.toLowerCase().includes(queryLower)) {
-        matchScore = 0.6
+        matchScore = 0.6;
       } else {
-        const matchLength = Math.min(queryLower.length, item.query.length)
-        const maxLength = Math.max(queryLower.length, item.query.length)
-        matchScore = (matchLength / maxLength) * 0.4
+        const matchLength = Math.min(queryLower.length, item.query.length);
+        const maxLength = Math.max(queryLower.length, item.query.length);
+        matchScore = (matchLength / maxLength) * 0.4;
       }
 
-      if (matchScore < 0.3) return null
+      if (matchScore < 0.3) return null;
 
-      const freqScore = parseInt(item.freq || '1') / maxFreq
+      const freqScore = parseInt(item.freq || "1") / maxFreq;
 
-      const age = now - item.timestamp
-      const recencyScore = Math.max(0, 1 - age / maxAge)
+      const age = now - item.timestamp;
+      const recencyScore = Math.max(0, 1 - age / maxAge);
 
-      const score = matchScore * 0.5 + freqScore * 0.3 + recencyScore * 0.2
+      const score = matchScore * 0.5 + freqScore * 0.3 + recencyScore * 0.2;
 
       return {
         query: item.query,
         score,
         matchScore,
         freqScore,
-        recencyScore
-      }
+        recencyScore,
+      };
     })
-    .filter((item) => item !== null) as ScoredHistoryItem[]
+    .filter((item) => item !== null) as ScoredHistoryItem[];
 
-  return scoredItems.sort((a, b) => b.score - a.score).slice(0, MAX_HISTORY_SUGGESTIONS)
-}
+  return scoredItems.sort((a, b) => b.score - a.score).slice(0, MAX_HISTORY_SUGGESTIONS);
+};
 
 const addToHistory = (query: string) => {
-  if (!query || !query.trim()) return
+  if (!query || !query.trim()) return;
 
   try {
-    const stored = cache.get_search_history(CacheKeys.SEARCH_HISTORY)
-    const history: HistoryItem[] = stored ? JSON.parse(stored) : []
+    const stored = cache.get_search_history(CacheKeys.SEARCH_HISTORY);
+    const history: HistoryItem[] = stored ? JSON.parse(stored) : [];
 
     const existingIndex = history.findIndex(
-      (item) => item.query.toLowerCase() === query.toLowerCase()
-    )
+      (item) => item.query.toLowerCase() === query.toLowerCase(),
+    );
 
     if (existingIndex !== -1) {
-      history[existingIndex].freq = (parseInt(history[existingIndex].freq || '0') + 1).toString()
-      history[existingIndex].timestamp = Date.now()
+      history[existingIndex].freq = (parseInt(history[existingIndex].freq || "0") + 1).toString();
+      history[existingIndex].timestamp = Date.now();
 
-      const item = history.splice(existingIndex, 1)[0]
-      history.unshift(item)
+      const item = history.splice(existingIndex, 1)[0];
+      history.unshift(item);
     } else {
       history.unshift({
         query,
-        freq: '1',
-        timestamp: Date.now()
-      })
+        freq: "1",
+        timestamp: Date.now(),
+      });
 
       if (history.length > MAX_HISTORY_ENTRIES) {
-        history.pop()
+        history.pop();
       }
     }
 
-    cache.set_search_history(CacheKeys.SEARCH_HISTORY, JSON.stringify(history))
+    cache.set_search_history(CacheKeys.SEARCH_HISTORY, JSON.stringify(history));
 
-    historyItems.value = history.slice(0, MAX_STORED_HISTORY)
-    searchHistory.value = history.map((item) => item.query)
+    historyItems.value = history.slice(0, MAX_STORED_HISTORY);
+    searchHistory.value = history.map((item) => item.query);
   } catch (error) {
-    console.error('Error saving to search history:', error)
+    console.error("Error saving to search history:", error);
   }
-}
+};
 
 const prepareUrl = (url: string) => {
-  if (!url.startsWith('http://') && !url.startsWith('https://')) {
-    return `https://${url}`
+  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    return `https://${url}`;
   }
-  return url
-}
+  return url;
+};
 
 const performSearch = () => {
   if (searchQuery.value.trim()) {
     if (fuzzyResults.value.length > 0) {
-      openUrl(fuzzyResults.value[0].item.url)
+      openUrl(fuzzyResults.value[0].item.url);
     } else if (isCompleteURI.value) {
-      openUrl(prepareUrl(searchQuery.value))
+      openUrl(prepareUrl(searchQuery.value));
     } else {
-      const searchUrl = selectedEngine.value + encodeURIComponent(searchQuery.value)
-      openUrl(searchUrl)
+      const searchUrl = selectedEngine.value + encodeURIComponent(searchQuery.value);
+      openUrl(searchUrl);
     }
-    addToHistory(searchQuery.value)
-    searchQuery.value = ''
+    addToHistory(searchQuery.value);
+    searchQuery.value = "";
   }
-}
+};
 
 const handleFocus = () => {
   if (!searchQuery.value) {
-    showHistory.value = true
+    showHistory.value = true;
   }
-}
+};
 
 const handleBlur = () => {
   setTimeout(() => {
-    showHistory.value = false
-  }, 200)
-}
+    showHistory.value = false;
+  }, 200);
+};
 
 const selectHistoryItem = (query: string) => {
-  searchQuery.value = query
-  showHistory.value = false
-  performSearch()
-}
+  searchQuery.value = query;
+  showHistory.value = false;
+  performSearch();
+};
 
 const handleKeydown = (event: KeyboardEvent) => {
   // Let Ctrl+Arrow events pass through for search engine switching
-  if (event.ctrlKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
-    return
+  if (event.ctrlKey && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
+    return;
   }
 
-  const historyLength = getFilteredHistory.value.length
-  const fuzzyLength = fuzzyResults.value.length
-  const suggestionsLength = autoSuggestions.value.length
-  const totalItems = historyLength + fuzzyLength + suggestionsLength
+  const historyLength = getFilteredHistory.value.length;
+  const fuzzyLength = fuzzyResults.value.length;
+  const suggestionsLength = autoSuggestions.value.length;
+  const totalItems = historyLength + fuzzyLength + suggestionsLength;
 
   if (totalItems > 0) {
     switch (event.key) {
-      case 'ArrowDown':
-        event.preventDefault()
-        event.stopPropagation()
-        focusedIndex.value = (focusedIndex.value + 1) % totalItems
-        break
-      case 'ArrowUp':
-        event.preventDefault()
-        event.stopPropagation()
-        focusedIndex.value = (focusedIndex.value - 1 + totalItems) % totalItems
-        break
-      case 'Enter':
-        event.preventDefault()
+      case "ArrowDown":
+        event.preventDefault();
+        event.stopPropagation();
+        focusedIndex.value = (focusedIndex.value + 1) % totalItems;
+        break;
+      case "ArrowUp":
+        event.preventDefault();
+        event.stopPropagation();
+        focusedIndex.value = (focusedIndex.value - 1 + totalItems) % totalItems;
+        break;
+      case "Enter":
+        event.preventDefault();
         if (focusedIndex.value >= 0) {
           if (focusedIndex.value < historyLength) {
-            selectHistoryItem(getFilteredHistory.value[focusedIndex.value].item)
+            selectHistoryItem(getFilteredHistory.value[focusedIndex.value].item);
           } else if (focusedIndex.value < historyLength + suggestionsLength) {
-            suggestionHandler(autoSuggestions.value[focusedIndex.value - historyLength].query)
+            suggestionHandler(autoSuggestions.value[focusedIndex.value - historyLength].query);
           } else {
-            const fuzzyIndex = focusedIndex.value - historyLength
-            openUrl(fuzzyResults.value[fuzzyIndex].item.url)
-            searchQuery.value = ''
+            const fuzzyIndex = focusedIndex.value - historyLength;
+            openUrl(fuzzyResults.value[fuzzyIndex].item.url);
+            searchQuery.value = "";
           }
         } else if (!event.shiftKey) {
-          performSearch()
+          performSearch();
         }
-        return
+        return;
     }
-  } else if (event.key === 'ArrowDown') {
+  } else if (event.key === "ArrowDown") {
     // No dropdown items - focus first link card
-    event.preventDefault()
-    const firstLinkCard = document.querySelector('.link-columns__card a') as HTMLElement
+    event.preventDefault();
+    const firstLinkCard = document.querySelector(".link-columns__card a") as HTMLElement;
     if (firstLinkCard) {
-      firstLinkCard.focus()
+      firstLinkCard.focus();
     }
-    return
-  } else if (event.key === 'Enter' && !event.shiftKey) {
-    event.preventDefault()
-    performSearch()
-    return
+    return;
+  } else if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    performSearch();
+    return;
   }
-}
+};
 
 const updateSelectedEngine = () => {
-  searchEngineStore.setSearchEngine(selectedEngine.value)
-}
+  searchEngineStore.setSearchEngine(selectedEngine.value);
+};
 
 const addNewLine = (event: KeyboardEvent) => {
-  if (event.shiftKey && event.key === 'Enter') {
-    event.preventDefault()
-    const textarea = searchInput.value as HTMLTextAreaElement
+  if (event.shiftKey && event.key === "Enter") {
+    event.preventDefault();
+    const textarea = searchInput.value as HTMLTextAreaElement;
     if (textarea) {
-      const start = textarea.selectionStart
-      const end = textarea.selectionEnd
-      searchQuery.value = `${searchQuery.value.substring(0, start)}\n${searchQuery.value.substring(end)}`
-      textarea.selectionStart = textarea.selectionEnd = start + 1
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      searchQuery.value = `${searchQuery.value.substring(0, start)}\n${searchQuery.value.substring(end)}`;
+      textarea.selectionStart = textarea.selectionEnd = start + 1;
     }
   }
-}
+};
 
 const debouncedFuzzySearch = debounce(async (query: string) => {
   if (!fuseInstance.value || !query.trim()) {
-    fuzzyResults.value = []
-    return
+    fuzzyResults.value = [];
+    return;
   }
-  fuzzyResults.value = fuseInstance.value.search(query).slice(0, 3)
-}, 10)
+  fuzzyResults.value = fuseInstance.value.search(query).slice(0, 3);
+}, 10);
 
 const handleSearchEngineHotkeys = (event: KeyboardEvent) => {
-  if (!event.ctrlKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return
+  if (!event.ctrlKey || (event.key !== "ArrowUp" && event.key !== "ArrowDown")) return;
 
-  event.preventDefault()
-  const currentIndex = searchEngines.findIndex((engine) => engine.url === selectedEngine.value)
-  let newIndex: number
+  event.preventDefault();
+  const currentIndex = searchEngines.findIndex((engine) => engine.url === selectedEngine.value);
+  let newIndex: number;
 
-  if (event.key === 'ArrowUp') {
-    newIndex = (currentIndex - 1 + searchEngines.length) % searchEngines.length
+  if (event.key === "ArrowUp") {
+    newIndex = (currentIndex - 1 + searchEngines.length) % searchEngines.length;
   } else {
-    newIndex = (currentIndex + 1) % searchEngines.length
+    newIndex = (currentIndex + 1) % searchEngines.length;
   }
 
-  engineChangedViaKeyboard.value = true
-  searchEngineStore.setSearchEngine(searchEngines[newIndex].url)
-  updateSelectedEngine()
-}
+  engineChangedViaKeyboard.value = true;
+  searchEngineStore.setSearchEngine(searchEngines[newIndex].url);
+  updateSelectedEngine();
+};
 
 const getSuggestions = async (query: string) => {
-  const historyResults = calculateHistorySuggestions(query)
+  const historyResults = calculateHistorySuggestions(query);
 
   const historySuggestionsFormatted = historyResults.map((item) => ({
     query: item.query,
     score: item.score,
-    isHistory: true
-  }))
+    isHistory: true,
+  }));
 
-  let apiSuggestions: EnhancedSuggestion[] = []
+  let apiSuggestions: EnhancedSuggestion[] = [];
 
   if (AUTO_SUGGEST_ON && settingsStore.settings.autosuggest) {
     try {
-      const userStore = useUserStore()
-      const authToken = userStore.getAuthToken()
+      const userStore = useUserStore();
+      const authToken = userStore.getAuthToken();
 
       if (authToken) {
         const response = await api.get(API.SUGGEST(query), {
           headers: {
-            'X-User-Authorization': authToken
-          }
-        })
+            "X-User-Authorization": authToken,
+          },
+        });
 
         if (response.status === 200) {
-          const suggestionResponse = response.data as SuggestionsResponse
-          apiSuggestions = suggestionResponse.suggestions
+          const suggestionResponse = response.data as SuggestionsResponse;
+          apiSuggestions = suggestionResponse.suggestions;
         }
       }
     } catch (error) {
       if ((error as AxiosError).response?.status !== 429) {
-        console.error('Error fetching suggestion:', error)
+        console.error("Error fetching suggestion:", error);
         if ((error as AxiosError).response?.status === 403) {
           alert(
-            'Auto-suggestions are not available for your account. This feature has been disabled.'
-          )
-          settingsStore.updateSetting('autosuggest', false)
+            "Auto-suggestions are not available for your account. This feature has been disabled.",
+          );
+          settingsStore.updateSetting("autosuggest", false);
         }
       }
     }
   }
 
-  const seenQueries = new Set<string>(historySuggestionsFormatted.map((s) => s.query.toLowerCase()))
+  const seenQueries = new Set<string>(
+    historySuggestionsFormatted.map((s) => s.query.toLowerCase()),
+  );
   const uniqueApiSuggestions = apiSuggestions.filter(
-    (s) => !seenQueries.has(s.query.toLowerCase())
-  )
+    (s) => !seenQueries.has(s.query.toLowerCase()),
+  );
 
-  autoSuggestions.value = [...historySuggestionsFormatted, ...uniqueApiSuggestions]
-}
+  autoSuggestions.value = [...historySuggestionsFormatted, ...uniqueApiSuggestions];
+};
 
 const suggestionHandler = (suggestion: string) => {
-  searchQuery.value = suggestion
-  performSearch()
-}
+  searchQuery.value = suggestion;
+  performSearch();
+};
 
-const lastQuery = ref('')
-const lastQueryTime = ref(0)
-const DEBOUNCE_TIME = 1000
-const REQUEST_TIME = 500
-const MIN_TOKEN_SIZE = 3
+const lastQuery = ref("");
+const lastQueryTime = ref(0);
+const DEBOUNCE_TIME = 1000;
+const REQUEST_TIME = 500;
+const MIN_TOKEN_SIZE = 3;
 
 watch(searchQuery, async (newQuery) => {
-  focusedIndex.value = -1
+  focusedIndex.value = -1;
 
-  adjustHeight()
+  adjustHeight();
 
   if (searchQuery.value.trim().length === 0) {
-    autoSuggestions.value = []
-    fuzzyResults.value = []
-    return
+    autoSuggestions.value = [];
+    fuzzyResults.value = [];
+    return;
   }
 
   if (!isCompleteURI.value) {
-    await debouncedFuzzySearch(newQuery)
-    await new Promise((resolve) => setTimeout(resolve, 15))
+    await debouncedFuzzySearch(newQuery);
+    await new Promise((resolve) => setTimeout(resolve, 15));
 
     if (fuzzyResults.value.length > 0) {
-      autoSuggestions.value = []
-      return
+      autoSuggestions.value = [];
+      return;
     }
 
-    const now = Date.now()
-    const timeSinceLastQuery = now - lastQueryTime.value
-    const charDiff = Math.abs(newQuery.length - lastQuery.value.length)
+    const now = Date.now();
+    const timeSinceLastQuery = now - lastQueryTime.value;
+    const charDiff = Math.abs(newQuery.length - lastQuery.value.length);
 
     if (
       (charDiff >= MIN_TOKEN_SIZE && timeSinceLastQuery >= REQUEST_TIME) ||
       (timeSinceLastQuery >= DEBOUNCE_TIME && newQuery !== lastQuery.value)
     ) {
-      lastQuery.value = newQuery
-      lastQueryTime.value = now
-      await getSuggestions(newQuery)
+      lastQuery.value = newQuery;
+      lastQueryTime.value = now;
+      await getSuggestions(newQuery);
     }
   } else {
-    autoSuggestions.value = []
-    fuzzyResults.value = []
+    autoSuggestions.value = [];
+    fuzzyResults.value = [];
   }
-})
+});
 
 watch(selectedEngine, () => {
   // Only auto-focus search if engine was changed via keyboard shortcut
   if (engineChangedViaKeyboard.value) {
     setTimeout(() => {
       if (searchInput.value) {
-        ;(searchInput.value as HTMLElement).focus()
+        (searchInput.value as HTMLElement).focus();
       }
-      engineChangedViaKeyboard.value = false
-    }, 200)
+      engineChangedViaKeyboard.value = false;
+    }, 200);
   }
-})
+});
 
 const focusSearchInput = () => {
   if (searchInput.value) {
-    searchInput.value.focus()
+    searchInput.value.focus();
   }
-}
+};
 
 const handleVisibilityChange = () => {
-  if (document.visibilityState === 'visible') {
+  if (document.visibilityState === "visible") {
     // Re-focus when tab becomes visible (e.g., user switches to this tab)
-    setTimeout(focusSearchInput, 50)
-    setTimeout(focusSearchInput, 150)
+    setTimeout(focusSearchInput, 50);
+    setTimeout(focusSearchInput, 150);
   }
-}
+};
 
 onMounted(() => {
   // Aggressive focus strategy to beat browser's URL bar focus
   // Try multiple times with increasing delays to ensure focus lands on search box
-  focusSearchInput()
-  requestAnimationFrame(focusSearchInput)
-  setTimeout(focusSearchInput, 50)
-  setTimeout(focusSearchInput, 100)
-  setTimeout(focusSearchInput, 150)
-  setTimeout(focusSearchInput, 200)
+  focusSearchInput();
+  requestAnimationFrame(focusSearchInput);
+  setTimeout(focusSearchInput, 50);
+  setTimeout(focusSearchInput, 100);
+  setTimeout(focusSearchInput, 150);
+  setTimeout(focusSearchInput, 200);
 
-  loadSearchHistory()
-  window.addEventListener('keydown', handleSearchEngineHotkeys)
-  document.addEventListener('visibilitychange', handleVisibilityChange)
-})
+  loadSearchHistory();
+  window.addEventListener("keydown", handleSearchEngineHotkeys);
+  document.addEventListener("visibilitychange", handleVisibilityChange);
+});
 
 onUnmounted(() => {
-  window.removeEventListener('keydown', handleSearchEngineHotkeys)
-  document.removeEventListener('visibilitychange', handleVisibilityChange)
-})
+  window.removeEventListener("keydown", handleSearchEngineHotkeys);
+  document.removeEventListener("visibilitychange", handleVisibilityChange);
+});
 </script>
 
 <style scoped>

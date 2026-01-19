@@ -8,10 +8,7 @@ export function useApi() {
   const loading = ref(false);
   const error = ref<Error | null>(null);
 
-  async function api<T>(
-    endpoint: string,
-    options: RequestInit = {},
-  ): Promise<T> {
+  async function api<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     loading.value = true;
     error.value = null;
 

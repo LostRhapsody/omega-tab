@@ -46,9 +46,7 @@ export const useUserStore = defineStore("user", {
         const cachedSettings = cache.get(CacheKeys.SETTINGS);
         if (cachedSettings) {
           const settings =
-            typeof cachedSettings === "string"
-              ? JSON.parse(cachedSettings)
-              : cachedSettings;
+            typeof cachedSettings === "string" ? JSON.parse(cachedSettings) : cachedSettings;
           settingsStore.$patch({ settings });
         }
 
@@ -65,16 +63,14 @@ export const useUserStore = defineStore("user", {
      * @returns true if the user data was successfully fetched, false otherwise.
      * @throws Error if the user data could not be fetched.
      */
-    async fetchUserDataFromServer(authUser: AuthUser): Promise<boolean> {
+    async fetchUserDataFromServer(_authUser: AuthUser): Promise<boolean> {
       this.isLoading = true;
 
       try {
         const response = await api.get<UserDataResponse>(API.GET_USER_DATA);
 
         if (response.status !== 200) {
-          throw new Error(
-            `Failed to fetch user data, status: ${response.status}`,
-          );
+          throw new Error(`Failed to fetch user data, status: ${response.status}`);
         }
 
         const data = response.data;

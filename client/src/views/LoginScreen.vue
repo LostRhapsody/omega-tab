@@ -59,78 +59,78 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
-import { authService } from '@/services/auth'
-import { useUserStore } from '@/stores/user'
-import { TpAlert, TpInput, TpButton } from '@/components/ui'
+import { ref, computed } from "vue";
+import { useRouter } from "vue-router";
+import { authService } from "@/services/auth";
+import { useUserStore } from "@/stores/user";
+import { TpAlert, TpInput, TpButton } from "@/components/ui";
 
-const router = useRouter()
-const userStore = useUserStore()
+const router = useRouter();
+const userStore = useUserStore();
 
-const email = ref('')
-const password = ref('')
-const isLoading = ref(false)
-const errorMessage = ref('')
-const emailError = ref('')
-const passwordError = ref('')
+const email = ref("");
+const password = ref("");
+const isLoading = ref(false);
+const errorMessage = ref("");
+const emailError = ref("");
+const passwordError = ref("");
 
 const validateEmail = () => {
   if (!email.value) {
-    emailError.value = 'Email is required'
-    return false
+    emailError.value = "Email is required";
+    return false;
   }
   if (!/.+@.+\..+/.test(email.value)) {
-    emailError.value = 'Email must be valid'
-    return false
+    emailError.value = "Email must be valid";
+    return false;
   }
-  emailError.value = ''
-  return true
-}
+  emailError.value = "";
+  return true;
+};
 
 const validatePassword = () => {
   if (!password.value) {
-    passwordError.value = 'Password is required'
-    return false
+    passwordError.value = "Password is required";
+    return false;
   }
-  passwordError.value = ''
-  return true
-}
+  passwordError.value = "";
+  return true;
+};
 
 const isFormValid = computed(() => {
-  return email.value && password.value && !emailError.value && !passwordError.value
-})
+  return email.value && password.value && !emailError.value && !passwordError.value;
+});
 
 const login = async () => {
-  const emailValid = validateEmail()
-  const passwordValid = validatePassword()
+  const emailValid = validateEmail();
+  const passwordValid = validatePassword();
 
-  if (!emailValid || !passwordValid) return
+  if (!emailValid || !passwordValid) return;
 
-  isLoading.value = true
-  errorMessage.value = ''
+  isLoading.value = true;
+  errorMessage.value = "";
 
   try {
-    const response = await authService.login(email.value, password.value)
-    authService.setToken(response.token)
+    const response = await authService.login(email.value, password.value);
+    authService.setToken(response.token);
 
     await userStore.fetchUserData({
       id: response.user.id,
-      email: response.user.email
-    })
+      email: response.user.email,
+    });
 
-    router.push('/')
+    router.push("/");
   } catch (error: unknown) {
-    const err = error as { response?: { status: number } }
+    const err = error as { response?: { status: number } };
     if (err.response?.status === 401) {
-      errorMessage.value = 'Invalid email or password'
+      errorMessage.value = "Invalid email or password";
     } else {
-      errorMessage.value = 'Login failed. Please try again.'
+      errorMessage.value = "Login failed. Please try again.";
     }
   } finally {
-    isLoading.value = false
+    isLoading.value = false;
   }
-}
+};
 </script>
 
 <style scoped>
@@ -190,7 +190,7 @@ const login = async () => {
 }
 
 .login-screen__logo::after {
-  content: '';
+  content: "";
   animation: tp-cursor-blink 1s step-end infinite;
   border-right: 2px solid var(--tp-accent);
   margin-left: 2px;

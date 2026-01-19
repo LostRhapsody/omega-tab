@@ -1,25 +1,34 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed } from "vue";
 
-const props = withDefaults(defineProps<{
-  name: string
-  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
-  spin?: boolean
-}>(), {
-  size: 'md',
-  spin: false
-})
+const props = withDefaults(
+  defineProps<{
+    name: string;
+    size?: "xs" | "sm" | "md" | "lg" | "xl";
+    spin?: boolean;
+  }>(),
+  {
+    size: "md",
+    spin: false,
+  },
+);
 
 const sizePixels = computed(() => {
   switch (props.size) {
-    case 'xs': return 14
-    case 'sm': return 16
-    case 'md': return 20
-    case 'lg': return 24
-    case 'xl': return 32
-    default: return 20
+    case "xs":
+      return 14;
+    case "sm":
+      return 16;
+    case "md":
+      return 20;
+    case "lg":
+      return 24;
+    case "xl":
+      return 32;
+    default:
+      return 20;
   }
-})
+});
 </script>
 
 <template>

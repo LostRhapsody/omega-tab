@@ -1,33 +1,36 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed } from "vue";
 
-const props = withDefaults(defineProps<{
-  clickable?: boolean
-  active?: boolean
-  disabled?: boolean
-  href?: string
-  target?: string
-}>(), {
-  clickable: false,
-  active: false,
-  disabled: false
-})
+const props = withDefaults(
+  defineProps<{
+    clickable?: boolean;
+    active?: boolean;
+    disabled?: boolean;
+    href?: string;
+    target?: string;
+  }>(),
+  {
+    clickable: false,
+    active: false,
+    disabled: false,
+  },
+);
 
 const emit = defineEmits<{
-  click: [event: MouseEvent]
-}>()
+  click: [event: MouseEvent];
+}>();
 
 const tag = computed(() => {
-  if (props.href) return 'a'
-  if (props.clickable) return 'button'
-  return 'li'
-})
+  if (props.href) return "a";
+  if (props.clickable) return "button";
+  return "li";
+});
 
 const handleClick = (event: MouseEvent) => {
   if (!props.disabled) {
-    emit('click', event)
+    emit("click", event);
   }
-}
+};
 </script>
 
 <template>
@@ -38,8 +41,8 @@ const handleClick = (event: MouseEvent) => {
       {
         'tp-list-item--clickable': clickable || href,
         'tp-list-item--active': active,
-        'tp-list-item--disabled': disabled
-      }
+        'tp-list-item--disabled': disabled,
+      },
     ]"
     :href="href"
     :target="target"
@@ -93,7 +96,7 @@ const handleClick = (event: MouseEvent) => {
 }
 
 .tp-list-item--active::before {
-  content: '> ';
+  content: "> ";
   color: var(--tp-accent);
   font-family: var(--tp-font-mono);
 }

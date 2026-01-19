@@ -1,108 +1,110 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, watch, onMounted, onUnmounted, nextTick } from "vue";
 
-const props = withDefaults(defineProps<{
-  modelValue: boolean
-  title?: string
-  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full'
-  closable?: boolean
-  closeOnOverlay?: boolean
-  closeOnEscape?: boolean
-  persistent?: boolean
-  initialFocus?: string
-}>(), {
-  size: 'md',
-  closable: true,
-  closeOnOverlay: true,
-  closeOnEscape: true,
-  persistent: false
-})
+const props = withDefaults(
+  defineProps<{
+    modelValue: boolean;
+    title?: string;
+    size?: "sm" | "md" | "lg" | "xl" | "full";
+    closable?: boolean;
+    closeOnOverlay?: boolean;
+    closeOnEscape?: boolean;
+    persistent?: boolean;
+    initialFocus?: string;
+  }>(),
+  {
+    size: "md",
+    closable: true,
+    closeOnOverlay: true,
+    closeOnEscape: true,
+    persistent: false,
+  },
+);
 
 const emit = defineEmits<{
-  'update:modelValue': [value: boolean]
-  'close': []
-  'open': []
-}>()
+  "update:modelValue": [value: boolean];
+  close: [];
+  open: [];
+}>();
 
-const modalRef = ref<HTMLDivElement>()
-const previousActiveElement = ref<HTMLElement | null>(null)
+const modalRef = ref<HTMLDivElement>();
+const previousActiveElement = ref<HTMLElement | null>(null);
 
 const close = () => {
-  if (!props.closable && !props.closeOnOverlay) return
-  emit('update:modelValue', false)
-  emit('close')
-}
+  if (!props.closable && !props.closeOnOverlay) return;
+  emit("update:modelValue", false);
+  emit("close");
+};
 
 const handleOverlayClick = (event: MouseEvent) => {
   if (props.closeOnOverlay && event.target === event.currentTarget) {
-    close()
+    close();
   }
-}
+};
 
 const handleKeydown = (event: KeyboardEvent) => {
-  if (event.key === 'Escape' && props.closeOnEscape) {
-    close()
+  if (event.key === "Escape" && props.closeOnEscape) {
+    close();
   }
 
   // Trap focus within modal
-  if (event.key === 'Tab' && modalRef.value) {
+  if (event.key === "Tab" && modalRef.value) {
     const focusableElements = modalRef.value.querySelectorAll<HTMLElement>(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    )
-    const firstElement = focusableElements[0]
-    const lastElement = focusableElements[focusableElements.length - 1]
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
 
     if (event.shiftKey && document.activeElement === firstElement) {
-      event.preventDefault()
-      lastElement?.focus()
+      event.preventDefault();
+      lastElement?.focus();
     } else if (!event.shiftKey && document.activeElement === lastElement) {
-      event.preventDefault()
-      firstElement?.focus()
+      event.preventDefault();
+      firstElement?.focus();
     }
   }
-}
+};
 
-watch(() => props.modelValue, async (isOpen) => {
-  if (isOpen) {
-    previousActiveElement.value = document.activeElement as HTMLElement
-    document.body.style.overflow = 'hidden'
-    document.addEventListener('keydown', handleKeydown)
-    emit('open')
+watch(
+  () => props.modelValue,
+  async (isOpen) => {
+    if (isOpen) {
+      previousActiveElement.value = document.activeElement as HTMLElement;
+      document.body.style.overflow = "hidden";
+      document.addEventListener("keydown", handleKeydown);
+      emit("open");
 
-    await nextTick()
-    // Focus the initial focus element if specified, otherwise the first focusable
-    let focusTarget: HTMLElement | null | undefined = null
-    if (props.initialFocus) {
-      focusTarget = modalRef.value?.querySelector<HTMLElement>(props.initialFocus)
+      await nextTick();
+      // Focus the initial focus element if specified, otherwise the first focusable
+      let focusTarget: HTMLElement | null | undefined = null;
+      if (props.initialFocus) {
+        focusTarget = modalRef.value?.querySelector<HTMLElement>(props.initialFocus);
+      }
+      if (!focusTarget) {
+        focusTarget = modalRef.value?.querySelector<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        );
+      }
+      focusTarget?.focus();
+    } else {
+      document.body.style.overflow = "";
+      document.removeEventListener("keydown", handleKeydown);
+      // Restore focus to the previously focused element
+      previousActiveElement.value?.focus();
     }
-    if (!focusTarget) {
-      focusTarget = modalRef.value?.querySelector<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      )
-    }
-    focusTarget?.focus()
-  } else {
-    document.body.style.overflow = ''
-    document.removeEventListener('keydown', handleKeydown)
-    // Restore focus to the previously focused element
-    previousActiveElement.value?.focus()
-  }
-})
+  },
+);
 
 onUnmounted(() => {
-  document.body.style.overflow = ''
-  document.removeEventListener('keydown', handleKeydown)
-})
+  document.body.style.overflow = "";
+  document.removeEventListener("keydown", handleKeydown);
+});
 </script>
 
 <template>
   <Teleport to="body">
     <Transition name="tp-modal">
-      <div
-        v-if="modelValue"
-        class="tp-modal-overlay"
-        @click="handleOverlayClick"
-      >
+      <div v-if="modelValue" class="tp-modal-overlay" @click="handleOverlayClick">
         <div
           ref="modalRef"
           :class="['tp-modal', `tp-modal--${size}`]"

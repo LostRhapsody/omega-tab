@@ -1,5 +1,10 @@
 <template>
-  <TpModal v-model="isOpen" title="Command Palette" size="md" initial-focus="#command-palette-input">
+  <TpModal
+    v-model="isOpen"
+    title="Command Palette"
+    size="md"
+    initial-focus="#command-palette-input"
+  >
     <div class="command-palette">
       <input
         id="command-palette-input"
@@ -15,8 +20,11 @@
         <li
           v-for="(result, index) in filteredResults"
           :key="index"
-          :class="['command-palette__item', { 'command-palette__item--focused': focusedIndex === index }]"
-          :ref="el => setItemRef(el as HTMLLIElement, index)"
+          :class="[
+            'command-palette__item',
+            { 'command-palette__item--focused': focusedIndex === index },
+          ]"
+          :ref="(el) => setItemRef(el as HTMLLIElement, index)"
           @click="handleSelect(result)"
           @mouseenter="focusedIndex = index"
         >
@@ -25,177 +33,175 @@
         </li>
       </ul>
 
-      <div v-else class="command-palette__empty">
-        No results found
-      </div>
+      <div v-else class="command-palette__empty">No results found</div>
     </div>
   </TpModal>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
-import { useLinksStore } from '../stores/links'
-import { useSearchEngineStore } from '../stores/searchEngine'
-import { storeToRefs } from 'pinia'
-import { openUrl } from '../utils/openUrl'
-import { TpModal } from '@/components/ui'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
+import { useRouter } from "vue-router";
+import { useLinksStore } from "../stores/links";
+import { useSearchEngineStore } from "../stores/searchEngine";
+import { storeToRefs } from "pinia";
+import { openUrl } from "../utils/openUrl";
+import { TpModal } from "@/components/ui";
 
 type Result = {
-  title: string
-  subtitle: string
-  action: () => void
-}
+  title: string;
+  subtitle: string;
+  action: () => void;
+};
 
-const isOpen = ref(false)
-const query = ref('')
-const focusedIndex = ref(0)
-const listRef = ref<HTMLUListElement | null>(null)
-const itemRefs = ref<Map<number, HTMLLIElement>>(new Map())
+const isOpen = ref(false);
+const query = ref("");
+const focusedIndex = ref(0);
+const listRef = ref<HTMLUListElement | null>(null);
+const itemRefs = ref<Map<number, HTMLLIElement>>(new Map());
 
-const router = useRouter()
-const linksStore = useLinksStore()
-const searchEngineStore = useSearchEngineStore()
-const { links } = storeToRefs(linksStore)
+const router = useRouter();
+const linksStore = useLinksStore();
+const searchEngineStore = useSearchEngineStore();
+const { links } = storeToRefs(linksStore);
 
 const commands = [
   {
-    title: 'Navigate to Settings',
-    subtitle: 'Go to settings page',
-    action: () => router.push('/settings')
+    title: "Navigate to Settings",
+    subtitle: "Go to settings page",
+    action: () => router.push("/settings"),
   },
-  { title: 'Add New Link', subtitle: 'Add a new link', action: () => triggerAddLink() }
-]
+  { title: "Add New Link", subtitle: "Add a new link", action: () => triggerAddLink() },
+];
 
 const filteredResults = computed(() => {
-  const lowerQuery = query.value.toLowerCase()
+  const lowerQuery = query.value.toLowerCase();
   const linkResults = links.value
     .filter((link) => link.title.toLowerCase().includes(lowerQuery))
     .map((link) => ({
       title: link.title,
       subtitle: link.url,
-      action: () => openUrl(link.url)
-    }))
+      action: () => openUrl(link.url),
+    }));
 
   const commandResults = commands.filter((command) =>
-    command.title.toLowerCase().includes(lowerQuery)
-  )
+    command.title.toLowerCase().includes(lowerQuery),
+  );
 
   const searchEngineResults = searchEngineStore.searchEngines
     .map((engine) => ({
       title: `Switch to ${engine.name}`,
       subtitle: `Change search engine to ${engine.name}`,
-      action: () => searchEngineStore.setSearchEngine(engine.url)
+      action: () => searchEngineStore.setSearchEngine(engine.url),
     }))
     .filter(
       (engineResult) =>
         engineResult.title.toLowerCase().includes(lowerQuery) ||
-        engineResult.subtitle.toLowerCase().includes(lowerQuery)
-    )
+        engineResult.subtitle.toLowerCase().includes(lowerQuery),
+    );
 
-  return [...linkResults, ...commandResults, ...searchEngineResults]
-})
+  return [...linkResults, ...commandResults, ...searchEngineResults];
+});
 
 const setItemRef = (el: HTMLLIElement | null, index: number) => {
   if (el) {
-    itemRefs.value.set(index, el)
+    itemRefs.value.set(index, el);
   } else {
-    itemRefs.value.delete(index)
+    itemRefs.value.delete(index);
   }
-}
+};
 
 const scrollToFocused = () => {
   nextTick(() => {
-    const item = itemRefs.value.get(focusedIndex.value)
+    const item = itemRefs.value.get(focusedIndex.value);
     if (item) {
-      item.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+      item.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }
-  })
-}
+  });
+};
 
 const handleKeydown = (event: KeyboardEvent) => {
-  const totalItems = filteredResults.value.length
-  if (totalItems === 0) return
+  const totalItems = filteredResults.value.length;
+  if (totalItems === 0) return;
 
   switch (event.key) {
-    case 'ArrowDown':
-      event.preventDefault()
-      focusedIndex.value = (focusedIndex.value + 1) % totalItems
-      scrollToFocused()
-      break
-    case 'ArrowUp':
-      event.preventDefault()
-      focusedIndex.value = (focusedIndex.value - 1 + totalItems) % totalItems
-      scrollToFocused()
-      break
-    case 'Enter':
-      event.preventDefault()
+    case "ArrowDown":
+      event.preventDefault();
+      focusedIndex.value = (focusedIndex.value + 1) % totalItems;
+      scrollToFocused();
+      break;
+    case "ArrowUp":
+      event.preventDefault();
+      focusedIndex.value = (focusedIndex.value - 1 + totalItems) % totalItems;
+      scrollToFocused();
+      break;
+    case "Enter":
+      event.preventDefault();
       if (focusedIndex.value >= 0 && focusedIndex.value < totalItems) {
-        filteredResults.value[focusedIndex.value].action()
+        filteredResults.value[focusedIndex.value].action();
       }
-      closePalette()
-      break
-    case 'Escape':
-      closePalette()
-      break
+      closePalette();
+      break;
+    case "Escape":
+      closePalette();
+      break;
   }
-}
+};
 
 const handleSelect = (result: Result) => {
-  result.action()
-  closePalette()
-}
+  result.action();
+  closePalette();
+};
 
 const openPalette = (event: KeyboardEvent) => {
-  if (event.key === 'k' && event.ctrlKey) {
-    event.preventDefault()
-    isOpen.value = true
+  if (event.key === "k" && event.ctrlKey) {
+    event.preventDefault();
+    isOpen.value = true;
   }
-}
+};
 
 const closePalette = () => {
-  isOpen.value = false
-  query.value = ''
-  focusedIndex.value = 0
-}
+  isOpen.value = false;
+  query.value = "";
+  focusedIndex.value = 0;
+};
 
 const triggerAddLink = () => {
-  const addLinkButton = document.querySelector('#add-link-card')
+  const addLinkButton = document.querySelector("#add-link-card");
   if (addLinkButton) {
-    ;(addLinkButton as HTMLElement).click()
+    (addLinkButton as HTMLElement).click();
   }
-}
+};
 
 const handleTriggerAddLink = (event: KeyboardEvent) => {
-  if (event.key === 'n' && event.altKey && !event.ctrlKey && !event.metaKey) {
-    event.preventDefault()
-    triggerAddLink()
+  if (event.key === "n" && event.altKey && !event.ctrlKey && !event.metaKey) {
+    event.preventDefault();
+    triggerAddLink();
   }
-}
+};
 
 // Reset focus index when query changes
 watch(query, () => {
-  focusedIndex.value = 0
-})
+  focusedIndex.value = 0;
+});
 
 // Reset state when modal opens
 watch(isOpen, (newVal) => {
   if (newVal) {
-    query.value = ''
-    focusedIndex.value = 0
-    itemRefs.value.clear()
+    query.value = "";
+    focusedIndex.value = 0;
+    itemRefs.value.clear();
   }
-})
+});
 
 onMounted(() => {
-  window.addEventListener('keydown', openPalette)
-  window.addEventListener('keydown', handleTriggerAddLink)
-})
+  window.addEventListener("keydown", openPalette);
+  window.addEventListener("keydown", handleTriggerAddLink);
+});
 
 onUnmounted(() => {
-  window.removeEventListener('keydown', openPalette)
-  window.removeEventListener('keydown', handleTriggerAddLink)
-})
+  window.removeEventListener("keydown", openPalette);
+  window.removeEventListener("keydown", handleTriggerAddLink);
+});
 </script>
 
 <style scoped>

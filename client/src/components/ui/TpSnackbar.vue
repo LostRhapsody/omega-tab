@@ -1,64 +1,70 @@
 <script setup lang="ts">
-import { ref, watch, onUnmounted } from 'vue'
-import TpIcon from './TpIcon.vue'
+import { ref, watch, onUnmounted } from "vue";
+import TpIcon from "./TpIcon.vue";
 
-const props = withDefaults(defineProps<{
-  modelValue: boolean
-  message: string
-  type?: 'info' | 'success' | 'warning' | 'error'
-  duration?: number
-  position?: 'top' | 'bottom'
-  closable?: boolean
-}>(), {
-  type: 'info',
-  duration: 5000,
-  position: 'bottom',
-  closable: true
-})
+const props = withDefaults(
+  defineProps<{
+    modelValue: boolean;
+    message: string;
+    type?: "info" | "success" | "warning" | "error";
+    duration?: number;
+    position?: "top" | "bottom";
+    closable?: boolean;
+  }>(),
+  {
+    type: "info",
+    duration: 5000,
+    position: "bottom",
+    closable: true,
+  },
+);
 
 const emit = defineEmits<{
-  'update:modelValue': [value: boolean]
-  'close': []
-}>()
+  "update:modelValue": [value: boolean];
+  close: [];
+}>();
 
-let timeout: ReturnType<typeof setTimeout> | null = null
+let timeout: ReturnType<typeof setTimeout> | null = null;
 
 const close = () => {
-  emit('update:modelValue', false)
-  emit('close')
-}
+  emit("update:modelValue", false);
+  emit("close");
+};
 
 const startTimer = () => {
   if (props.duration > 0) {
-    timeout = setTimeout(close, props.duration)
+    timeout = setTimeout(close, props.duration);
   }
-}
+};
 
 const clearTimer = () => {
   if (timeout) {
-    clearTimeout(timeout)
-    timeout = null
+    clearTimeout(timeout);
+    timeout = null;
   }
-}
+};
 
-watch(() => props.modelValue, (isVisible) => {
-  if (isVisible) {
-    startTimer()
-  } else {
-    clearTimer()
-  }
-})
+watch(
+  () => props.modelValue,
+  (isVisible) => {
+    if (isVisible) {
+      startTimer();
+    } else {
+      clearTimer();
+    }
+  },
+);
 
 onUnmounted(() => {
-  clearTimer()
-})
+  clearTimer();
+});
 
 const typeIcons: Record<string, string> = {
-  info: 'info',
-  success: 'check',
-  warning: 'warning',
-  error: 'warning'
-}
+  info: "info",
+  success: "check",
+  warning: "warning",
+  error: "warning",
+};
 </script>
 
 <template>
@@ -66,11 +72,7 @@ const typeIcons: Record<string, string> = {
     <Transition name="tp-snackbar">
       <div
         v-if="modelValue"
-        :class="[
-          'tp-snackbar',
-          `tp-snackbar--${type}`,
-          `tp-snackbar--${position}`
-        ]"
+        :class="['tp-snackbar', `tp-snackbar--${type}`, `tp-snackbar--${position}`]"
         role="alert"
         @mouseenter="clearTimer"
         @mouseleave="startTimer"

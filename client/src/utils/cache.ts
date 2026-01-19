@@ -50,7 +50,7 @@ export const cache = {
   },
 
   // search history is stored unqiuely
-  set_search_history: <T>(key: string, data: string): void => {
+  set_search_history: (key: string, data: string): void => {
     try {
       localStorage.setItem(key, data);
     } catch (error) {

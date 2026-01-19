@@ -1,97 +1,100 @@
 <script setup lang="ts">
-import { ref, onUnmounted, nextTick } from 'vue'
+import { ref, onUnmounted, nextTick } from "vue";
 
-const props = withDefaults(defineProps<{
-  content: string
-  position?: 'top' | 'bottom' | 'left' | 'right'
-  delay?: number
-  disabled?: boolean
-  maxWidth?: string
-}>(), {
-  position: 'top',
-  delay: 300,
-  disabled: false,
-  maxWidth: '280px'
-})
+const props = withDefaults(
+  defineProps<{
+    content: string;
+    position?: "top" | "bottom" | "left" | "right";
+    delay?: number;
+    disabled?: boolean;
+    maxWidth?: string;
+  }>(),
+  {
+    position: "top",
+    delay: 300,
+    disabled: false,
+    maxWidth: "280px",
+  },
+);
 
-const isVisible = ref(false)
-const triggerRef = ref<HTMLElement>()
-const tooltipPosition = ref({ top: '0px', left: '0px' })
-let showTimeout: ReturnType<typeof setTimeout> | null = null
-let hideTimeout: ReturnType<typeof setTimeout> | null = null
+const isVisible = ref(false);
+const triggerRef = ref<HTMLElement>();
+const tooltipPosition = ref({ top: "0px", left: "0px" });
+let showTimeout: ReturnType<typeof setTimeout> | null = null;
+let hideTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const updatePosition = () => {
-  if (!triggerRef.value) return
-  const rect = triggerRef.value.getBoundingClientRect()
-  const scrollX = window.scrollX
-  const scrollY = window.scrollY
+  if (!triggerRef.value) return;
+  const rect = triggerRef.value.getBoundingClientRect();
+  const scrollX = window.scrollX;
+  const scrollY = window.scrollY;
 
-  let top = 0
-  let left = 0
+  let top = 0;
+  let left = 0;
 
   switch (props.position) {
-    case 'top':
-      top = rect.top + scrollY - 8
-      left = rect.left + scrollX + rect.width / 2
-      break
-    case 'bottom':
-      top = rect.bottom + scrollY + 8
-      left = rect.left + scrollX + rect.width / 2
-      break
-    case 'left':
-      top = rect.top + scrollY + rect.height / 2
-      left = rect.left + scrollX - 8
-      break
-    case 'right':
-      top = rect.top + scrollY + rect.height / 2
-      left = rect.right + scrollX + 8
-      break
+    case "top":
+      top = rect.top + scrollY - 8;
+      left = rect.left + scrollX + rect.width / 2;
+      break;
+    case "bottom":
+      top = rect.bottom + scrollY + 8;
+      left = rect.left + scrollX + rect.width / 2;
+      break;
+    case "left":
+      top = rect.top + scrollY + rect.height / 2;
+      left = rect.left + scrollX - 8;
+      break;
+    case "right":
+      top = rect.top + scrollY + rect.height / 2;
+      left = rect.right + scrollX + 8;
+      break;
   }
 
   tooltipPosition.value = {
     top: `${top}px`,
-    left: `${left}px`
-  }
-}
+    left: `${left}px`,
+  };
+};
 
 const show = () => {
-  if (props.disabled) return
+  if (props.disabled) return;
   if (hideTimeout) {
-    clearTimeout(hideTimeout)
-    hideTimeout = null
+    clearTimeout(hideTimeout);
+    hideTimeout = null;
   }
   showTimeout = setTimeout(() => {
-    isVisible.value = true
-    nextTick(updatePosition)
-  }, props.delay)
-}
+    isVisible.value = true;
+    nextTick(updatePosition);
+  }, props.delay);
+};
 
 const hide = () => {
   if (showTimeout) {
-    clearTimeout(showTimeout)
-    showTimeout = null
+    clearTimeout(showTimeout);
+    showTimeout = null;
   }
   hideTimeout = setTimeout(() => {
-    isVisible.value = false
-  }, 100)
-}
+    isVisible.value = false;
+  }, 100);
+};
 
 const hideImmediately = () => {
   if (showTimeout) {
-    clearTimeout(showTimeout)
-    showTimeout = null
+    clearTimeout(showTimeout);
+    showTimeout = null;
   }
   if (hideTimeout) {
-    clearTimeout(hideTimeout)
-    hideTimeout = null
+    clearTimeout(hideTimeout);
+    hideTimeout = null;
   }
-  isVisible.value = false
-}
+  isVisible.value = false;
+};
 
 onUnmounted(() => {
-  if (showTimeout) clearTimeout(showTimeout)
-  if (hideTimeout) clearTimeout(hideTimeout)
-})
+  if (showTimeout) clearTimeout(showTimeout);
+  if (hideTimeout) clearTimeout(hideTimeout);
+});
 </script>
 
 <template>
@@ -114,7 +117,7 @@ onUnmounted(() => {
             position: 'absolute',
             top: tooltipPosition.top,
             left: tooltipPosition.left,
-            maxWidth: maxWidth
+            maxWidth: maxWidth,
           }"
           role="tooltip"
         >

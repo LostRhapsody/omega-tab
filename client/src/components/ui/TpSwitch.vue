@@ -1,37 +1,40 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed } from "vue";
 
-const props = withDefaults(defineProps<{
-  modelValue: boolean
-  label?: string
-  disabled?: boolean
-  size?: 'sm' | 'md'
-}>(), {
-  modelValue: false,
-  disabled: false,
-  size: 'md'
-})
+const props = withDefaults(
+  defineProps<{
+    modelValue: boolean;
+    label?: string;
+    disabled?: boolean;
+    size?: "sm" | "md";
+  }>(),
+  {
+    modelValue: false,
+    disabled: false,
+    size: "md",
+  },
+);
 
 const emit = defineEmits<{
-  'update:modelValue': [value: boolean]
-  'change': [value: boolean]
-}>()
+  "update:modelValue": [value: boolean];
+  change: [value: boolean];
+}>();
 
 const toggle = () => {
-  if (props.disabled) return
+  if (props.disabled) return;
   console.log("Toggling switch:", props.modelValue);
-  const newValue = !props.modelValue
+  const newValue = !props.modelValue;
   console.log("New value:", newValue);
-  emit('update:modelValue', newValue)
-  emit('change', newValue)
-}
+  emit("update:modelValue", newValue);
+  emit("change", newValue);
+};
 
 const handleKeydown = (event: KeyboardEvent) => {
-  if (event.key === 'Enter' || event.key === ' ') {
-    event.preventDefault()
-    toggle()
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    toggle();
   }
-}
+};
 </script>
 
 <template>
@@ -41,8 +44,8 @@ const handleKeydown = (event: KeyboardEvent) => {
       `tp-switch--${size}`,
       {
         'tp-switch--checked': modelValue,
-        'tp-switch--disabled': disabled
-      }
+        'tp-switch--disabled': disabled,
+      },
     ]"
   >
     <span

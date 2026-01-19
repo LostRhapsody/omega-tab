@@ -51,7 +51,7 @@
               @update:modelValue="
                 settingsStore.updateSetting(
                   setting.key as keyof UserSettings,
-                  settingsStore.settings[setting.key as keyof UserSettings]
+                  settingsStore.settings[setting.key as keyof UserSettings],
                 )
               "
             />
@@ -65,14 +65,18 @@
     </main>
 
     <!-- Create/Edit Team Modal -->
-    <TpModal v-model="showTeamModal" :title="selectedTeamId ? 'Edit Team' : 'Create Team'" size="sm">
+    <TpModal
+      v-model="showTeamModal"
+      :title="selectedTeamId ? 'Edit Team' : 'Create Team'"
+      size="sm"
+    >
       <form @submit.prevent="handleTeamSubmit" class="settings__modal-form">
         <TpInput v-model="teamForm.name" label="Team Name" required />
       </form>
       <template #actions>
         <TpButton variant="ghost" @click="showTeamModal = false">Cancel</TpButton>
         <TpButton variant="primary" @click="handleTeamSubmit">
-          {{ selectedTeamId ? 'Save Changes' : 'Create Team' }}
+          {{ selectedTeamId ? "Save Changes" : "Create Team" }}
         </TpButton>
       </template>
     </TpModal>
@@ -91,81 +95,81 @@
 </template>
 
 <script setup lang="ts">
-import { type ComputedRef, computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { useUserStore } from '../stores/user'
-import type { Features } from '../types/Features'
-import { type UserSettings, UserSettingsLabels } from '../types/UserSettings'
-import { useUserSettingsStore } from '../stores/settings'
-import { useBreakpoint } from '@/composables/useBreakpoint'
-import { cache, CacheKeys } from '@/utils/cache'
-import { TpIcon, TpInput, TpSwitch, TpSelect, TpButton, TpModal } from '@/components/ui'
+import { type ComputedRef, computed, ref } from "vue";
+import { useRouter } from "vue-router";
+import { useUserStore } from "../stores/user";
+import type { Features } from "../types/Features";
+import { type UserSettings, UserSettingsLabels } from "../types/UserSettings";
+import { useUserSettingsStore } from "../stores/settings";
+import { useBreakpoint } from "@/composables/useBreakpoint";
+import { cache, CacheKeys } from "@/utils/cache";
+import { TpIcon, TpInput, TpSwitch, TpSelect, TpButton, TpModal } from "@/components/ui";
 
-const userStore = useUserStore()
-const settingsStore = useUserSettingsStore()
-const { smAndDown: mobile } = useBreakpoint()
+const userStore = useUserStore();
+const settingsStore = useUserSettingsStore();
+const { smAndDown: mobile } = useBreakpoint();
 
-const userId = computed(() => userStore.userId)
-const email = computed(() => userStore.email)
-const emailValue = ref(email.value || '')
+const userId = computed(() => userStore.userId);
+const email = computed(() => userStore.email);
+const emailValue = ref(email.value || "");
 
-const router = useRouter()
-const activeTab = ref('preferences')
-const showTeamModal = ref(false)
-const showInviteModal = ref(false)
-const selectedTeamId = ref('')
-const memberSearch = ref('')
+const router = useRouter();
+const activeTab = ref("preferences");
+const showTeamModal = ref(false);
+const showInviteModal = ref(false);
+const selectedTeamId = ref("");
+const memberSearch = ref("");
 
 const teamForm = ref({
-  name: ''
-})
+  name: "",
+});
 
-const inviteEmail = ref('')
-const teamMembers = ref<TeamMember[]>([])
+const inviteEmail = ref("");
+const teamMembers = ref<TeamMember[]>([]);
 type TeamMember = {
-  user_id: string
-  name: string
-  email: string
-  role: string
-}
+  user_id: string;
+  name: string;
+  email: string;
+  role: string;
+};
 
-const orgName = ref('')
-const selectedTeam = ref<string>('')
-const teams = ref<string[]>([])
-const orgMembers = ref<OrgMember[]>([])
+const orgName = ref("");
+const selectedTeam = ref<string>("");
+const teams = ref<string[]>([]);
+const orgMembers = ref<OrgMember[]>([]);
 type OrgMember = {
-  user_id: string
-  name: string
-  email: string
-  team: string
-  role: string
-  id: string
-}
+  user_id: string;
+  name: string;
+  email: string;
+  team: string;
+  role: string;
+  id: string;
+};
 
 const roleOptions = [
-  { value: 'admin', label: 'Admin' },
-  { value: 'member', label: 'Member' }
-]
+  { value: "admin", label: "Admin" },
+  { value: "member", label: "Member" },
+];
 
 const teamOptions = computed(() =>
   teams.value.map((team) => ({
     value: team,
-    label: team
-  }))
-)
+    label: team,
+  })),
+);
 
-const hasTeam = computed(() => teamMembers.value.length > 0)
+const hasTeam = computed(() => teamMembers.value.length > 0);
 
 const filteredOrgMembers = computed(() => {
-  if (!memberSearch.value) return orgMembers.value
-  const search = memberSearch.value.toLowerCase()
+  if (!memberSearch.value) return orgMembers.value;
+  const search = memberSearch.value.toLowerCase();
   return orgMembers.value.filter(
     (member) =>
       member.name.toLowerCase().includes(search) ||
       member.email.toLowerCase().includes(search) ||
-      member.team.toLowerCase().includes(search)
-  )
-})
+      member.team.toLowerCase().includes(search),
+  );
+});
 
 const handleTeamSubmit = async () => {
   try {
@@ -174,31 +178,31 @@ const handleTeamSubmit = async () => {
     } else {
       // Create new team
     }
-    showTeamModal.value = false
+    showTeamModal.value = false;
   } catch (error) {
-    console.error('Error managing team:', error)
+    console.error("Error managing team:", error);
   }
-}
+};
 
 const handleInvite = async () => {
   try {
-    showInviteModal.value = false
+    showInviteModal.value = false;
   } catch (error) {
-    console.error('Error inviting member:', error)
+    console.error("Error inviting member:", error);
   }
-}
+};
 
 const updateMemberRole = async (userId: string, newRole: string) => {
   // Implementation pending
-}
+};
 
 const removeMember = async (userId: string) => {
   // Implementation pending
-}
+};
 
 const clearSearchHistory = () => {
-  cache.clear(CacheKeys.SEARCH_HISTORY)
-}
+  cache.clear(CacheKeys.SEARCH_HISTORY);
+};
 </script>
 
 <style scoped>

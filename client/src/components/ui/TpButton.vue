@@ -1,53 +1,51 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import TpIcon from './TpIcon.vue'
+import { computed } from "vue";
+import TpIcon from "./TpIcon.vue";
 
-const props = withDefaults(defineProps<{
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger'
-  size?: 'sm' | 'md' | 'lg'
-  loading?: boolean
-  disabled?: boolean
-  iconOnly?: boolean
-  icon?: string
-  iconPosition?: 'left' | 'right'
-}>(), {
-  variant: 'secondary',
-  size: 'md',
-  loading: false,
-  disabled: false,
-  iconOnly: false,
-  iconPosition: 'left'
-})
+const props = withDefaults(
+  defineProps<{
+    variant?: "primary" | "secondary" | "ghost" | "danger";
+    size?: "sm" | "md" | "lg";
+    loading?: boolean;
+    disabled?: boolean;
+    iconOnly?: boolean;
+    icon?: string;
+    iconPosition?: "left" | "right";
+  }>(),
+  {
+    variant: "secondary",
+    size: "md",
+    loading: false,
+    disabled: false,
+    iconOnly: false,
+    iconPosition: "left",
+  },
+);
 
 const emit = defineEmits<{
-  click: [event: MouseEvent]
-}>()
+  click: [event: MouseEvent];
+}>();
 
 const classes = computed(() => [
-  'tp-button',
+  "tp-button",
   `tp-button--${props.variant}`,
   `tp-button--${props.size}`,
   {
-    'tp-button--loading': props.loading,
-    'tp-button--icon-only': props.iconOnly,
-    'tp-button--disabled': props.disabled || props.loading
-  }
-])
+    "tp-button--loading": props.loading,
+    "tp-button--icon-only": props.iconOnly,
+    "tp-button--disabled": props.disabled || props.loading,
+  },
+]);
 
 const handleClick = (event: MouseEvent) => {
   if (!props.disabled && !props.loading) {
-    emit('click', event)
+    emit("click", event);
   }
-}
+};
 </script>
 
 <template>
-  <button
-    :class="classes"
-    :disabled="disabled || loading"
-    @click="handleClick"
-    v-bind="$attrs"
-  >
+  <button :class="classes" :disabled="disabled || loading" @click="handleClick" v-bind="$attrs">
     <span v-if="loading" class="tp-button__spinner">
       <TpIcon name="spinner" :size="size === 'sm' ? 'xs' : 'sm'" spin />
     </span>

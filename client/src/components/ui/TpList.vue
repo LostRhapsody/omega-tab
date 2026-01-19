@@ -1,11 +1,14 @@
 <script setup lang="ts">
-withDefaults(defineProps<{
-  dense?: boolean
-  dividers?: boolean
-}>(), {
-  dense: false,
-  dividers: false
-})
+withDefaults(
+  defineProps<{
+    dense?: boolean;
+    dividers?: boolean;
+  }>(),
+  {
+    dense: false,
+    dividers: false,
+  },
+);
 </script>
 
 <template>
@@ -14,8 +17,8 @@ withDefaults(defineProps<{
       'tp-list',
       {
         'tp-list--dense': dense,
-        'tp-list--dividers': dividers
-      }
+        'tp-list--dividers': dividers,
+      },
     ]"
     role="list"
   >

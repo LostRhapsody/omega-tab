@@ -1,46 +1,42 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import TpIcon from './TpIcon.vue'
+import { computed } from "vue";
+import TpIcon from "./TpIcon.vue";
 
-const props = withDefaults(defineProps<{
-  type?: 'info' | 'success' | 'warning' | 'error'
-  title?: string
-  closable?: boolean
-  icon?: string | boolean
-}>(), {
-  type: 'info',
-  closable: false,
-  icon: true
-})
+const props = withDefaults(
+  defineProps<{
+    type?: "info" | "success" | "warning" | "error";
+    title?: string;
+    closable?: boolean;
+    icon?: string | boolean;
+  }>(),
+  {
+    type: "info",
+    closable: false,
+    icon: true,
+  },
+);
 
 const emit = defineEmits<{
-  close: []
-}>()
+  close: [];
+}>();
 
 const defaultIcons: Record<string, string> = {
-  info: 'info',
-  success: 'check',
-  warning: 'warning',
-  error: 'warning'
-}
+  info: "info",
+  success: "check",
+  warning: "warning",
+  error: "warning",
+};
 
 const iconName = computed(() => {
-  if (props.icon === false) return null
-  if (typeof props.icon === 'string') return props.icon
-  return defaultIcons[props.type]
-})
+  if (props.icon === false) return null;
+  if (typeof props.icon === "string") return props.icon;
+  return defaultIcons[props.type];
+});
 </script>
 
 <template>
-  <div
-    :class="['tp-alert', `tp-alert--${type}`]"
-    role="alert"
-  >
-    <TpIcon
-      v-if="iconName"
-      :name="iconName"
-      class="tp-alert__icon"
-    />
+  <div :class="['tp-alert', `tp-alert--${type}`]" role="alert">
+    <TpIcon v-if="iconName" :name="iconName" class="tp-alert__icon" />
 
     <div class="tp-alert__content">
       <div v-if="title" class="tp-alert__title">{{ title }}</div>

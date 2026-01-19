@@ -1,82 +1,88 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, useAttrs } from 'vue'
+import { ref, computed, watch, onMounted, useAttrs } from "vue";
 
-const props = withDefaults(defineProps<{
-  modelValue?: string
-  label?: string
-  placeholder?: string
-  error?: string
-  hint?: string
-  disabled?: boolean
-  required?: boolean
-  rows?: number
-  maxRows?: number
-  autoResize?: boolean
-}>(), {
-  modelValue: '',
-  rows: 3,
-  disabled: false,
-  required: false,
-  autoResize: false
-})
+const props = withDefaults(
+  defineProps<{
+    modelValue?: string;
+    label?: string;
+    placeholder?: string;
+    error?: string;
+    hint?: string;
+    disabled?: boolean;
+    required?: boolean;
+    rows?: number;
+    maxRows?: number;
+    autoResize?: boolean;
+  }>(),
+  {
+    modelValue: "",
+    rows: 3,
+    disabled: false,
+    required: false,
+    autoResize: false,
+  },
+);
 
 const emit = defineEmits<{
-  'update:modelValue': [value: string]
-  'focus': [event: FocusEvent]
-  'blur': [event: FocusEvent]
-}>()
+  "update:modelValue": [value: string];
+  focus: [event: FocusEvent];
+  blur: [event: FocusEvent];
+}>();
 
-const attrs = useAttrs()
-const textareaRef = ref<HTMLTextAreaElement>()
-const isFocused = ref(false)
+const attrs = useAttrs();
+const textareaRef = ref<HTMLTextAreaElement>();
+const isFocused = ref(false);
 
 const inputValue = computed({
   get: () => props.modelValue,
-  set: (value: string) => emit('update:modelValue', value)
-})
+  set: (value: string) => emit("update:modelValue", value),
+});
 
 const handleFocus = (event: FocusEvent) => {
-  isFocused.value = true
-  emit('focus', event)
-}
+  isFocused.value = true;
+  emit("focus", event);
+};
 
 const handleBlur = (event: FocusEvent) => {
-  isFocused.value = false
-  emit('blur', event)
-}
+  isFocused.value = false;
+  emit("blur", event);
+};
 
 const resize = () => {
-  if (!props.autoResize || !textareaRef.value) return
+  if (!props.autoResize || !textareaRef.value) return;
 
-  const textarea = textareaRef.value
-  textarea.style.height = 'auto'
+  const textarea = textareaRef.value;
+  textarea.style.height = "auto";
 
-  const lineHeight = parseInt(getComputedStyle(textarea).lineHeight)
-  const minHeight = lineHeight * props.rows
-  const maxHeight = props.maxRows ? lineHeight * props.maxRows : Infinity
+  const lineHeight = parseInt(getComputedStyle(textarea).lineHeight);
+  const minHeight = lineHeight * props.rows;
+  const maxHeight = props.maxRows ? lineHeight * props.maxRows : Infinity;
 
-  const newHeight = Math.min(Math.max(textarea.scrollHeight, minHeight), maxHeight)
-  textarea.style.height = `${newHeight}px`
-}
+  const newHeight = Math.min(Math.max(textarea.scrollHeight, minHeight), maxHeight);
+  textarea.style.height = `${newHeight}px`;
+};
 
-watch(() => props.modelValue, () => {
-  if (props.autoResize) {
-    // Use nextTick to ensure DOM is updated
-    setTimeout(resize, 0)
-  }
-})
+watch(
+  () => props.modelValue,
+  () => {
+    if (props.autoResize) {
+      // Use nextTick to ensure DOM is updated
+      setTimeout(resize, 0);
+    }
+  },
+);
 
 onMounted(() => {
   if (props.autoResize) {
-    resize()
+    resize();
   }
-})
+});
 
-const focus = () => textareaRef.value?.focus()
-const blur = () => textareaRef.value?.blur()
-const select = () => textareaRef.value?.select()
+const focus = () => textareaRef.value?.focus();
+const blur = () => textareaRef.value?.blur();
+const select = () => textareaRef.value?.select();
 
-defineExpose({ focus, blur, select, textareaRef })
+defineExpose({ focus, blur, select, textareaRef });
 </script>
 
 <template>
@@ -86,8 +92,8 @@ defineExpose({ focus, blur, select, textareaRef })
       {
         'tp-textarea-wrapper--focused': isFocused,
         'tp-textarea-wrapper--error': error,
-        'tp-textarea-wrapper--disabled': disabled
-      }
+        'tp-textarea-wrapper--disabled': disabled,
+      },
     ]"
   >
     <label v-if="label" class="tp-textarea__label">

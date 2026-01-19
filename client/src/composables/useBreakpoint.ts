@@ -80,9 +80,7 @@ export function useBreakpoint() {
 
   // Mobile detection (commonly used)
   const mobile = computed(() => width.value < BREAKPOINTS.md);
-  const tablet = computed(
-    () => width.value >= BREAKPOINTS.md && width.value < BREAKPOINTS.lg,
-  );
+  const tablet = computed(() => width.value >= BREAKPOINTS.md && width.value < BREAKPOINTS.lg);
   const desktop = computed(() => width.value >= BREAKPOINTS.lg);
 
   return {

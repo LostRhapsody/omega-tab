@@ -1,155 +1,156 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import TpIcon from './TpIcon.vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
+import TpIcon from "./TpIcon.vue";
 
 export interface SelectOption {
-  value: string | number
-  label: string
-  disabled?: boolean
+  value: string | number;
+  label: string;
+  disabled?: boolean;
 }
 
-const props = withDefaults(defineProps<{
-  modelValue?: string | number | null
-  options: SelectOption[]
-  label?: string
-  placeholder?: string
-  error?: string
-  disabled?: boolean
-  required?: boolean
-}>(), {
-  modelValue: null,
-  disabled: false,
-  required: false
-})
+const props = withDefaults(
+  defineProps<{
+    modelValue?: string | number | null;
+    options: SelectOption[];
+    label?: string;
+    placeholder?: string;
+    error?: string;
+    disabled?: boolean;
+    required?: boolean;
+  }>(),
+  {
+    modelValue: null,
+    disabled: false,
+    required: false,
+  },
+);
 
 const emit = defineEmits<{
-  'update:modelValue': [value: string | number | null]
-  'change': [option: SelectOption | null]
-}>()
+  "update:modelValue": [value: string | number | null];
+  change: [option: SelectOption | null];
+}>();
 
-const triggerRef = ref<HTMLButtonElement>()
-const menuRef = ref<HTMLUListElement>()
-const isOpen = ref(false)
-const focusedIndex = ref(-1)
-const menuPosition = ref({ top: '0px', left: '0px', width: '0px' })
+const triggerRef = ref<HTMLButtonElement>();
+const menuRef = ref<HTMLUListElement>();
+const isOpen = ref(false);
+const focusedIndex = ref(-1);
+const menuPosition = ref({ top: "0px", left: "0px", width: "0px" });
 
-const selectedOption = computed(() =>
-  props.options.find(opt => opt.value === props.modelValue) ?? null
-)
+const selectedOption = computed(
+  () => props.options.find((opt) => opt.value === props.modelValue) ?? null,
+);
 
-const displayText = computed(() =>
-  selectedOption.value?.label ?? props.placeholder ?? 'Select...'
-)
+const displayText = computed(() => selectedOption.value?.label ?? props.placeholder ?? "Select...");
 
 const updateMenuPosition = () => {
-  if (!triggerRef.value) return
-  const rect = triggerRef.value.getBoundingClientRect()
+  if (!triggerRef.value) return;
+  const rect = triggerRef.value.getBoundingClientRect();
   menuPosition.value = {
     top: `${rect.bottom + window.scrollY + 4}px`,
     left: `${rect.left + window.scrollX}px`,
-    width: `${rect.width}px`
-  }
-}
+    width: `${rect.width}px`,
+  };
+};
 
 const toggle = () => {
-  if (props.disabled) return
-  isOpen.value = !isOpen.value
+  if (props.disabled) return;
+  isOpen.value = !isOpen.value;
   if (isOpen.value) {
-    focusedIndex.value = props.options.findIndex(opt => opt.value === props.modelValue)
-    if (focusedIndex.value === -1) focusedIndex.value = 0
-    nextTick(updateMenuPosition)
+    focusedIndex.value = props.options.findIndex((opt) => opt.value === props.modelValue);
+    if (focusedIndex.value === -1) focusedIndex.value = 0;
+    nextTick(updateMenuPosition);
   }
-}
+};
 
 const close = () => {
-  isOpen.value = false
-  focusedIndex.value = -1
-}
+  isOpen.value = false;
+  focusedIndex.value = -1;
+};
 
 const select = (option: SelectOption) => {
-  if (option.disabled) return
-  emit('update:modelValue', option.value)
-  emit('change', option)
-  close()
-  triggerRef.value?.focus()
-}
+  if (option.disabled) return;
+  emit("update:modelValue", option.value);
+  emit("change", option);
+  close();
+  triggerRef.value?.focus();
+};
 
 const handleKeydown = (event: KeyboardEvent) => {
-  if (props.disabled) return
+  if (props.disabled) return;
 
   switch (event.key) {
-    case 'Enter':
-    case ' ':
-      event.preventDefault()
+    case "Enter":
+    case " ":
+      event.preventDefault();
       if (isOpen.value && focusedIndex.value >= 0) {
-        const option = props.options[focusedIndex.value]
-        if (option && !option.disabled) select(option)
+        const option = props.options[focusedIndex.value];
+        if (option && !option.disabled) select(option);
       } else {
-        toggle()
+        toggle();
       }
-      break
+      break;
 
-    case 'ArrowDown':
-      event.preventDefault()
+    case "ArrowDown":
+      event.preventDefault();
       if (!isOpen.value) {
-        isOpen.value = true
-        focusedIndex.value = 0
+        isOpen.value = true;
+        focusedIndex.value = 0;
       } else {
-        focusedIndex.value = Math.min(focusedIndex.value + 1, props.options.length - 1)
+        focusedIndex.value = Math.min(focusedIndex.value + 1, props.options.length - 1);
       }
-      break
+      break;
 
-    case 'ArrowUp':
-      event.preventDefault()
+    case "ArrowUp":
+      event.preventDefault();
       if (isOpen.value) {
-        focusedIndex.value = Math.max(focusedIndex.value - 1, 0)
+        focusedIndex.value = Math.max(focusedIndex.value - 1, 0);
       }
-      break
+      break;
 
-    case 'Escape':
-      event.preventDefault()
-      close()
-      break
+    case "Escape":
+      event.preventDefault();
+      close();
+      break;
 
-    case 'Tab':
-      close()
-      break
+    case "Tab":
+      close();
+      break;
 
-    case 'Home':
-      event.preventDefault()
-      if (isOpen.value) focusedIndex.value = 0
-      break
+    case "Home":
+      event.preventDefault();
+      if (isOpen.value) focusedIndex.value = 0;
+      break;
 
-    case 'End':
-      event.preventDefault()
-      if (isOpen.value) focusedIndex.value = props.options.length - 1
-      break
+    case "End":
+      event.preventDefault();
+      if (isOpen.value) focusedIndex.value = props.options.length - 1;
+      break;
   }
-}
+};
 
 const handleClickOutside = (event: MouseEvent) => {
-  const target = event.target as Node
+  const target = event.target as Node;
   if (
     triggerRef.value &&
     !triggerRef.value.contains(target) &&
     menuRef.value &&
     !menuRef.value.contains(target)
   ) {
-    close()
+    close();
   }
-}
+};
 
 watch(isOpen, (open) => {
   if (open) {
-    document.addEventListener('click', handleClickOutside)
+    document.addEventListener("click", handleClickOutside);
   } else {
-    document.removeEventListener('click', handleClickOutside)
+    document.removeEventListener("click", handleClickOutside);
   }
-})
+});
 
 onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
-})
+  document.removeEventListener("click", handleClickOutside);
+});
 </script>
 
 <template>
@@ -159,8 +160,8 @@ onUnmounted(() => {
       {
         'tp-select--open': isOpen,
         'tp-select--error': error,
-        'tp-select--disabled': disabled
-      }
+        'tp-select--disabled': disabled,
+      },
     ]"
   >
     <label v-if="label" class="tp-select__label">
@@ -199,7 +200,7 @@ onUnmounted(() => {
             position: 'absolute',
             top: menuPosition.top,
             left: menuPosition.left,
-            width: menuPosition.width
+            width: menuPosition.width,
           }"
         >
           <li
@@ -210,8 +211,8 @@ onUnmounted(() => {
               {
                 'tp-select__item--focused': focusedIndex === index,
                 'tp-select__item--selected': option.value === modelValue,
-                'tp-select__item--disabled': option.disabled
-              }
+                'tp-select__item--disabled': option.disabled,
+              },
             ]"
             role="option"
             :aria-selected="option.value === modelValue"

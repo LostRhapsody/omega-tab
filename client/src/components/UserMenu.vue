@@ -1,11 +1,7 @@
 <template>
   <TpMenu position="bottom-end">
     <template #trigger="{ isOpen }">
-      <button
-        class="user-menu-trigger"
-        :aria-expanded="isOpen"
-        aria-haspopup="menu"
-      >
+      <button class="user-menu-trigger" :aria-expanded="isOpen" aria-haspopup="menu">
         <TpAvatar :name="userEmail" size="md" />
       </button>
     </template>
@@ -17,38 +13,34 @@
 
       <TpDivider />
 
-      <TpMenuItem icon="cog" @click="goToSettings(close)">
-        Settings
-      </TpMenuItem>
+      <TpMenuItem icon="cog" @click="goToSettings(close)"> Settings </TpMenuItem>
 
-      <TpMenuItem icon="logout" @click="logout">
-        Sign Out
-      </TpMenuItem>
+      <TpMenuItem icon="logout" @click="logout"> Sign Out </TpMenuItem>
     </template>
   </TpMenu>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useRouter } from 'vue-router'
-import { useUserStore } from '@/stores/user'
-import { authService } from '@/services/auth'
-import { TpMenu, TpMenuItem, TpAvatar, TpDivider } from '@/components/ui'
+import { computed } from "vue";
+import { useRouter } from "vue-router";
+import { useUserStore } from "@/stores/user";
+import { authService } from "@/services/auth";
+import { TpMenu, TpMenuItem, TpAvatar, TpDivider } from "@/components/ui";
 
-const router = useRouter()
-const userStore = useUserStore()
+const router = useRouter();
+const userStore = useUserStore();
 
-const userEmail = computed(() => userStore.email || '')
+const userEmail = computed(() => userStore.email || "");
 
 const goToSettings = (close: () => void) => {
-  close()
-  router.push('/settings')
-}
+  close();
+  router.push("/settings");
+};
 
 const logout = () => {
-  authService.logout()
-  window.location.href = '/'
-}
+  authService.logout();
+  window.location.href = "/";
+};
 </script>
 
 <style scoped>

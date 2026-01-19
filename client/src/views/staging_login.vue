@@ -3,31 +3,27 @@
     <div class="staging-login-card">
       <h1>Staging Environment</h1>
       <p>This is a test environment. Please enter the password to continue.</p>
-      
+
       <form @submit.prevent="handleLogin" class="staging-login-form">
         <div class="input-group">
           <label for="password">Password</label>
-          <input 
-            type="password" 
-            id="password" 
-            v-model="password" 
+          <input
+            type="password"
+            id="password"
+            v-model="password"
             placeholder="Enter staging password"
             required
             class="text-black"
             autocomplete="on"
           />
         </div>
-        
+
         <div v-if="error" class="error-message">
           {{ error }}
         </div>
-        
-        <button 
-          type="submit" 
-          class="login-button" 
-          :disabled="isLoading"
-        >
-          {{ isLoading ? 'Logging in...' : 'Access Staging' }}
+
+        <button type="submit" class="login-button" :disabled="isLoading">
+          {{ isLoading ? "Logging in..." : "Access Staging" }}
         </button>
       </form>
     </div>
@@ -35,34 +31,35 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
-import api from '@/services/api';
-import { API } from '@/constants/api';
-import { CacheKeys, cache } from '@/utils/cache';
+import { ref } from "vue";
+import { useRouter } from "vue-router";
+import api from "@/services/api";
+import { API } from "@/constants/api";
+import { CacheKeys, cache } from "@/utils/cache";
 
-const password = ref('');
-const error = ref('');
+const password = ref("");
+const error = ref("");
 const isLoading = ref(false);
 const router = useRouter();
 
 const handleLogin = async () => {
-  error.value = '';
+  error.value = "";
   isLoading.value = true;
-  
+
   try {
     const response = await api.post(API.STAGING_LOGIN, { password: password.value });
-    
+
     if (response.status === 200) {
       // Store in cache that we're logged in
       cache.set(CacheKeys.STAGING_LOGGED_IN, true);
       // Navigate to home page
-      router.push('/');
+      router.push("/");
     }
   } catch (err: any) {
-    error.value = err.response?.status === 403 
-      ? 'Invalid password. Please try again.' 
-      : 'An error occurred. Please try again.';
+    error.value =
+      err.response?.status === 403
+        ? "Invalid password. Please try again."
+        : "An error occurred. Please try again.";
   } finally {
     isLoading.value = false;
   }

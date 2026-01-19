@@ -9,17 +9,17 @@
     >
       <TpIcon
         name="plus"
-        :class="[
-          'add-link-card__icon',
-          { 'add-link-card__icon--active': hover }
-        ]"
+        :class="['add-link-card__icon', { 'add-link-card__icon--active': hover }]"
       />
-      <span class="add-link-card__text">
-        Add new link
-      </span>
+      <span class="add-link-card__text"> Add new link </span>
     </div>
 
-    <TpModal v-model="isModalOpen" title="Add New Link" :size="mobile ? 'full' : 'md'" initial-focus="#add-link-card-url">
+    <TpModal
+      v-model="isModalOpen"
+      title="Add New Link"
+      :size="mobile ? 'full' : 'md'"
+      initial-focus="#add-link-card-url"
+    >
       <form @submit.prevent="handleSubmit" ref="formRef" class="add-link-form">
         <TpInput
           input-id="add-link-card-url"
@@ -108,15 +108,16 @@
         </div>
 
         <div class="add-link-form__actions">
-          <TpTooltip content="If title and description are left blank, Omega Tab attempts to fetch them from the website automatically." position="left">
+          <TpTooltip
+            content="If title and description are left blank, Omega Tab attempts to fetch them from the website automatically."
+            position="left"
+          >
             <TpButton variant="ghost" icon-only>
               <TpIcon name="help" />
             </TpButton>
           </TpTooltip>
 
-          <TpButton variant="ghost" @click="closeModal">
-            Cancel
-          </TpButton>
+          <TpButton variant="ghost" @click="closeModal"> Cancel </TpButton>
           <TpButton variant="primary" :loading="isLoading" @click="handleSubmit">
             Add Link
           </TpButton>
@@ -127,11 +128,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import { useLinksStore } from '../stores/links'
-import { useUserStore } from '../stores/user'
-import { useBreakpoint } from '@/composables/useBreakpoint'
-import type { CreateLinkRequest } from '../types/Link'
+import { computed, ref, watch } from "vue";
+import { useLinksStore } from "../stores/links";
+import { useUserStore } from "../stores/user";
+import { useBreakpoint } from "@/composables/useBreakpoint";
+import type { CreateLinkRequest } from "../types/Link";
 import {
   TpIcon,
   TpModal,
@@ -139,119 +140,119 @@ import {
   TpTextarea,
   TpCombobox,
   TpButton,
-  TpTooltip
-} from '@/components/ui'
+  TpTooltip,
+} from "@/components/ui";
 
-const linksStore = useLinksStore()
-const userStore = useUserStore()
-const { smAndDown: mobile } = useBreakpoint()
-const validLink = ref(true)
-const urlError = ref('')
-const props = defineProps<{ columnType: string }>()
+const linksStore = useLinksStore();
+const userStore = useUserStore();
+const { smAndDown: mobile } = useBreakpoint();
+const validLink = ref(true);
+const urlError = ref("");
+const props = defineProps<{ columnType: string }>();
 
-const isModalOpen = ref(false)
-const isLoading = ref(false)
-const hover = ref(false)
-const formRef = ref<HTMLFormElement | null>(null)
+const isModalOpen = ref(false);
+const isLoading = ref(false);
+const hover = ref(false);
+const formRef = ref<HTMLFormElement | null>(null);
 
 const formData = ref({
-  url: '',
-  title: '',
-  description: '',
+  url: "",
+  title: "",
+  description: "",
   columnType: props.columnType,
-  icon: ''
-})
+  icon: "",
+});
 
-const fileInputRef = ref<HTMLInputElement | null>(null)
+const fileInputRef = ref<HTMLInputElement | null>(null);
 
-const columnTypes = computed(() => linksStore.uniqueColumnTypes)
+const columnTypes = computed(() => linksStore.uniqueColumnTypes);
 
 const columnTypeOptions = computed(() =>
   columnTypes.value.map((type) => ({
     value: type,
-    label: type.charAt(0).toUpperCase() + type.slice(1)
-  }))
-)
+    label: type.charAt(0).toUpperCase() + type.slice(1),
+  })),
+);
 
 const handleClick = () => {
-  openModal()
-}
+  openModal();
+};
 
 const openModal = () => {
-  isModalOpen.value = true
-}
+  isModalOpen.value = true;
+};
 
 const closeModal = () => {
-  isModalOpen.value = false
-  resetForm()
-}
+  isModalOpen.value = false;
+  resetForm();
+};
 
 const resetForm = () => {
   formData.value = {
-    url: '',
-    title: '',
-    description: '',
+    url: "",
+    title: "",
+    description: "",
     columnType: props.columnType,
-    icon: ''
-  }
-  urlError.value = ''
-  validLink.value = true
-}
+    icon: "",
+  };
+  urlError.value = "";
+  validLink.value = true;
+};
 
 const triggerFileInput = () => {
-  fileInputRef.value?.click()
-}
+  fileInputRef.value?.click();
+};
 
 const handleFileUpload = (event: Event) => {
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-  if (!file) return
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (!file) return;
 
   // Check file size (max 500KB)
   if (file.size > 500 * 1024) {
-    alert('Image size must be less than 500KB')
-    return
+    alert("Image size must be less than 500KB");
+    return;
   }
 
-  const reader = new FileReader()
+  const reader = new FileReader();
   reader.onload = (e) => {
-    formData.value.icon = e.target?.result as string
-  }
-  reader.readAsDataURL(file)
-}
+    formData.value.icon = e.target?.result as string;
+  };
+  reader.readAsDataURL(file);
+};
 
 const clearIcon = () => {
-  formData.value.icon = ''
+  formData.value.icon = "";
   if (fileInputRef.value) {
-    fileInputRef.value.value = ''
+    fileInputRef.value.value = "";
   }
-}
+};
 
 const validateForm = (): boolean => {
   if (!formData.value.url) {
-    urlError.value = 'URL is required'
-    return false
+    urlError.value = "URL is required";
+    return false;
   }
 
-  const urlValidation = linksStore.validateUrl(formData.value.url)
+  const urlValidation = linksStore.validateUrl(formData.value.url);
   if (urlValidation !== true) {
-    urlError.value = urlValidation as string
-    return false
+    urlError.value = urlValidation as string;
+    return false;
   }
 
-  urlError.value = ''
-  return true
-}
+  urlError.value = "";
+  return true;
+};
 
 const handleSubmit = async () => {
-  if (!validateForm()) return
+  if (!validateForm()) return;
 
   try {
-    isLoading.value = true
+    isLoading.value = true;
 
     if (!userStore.userId) {
-      console.error('User not logged in')
-      return
+      console.error("User not logged in");
+      return;
     }
 
     const linkData: CreateLinkRequest = {
@@ -261,32 +262,32 @@ const handleSubmit = async () => {
       icon: formData.value.icon || null,
       next_order_index: linksStore.links.length + 1,
       owner_id: userStore.userId,
-      owner_type: 'user',
-      column_type: formData.value.columnType
-    }
+      owner_type: "user",
+      column_type: formData.value.columnType,
+    };
 
-    const savedLink = await linksStore.postLink(linkData)
+    const savedLink = await linksStore.postLink(linkData);
     if (savedLink === 502) {
-      validLink.value = false
-      return
+      validLink.value = false;
+      return;
     }
-    validLink.value = true
-    if (!savedLink) console.error('Error saving link')
-    closeModal()
+    validLink.value = true;
+    if (!savedLink) console.error("Error saving link");
+    closeModal();
   } catch (error) {
-    console.error('Error saving link:', error)
+    console.error("Error saving link:", error);
   } finally {
-    isLoading.value = false
+    isLoading.value = false;
   }
-}
+};
 
 watch(isModalOpen, (newVal) => {
   if (!newVal) {
     if (!formData.value.url) {
-      resetForm()
+      resetForm();
     }
   }
-})
+});
 </script>
 
 <style scoped>

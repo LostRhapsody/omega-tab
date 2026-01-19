@@ -1,224 +1,226 @@
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted, nextTick } from 'vue'
-import TpIcon from './TpIcon.vue'
+import { ref, computed, watch, onUnmounted, nextTick } from "vue";
+import TpIcon from "./TpIcon.vue";
 
 export interface ComboboxOption {
-  value: string | number
-  label: string
-  disabled?: boolean
+  value: string | number;
+  label: string;
+  disabled?: boolean;
 }
 
-const props = withDefaults(defineProps<{
-  modelValue?: string | number | null
-  options: ComboboxOption[]
-  label?: string
-  placeholder?: string
-  error?: string
-  disabled?: boolean
-  required?: boolean
-  inputId?: string
-  creatable?: boolean
-  createLabel?: string
-}>(), {
-  modelValue: null,
-  disabled: false,
-  required: false,
-  creatable: true,
-  createLabel: "Create '{input}'"
-})
+const props = withDefaults(
+  defineProps<{
+    modelValue?: string | number | null;
+    options: ComboboxOption[];
+    label?: string;
+    placeholder?: string;
+    error?: string;
+    disabled?: boolean;
+    required?: boolean;
+    inputId?: string;
+    creatable?: boolean;
+    createLabel?: string;
+  }>(),
+  {
+    modelValue: null,
+    disabled: false,
+    required: false,
+    creatable: true,
+    createLabel: "Create '{input}'",
+  },
+);
 
 const emit = defineEmits<{
-  'update:modelValue': [value: string | number | null]
-  'change': [option: ComboboxOption | null]
-  'create': [value: string]
-}>()
+  "update:modelValue": [value: string | number | null];
+  change: [option: ComboboxOption | null];
+  create: [value: string];
+}>();
 
-const inputRef = ref<HTMLInputElement>()
-const controlRef = ref<HTMLDivElement>()
-const menuRef = ref<HTMLUListElement>()
-const isOpen = ref(false)
-const focusedIndex = ref(0)
-const searchQuery = ref('')
-const menuPosition = ref({ top: '0px', left: '0px', width: '0px' })
+const inputRef = ref<HTMLInputElement>();
+const controlRef = ref<HTMLDivElement>();
+const menuRef = ref<HTMLUListElement>();
+const isOpen = ref(false);
+const focusedIndex = ref(0);
+const searchQuery = ref("");
+const menuPosition = ref({ top: "0px", left: "0px", width: "0px" });
 
-const selectedOption = computed(() =>
-  props.options.find(opt => opt.value === props.modelValue) ?? null
-)
+const selectedOption = computed(
+  () => props.options.find((opt) => opt.value === props.modelValue) ?? null,
+);
 
 const filteredOptions = computed(() => {
-  if (!searchQuery.value) return props.options
-  const query = searchQuery.value.toLowerCase()
-  return props.options.filter(opt =>
-    opt.label.toLowerCase().includes(query)
-  )
-})
+  if (!searchQuery.value) return props.options;
+  const query = searchQuery.value.toLowerCase();
+  return props.options.filter((opt) => opt.label.toLowerCase().includes(query));
+});
 
 const showCreateOption = computed(() => {
-  if (!props.creatable || !searchQuery.value.trim()) return false
+  if (!props.creatable || !searchQuery.value.trim()) return false;
   const exactMatch = props.options.some(
-    opt => opt.label.toLowerCase() === searchQuery.value.trim().toLowerCase()
-  )
-  return !exactMatch
-})
+    (opt) => opt.label.toLowerCase() === searchQuery.value.trim().toLowerCase(),
+  );
+  return !exactMatch;
+});
 
-const totalOptions = computed(() =>
-  filteredOptions.value.length + (showCreateOption.value ? 1 : 0)
-)
+const totalOptions = computed(
+  () => filteredOptions.value.length + (showCreateOption.value ? 1 : 0),
+);
 
 const updateMenuPosition = () => {
-  if (!controlRef.value) return
-  const rect = controlRef.value.getBoundingClientRect()
+  if (!controlRef.value) return;
+  const rect = controlRef.value.getBoundingClientRect();
   menuPosition.value = {
     top: `${rect.bottom + window.scrollY + 4}px`,
     left: `${rect.left + window.scrollX}px`,
-    width: `${rect.width}px`
-  }
-}
+    width: `${rect.width}px`,
+  };
+};
 
 const open = () => {
-  if (props.disabled || isOpen.value) return
-  isOpen.value = true
-  focusedIndex.value = 0
-  nextTick(updateMenuPosition)
-}
+  if (props.disabled || isOpen.value) return;
+  isOpen.value = true;
+  focusedIndex.value = 0;
+  nextTick(updateMenuPosition);
+};
 
 const close = () => {
-  isOpen.value = false
-  focusedIndex.value = 0
-}
+  isOpen.value = false;
+  focusedIndex.value = 0;
+};
 
 const select = (option: ComboboxOption) => {
-  if (option.disabled) return
-  emit('update:modelValue', option.value)
-  emit('change', option)
-  searchQuery.value = ''
-  close()
-  inputRef.value?.focus()
-}
+  if (option.disabled) return;
+  emit("update:modelValue", option.value);
+  emit("change", option);
+  searchQuery.value = "";
+  close();
+  inputRef.value?.focus();
+};
 
 const handleCreate = () => {
-  const value = searchQuery.value.trim()
-  if (!value) return
-  emit('create', value)
-  emit('update:modelValue', value)
-  searchQuery.value = ''
-  close()
-  inputRef.value?.focus()
-}
+  const value = searchQuery.value.trim();
+  if (!value) return;
+  emit("create", value);
+  emit("update:modelValue", value);
+  searchQuery.value = "";
+  close();
+  inputRef.value?.focus();
+};
 
 const handleFocus = () => {
   // Copy current value to searchQuery so user can edit it character by character
-  searchQuery.value = selectedOption.value?.label ?? (props.modelValue ? String(props.modelValue) : '')
-  open()
-}
+  searchQuery.value =
+    selectedOption.value?.label ?? (props.modelValue ? String(props.modelValue) : "");
+  open();
+};
 
 const handleInput = () => {
   if (!isOpen.value) {
-    open()
+    open();
   }
-  focusedIndex.value = 0
-}
+  focusedIndex.value = 0;
+};
 
 const handleKeydown = (event: KeyboardEvent) => {
-  if (props.disabled) return
+  if (props.disabled) return;
 
   switch (event.key) {
-    case 'Enter':
-      event.preventDefault()
+    case "Enter":
+      event.preventDefault();
       if (isOpen.value && focusedIndex.value >= 0) {
         if (focusedIndex.value < filteredOptions.value.length) {
-          const option = filteredOptions.value[focusedIndex.value]
-          if (option && !option.disabled) select(option)
+          const option = filteredOptions.value[focusedIndex.value];
+          if (option && !option.disabled) select(option);
         } else if (showCreateOption.value) {
-          handleCreate()
+          handleCreate();
         }
       }
-      break
+      break;
 
-    case 'ArrowDown':
-      event.preventDefault()
+    case "ArrowDown":
+      event.preventDefault();
       if (!isOpen.value) {
-        open()
+        open();
       } else if (totalOptions.value > 0) {
-        focusedIndex.value = Math.min(focusedIndex.value + 1, totalOptions.value - 1)
+        focusedIndex.value = Math.min(focusedIndex.value + 1, totalOptions.value - 1);
       }
-      break
+      break;
 
-    case 'ArrowUp':
-      event.preventDefault()
+    case "ArrowUp":
+      event.preventDefault();
       if (isOpen.value && totalOptions.value > 0) {
-        focusedIndex.value = Math.max(focusedIndex.value - 1, 0)
+        focusedIndex.value = Math.max(focusedIndex.value - 1, 0);
       }
-      break
+      break;
 
-    case 'Escape':
-      event.preventDefault()
-      searchQuery.value = ''
-      close()
-      break
+    case "Escape":
+      event.preventDefault();
+      searchQuery.value = "";
+      close();
+      break;
 
-    case 'Tab':
-      close()
-      break
+    case "Tab":
+      close();
+      break;
 
-    case 'Home':
-      event.preventDefault()
-      if (isOpen.value) focusedIndex.value = 0
-      break
+    case "Home":
+      event.preventDefault();
+      if (isOpen.value) focusedIndex.value = 0;
+      break;
 
-    case 'End':
-      event.preventDefault()
+    case "End":
+      event.preventDefault();
       if (isOpen.value && totalOptions.value > 0) {
-        focusedIndex.value = totalOptions.value - 1
+        focusedIndex.value = totalOptions.value - 1;
       }
-      break
+      break;
   }
-}
+};
 
 const handleClickOutside = (event: MouseEvent) => {
-  const target = event.target as Node
+  const target = event.target as Node;
   if (
     controlRef.value &&
     !controlRef.value.contains(target) &&
     menuRef.value &&
     !menuRef.value.contains(target)
   ) {
-    searchQuery.value = ''
-    close()
+    searchQuery.value = "";
+    close();
   }
-}
+};
 
 const toggleMenu = () => {
   if (isOpen.value) {
-    close()
+    close();
   } else {
-    open()
-    inputRef.value?.focus()
+    open();
+    inputRef.value?.focus();
   }
-}
+};
 
 watch(isOpen, (open) => {
   if (open) {
-    document.addEventListener('click', handleClickOutside)
+    document.addEventListener("click", handleClickOutside);
   } else {
-    document.removeEventListener('click', handleClickOutside)
+    document.removeEventListener("click", handleClickOutside);
   }
-})
+});
 
 onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
-})
+  document.removeEventListener("click", handleClickOutside);
+});
 
 // Display the selected value in the input when not searching
 const displayValue = computed(() => {
   // When open/editing, always show searchQuery (even if empty)
-  if (isOpen.value) return searchQuery.value
+  if (isOpen.value) return searchQuery.value;
   // When closed, show selected value
-  if (selectedOption.value) return selectedOption.value.label
+  if (selectedOption.value) return selectedOption.value.label;
   // If modelValue is set but doesn't match an option (newly created), show the value itself
-  if (props.modelValue) return String(props.modelValue)
-  return ''
-})
+  if (props.modelValue) return String(props.modelValue);
+  return "";
+});
 </script>
 
 <template>
@@ -228,8 +230,8 @@ const displayValue = computed(() => {
       {
         'tp-combobox--open': isOpen,
         'tp-combobox--error': error,
-        'tp-combobox--disabled': disabled
-      }
+        'tp-combobox--disabled': disabled,
+      },
     ]"
   >
     <label v-if="label" class="tp-combobox__label">
@@ -242,7 +244,10 @@ const displayValue = computed(() => {
         ref="inputRef"
         :id="inputId"
         :value="displayValue"
-        @input="searchQuery = ($event.target as HTMLInputElement).value; handleInput()"
+        @input="
+          searchQuery = ($event.target as HTMLInputElement).value;
+          handleInput();
+        "
         type="text"
         class="tp-combobox__input"
         :placeholder="placeholder ?? 'Select or type...'"
@@ -275,7 +280,7 @@ const displayValue = computed(() => {
             position: 'absolute',
             top: menuPosition.top,
             left: menuPosition.left,
-            width: menuPosition.width
+            width: menuPosition.width,
           }"
         >
           <li
@@ -286,8 +291,8 @@ const displayValue = computed(() => {
               {
                 'tp-combobox__item--focused': focusedIndex === index,
                 'tp-combobox__item--selected': option.value === modelValue,
-                'tp-combobox__item--disabled': option.disabled
-              }
+                'tp-combobox__item--disabled': option.disabled,
+              },
             ]"
             role="option"
             :aria-selected="option.value === modelValue"
@@ -311,14 +316,14 @@ const displayValue = computed(() => {
             :class="[
               'tp-combobox__item',
               'tp-combobox__item--create',
-              { 'tp-combobox__item--focused': focusedIndex === filteredOptions.length }
+              { 'tp-combobox__item--focused': focusedIndex === filteredOptions.length },
             ]"
             role="option"
             @click="handleCreate"
             @mouseenter="focusedIndex = filteredOptions.length"
           >
             <TpIcon name="plus" size="sm" />
-            <span>{{ createLabel.replace('{input}', searchQuery.trim()) }}</span>
+            <span>{{ createLabel.replace("{input}", searchQuery.trim()) }}</span>
           </li>
 
           <!-- Empty state -->

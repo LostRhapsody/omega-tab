@@ -42,7 +42,7 @@ export const useLinksStore = defineStore("links", {
   },
 
   actions: {
-    async fetchLinks(userId: string) {
+    async fetchLinks(_userId: string) {
       // Only fetch if we don't have data already
       if (this.links.length === 0) {
         // Load from cache first
@@ -198,8 +198,7 @@ export const useLinksStore = defineStore("links", {
     },
 
     validateUrl(url: string): boolean | string {
-      const urlPattern =
-        /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?(\?.*)?$/;
+      const urlPattern = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?(\?.*)?$/;
       return urlPattern.test(url) ? true : "Please enter a valid URL";
     },
 
@@ -222,9 +221,7 @@ export const useLinksStore = defineStore("links", {
       });
 
       // Create a map of updated links by ID for quick lookup
-      const updatedLinksMap = new Map(
-        columnLinks.map((link) => [link.id, link]),
-      );
+      const updatedLinksMap = new Map(columnLinks.map((link) => [link.id, link]));
 
       // Update only the affected links in the main array (preserve original order)
       this.links = this.links.map((link) => {

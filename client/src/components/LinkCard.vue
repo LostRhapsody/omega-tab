@@ -1,106 +1,106 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { useUserSettingsStore } from '../stores/settings'
-import { TpMenu, TpMenuItem, TpIcon, TpSnackbar } from '@/components/ui'
+import { computed, ref } from "vue";
+import { useUserSettingsStore } from "../stores/settings";
+import { TpMenu, TpMenuItem, TpIcon, TpSnackbar } from "@/components/ui";
 
 interface Props {
-  icon?: string
-  title: string
-  description: string
-  link: string
-  index: number
-  shortcut: string
-  onDelete: () => void
-  onEdit: () => void
-  draggable?: boolean
-  onDragStart?: (index: number) => void
-  onDragOver?: (index: number) => void
-  onDragEnd?: () => void
-  isDragOver?: boolean
+  icon?: string;
+  title: string;
+  description: string;
+  link: string;
+  index: number;
+  shortcut: string;
+  onDelete: () => void;
+  onEdit: () => void;
+  draggable?: boolean;
+  onDragStart?: (index: number) => void;
+  onDragOver?: (index: number) => void;
+  onDragEnd?: () => void;
+  isDragOver?: boolean;
 }
 
-const settingsStore = useUserSettingsStore()
-const props = defineProps<Props>()
-const isMdiIcon = computed(() => props.icon?.startsWith('mdi-'))
-const snackbar = ref(false)
-const iconBackground = ref('')
+const settingsStore = useUserSettingsStore();
+const props = defineProps<Props>();
+const isMdiIcon = computed(() => props.icon?.startsWith("mdi-"));
+const snackbar = ref(false);
+const iconBackground = ref("");
 
 const copyToClipboard = (text: string) => {
   navigator.clipboard
     .writeText(text)
     .then(() => {
-      snackbar.value = true
+      snackbar.value = true;
     })
     .catch((err) => {
-      console.error('Failed to copy: ', err)
-    })
-}
+      console.error("Failed to copy: ", err);
+    });
+};
 
 const isIconDark = (iconUrl: string): Promise<boolean> => {
-  if (iconUrl.includes('svg+xml')) {
-    return new Promise((resolve) => resolve(false))
+  if (iconUrl.includes("svg+xml")) {
+    return new Promise((resolve) => resolve(false));
   }
   return new Promise((resolve) => {
-    const img = new Image()
-    img.crossOrigin = 'Anonymous'
-    img.src = iconUrl
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.src = iconUrl;
     img.onload = () => {
-      const canvas = document.createElement('canvas')
-      const ctx = canvas.getContext('2d')
-      if (!ctx) return resolve(false)
-      canvas.width = img.width
-      canvas.height = img.height
-      ctx.drawImage(img, 0, 0, img.width, img.height)
-      const imageData = ctx.getImageData(0, 0, img.width, img.height)
-      let totalBrightness = 0
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return resolve(false);
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0, img.width, img.height);
+      const imageData = ctx.getImageData(0, 0, img.width, img.height);
+      let totalBrightness = 0;
       for (let i = 0; i < imageData.data.length; i += 4) {
-        const r = imageData.data[i]
-        const g = imageData.data[i + 1]
-        const b = imageData.data[i + 2]
-        totalBrightness += r * 0.299 + g * 0.587 + b * 0.114
+        const r = imageData.data[i];
+        const g = imageData.data[i + 1];
+        const b = imageData.data[i + 2];
+        totalBrightness += r * 0.299 + g * 0.587 + b * 0.114;
       }
-      const avgBrightness = totalBrightness / (imageData.data.length / 4)
-      resolve(avgBrightness < 50)
-    }
-    img.onerror = () => resolve(false)
-  })
-}
+      const avgBrightness = totalBrightness / (imageData.data.length / 4);
+      resolve(avgBrightness < 50);
+    };
+    img.onerror = () => resolve(false);
+  });
+};
 
 if (props.icon && !isMdiIcon.value) {
   isIconDark(props.icon).then((isDark) => {
-    iconBackground.value = isDark ? 'var(--tp-bg-tertiary)' : ''
-  })
+    iconBackground.value = isDark ? "var(--tp-bg-tertiary)" : "";
+  });
 }
 
 // Drag handlers
 const handleDragStart = (event: DragEvent) => {
-  if (!props.draggable) return
-  event.dataTransfer?.setData('text/plain', props.index.toString())
-  props.onDragStart?.(props.index)
-}
+  if (!props.draggable) return;
+  event.dataTransfer?.setData("text/plain", props.index.toString());
+  props.onDragStart?.(props.index);
+};
 
 const handleDragOver = () => {
-  if (!props.draggable) return
-  props.onDragOver?.(props.index)
-}
+  if (!props.draggable) return;
+  props.onDragOver?.(props.index);
+};
 
 const handleDragEnd = () => {
-  if (!props.draggable) return
-  props.onDragEnd?.()
-}
+  if (!props.draggable) return;
+  props.onDragEnd?.();
+};
 
 // Map MDI icons to our icon names
 const getMappedIcon = (mdiIcon: string) => {
   const iconMap: Record<string, string> = {
-    'mdi-link': 'link',
-    'mdi-cog': 'cog',
-    'mdi-help': 'help',
-    'mdi-book': 'book',
-    'mdi-rocket': 'rocket'
-  }
-  const iconName = mdiIcon.replace('mdi-', '')
-  return iconMap[mdiIcon] || iconName
-}
+    "mdi-link": "link",
+    "mdi-cog": "cog",
+    "mdi-help": "help",
+    "mdi-book": "book",
+    "mdi-rocket": "rocket",
+  };
+  const iconName = mdiIcon.replace("mdi-", "");
+  return iconMap[mdiIcon] || iconName;
+};
 </script>
 
 <template>
@@ -118,13 +118,11 @@ const getMappedIcon = (mdiIcon: string) => {
       :target="settingsStore.settings.new_tabs ? '_blank' : '_self'"
       class="link-card__link"
     >
-      <div class="link-card__icon-wrapper" :class="{ 'link-card__icon-wrapper--bg': iconBackground }">
-        <TpIcon
-          v-if="isMdiIcon"
-          :name="getMappedIcon(icon!)"
-          size="lg"
-          class="link-card__icon"
-        />
+      <div
+        class="link-card__icon-wrapper"
+        :class="{ 'link-card__icon-wrapper--bg': iconBackground }"
+      >
+        <TpIcon v-if="isMdiIcon" :name="getMappedIcon(icon!)" size="lg" class="link-card__icon" />
         <img
           v-else-if="icon"
           :src="icon"
@@ -136,38 +134,28 @@ const getMappedIcon = (mdiIcon: string) => {
       </div>
 
       <div class="link-card__content">
-        <div class="link-card__title">{{ title }}
-        <div v-if="shortcut" class="link-card__shortcut">
-           <kbd>{{ shortcut }}+{{ index + 1 }}</kbd>
-        </div>
+        <div class="link-card__title">
+          {{ title }}
+          <div v-if="shortcut" class="link-card__shortcut">
+            <kbd>{{ shortcut }}+{{ index + 1 }}</kbd>
+          </div>
         </div>
         <div v-if="description" class="link-card__description">
           {{ description }}
         </div>
       </div>
-
     </a>
 
     <TpMenu position="bottom-end" class="link-card__menu">
       <template #trigger>
-        <button
-          class="link-card__menu-btn"
-          @click.prevent
-          aria-label="Link options"
-        >
+        <button class="link-card__menu-btn" @click.prevent aria-label="Link options">
           <TpIcon name="menu-dots" size="md" />
         </button>
       </template>
 
-      <TpMenuItem icon="edit" @click="onEdit">
-        Edit
-      </TpMenuItem>
-      <TpMenuItem icon="copy" @click="copyToClipboard(link)">
-        Copy URL
-      </TpMenuItem>
-      <TpMenuItem icon="trash" danger @click="onDelete">
-        Delete
-      </TpMenuItem>
+      <TpMenuItem icon="edit" @click="onEdit"> Edit </TpMenuItem>
+      <TpMenuItem icon="copy" @click="copyToClipboard(link)"> Copy URL </TpMenuItem>
+      <TpMenuItem icon="trash" danger @click="onDelete"> Delete </TpMenuItem>
     </TpMenu>
 
     <TpSnackbar
