@@ -1,0 +1,42 @@
+# Build stage - builds both landing page and docs
+FROM oven/bun:1 AS builder
+
+# Install git for VitePress lastUpdated feature
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy and build landing page
+COPY landing-page/package.json landing-page/bun.lock ./landing-page/
+WORKDIR /app/landing-page
+RUN bun install
+COPY landing-page/ ./
+RUN bun run build
+
+# Copy and build docs
+WORKDIR /app
+COPY docs/package.json docs/bun.lock ./docs/
+WORKDIR /app/docs
+RUN bun install
+COPY docs/ ./
+RUN bun run build
+
+# Production stage - serve combined static files
+FROM oven/bun:1-alpine
+
+WORKDIR /app
+
+# Install serve
+RUN bun add serve
+
+# Copy landing page build to root
+COPY --from=builder /app/landing-page/dist ./dist
+
+# Copy docs build to /docs subdirectory
+COPY --from=builder /app/docs/.vitepress/dist ./dist/docs
+
+# Expose port
+EXPOSE 3000
+
+# Serve the static files
+CMD ["bunx", "serve", "-s", "dist", "-l", "3000"]
