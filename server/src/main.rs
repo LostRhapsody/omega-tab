@@ -3,6 +3,7 @@
 
 mod assets;
 mod brave;
+mod dashboard_icons;
 mod database;
 mod middleware;
 mod resend;
@@ -312,6 +313,8 @@ async fn runtime(shutdown_rx: mpsc::Receiver<()>) {
         .route("/user_data", get(get_user_data_handler))
         // Add staging login route - doesn't need authentication
         .route("/staging_login", post(staging_login_handler))
+        // Dashboard icons search
+        .route("/icons/search/{query}", get(search_icons_handler))
         .with_state(app_state)
         .layer(axum::middleware::from_fn(authenticate_user));
 
@@ -1006,6 +1009,34 @@ async fn suggest_handler(
     Ok(Json(SuggestionResponse {
         suggestions: response.results,
     }))
+}
+
+async fn search_icons_handler(
+    Path(query): Path<String>,
+    Extension(user_context): Extension<UserContext>,
+) -> Result<Json<dashboard_icons::IconSearchResponse>, StatusCode> {
+    let user_email = user_context.email.clone();
+    let user_id = user_context.user_id.clone();
+    println!("Searching icons for query: {}", query);
+
+    sentry::configure_scope(|scope| {
+        scope.set_user(Some(sentry::User {
+            email: Some(user_email.clone()),
+            id: Some(user_id.clone()),
+            ..Default::default()
+        }));
+        scope.set_tag("http.method", "GET");
+    });
+
+    tracing::info!("Searching dashboard icons for query: {}", query);
+
+    let dashboard_icons = dashboard_icons::DashboardIcons::new();
+    let response = dashboard_icons.search(&query).await.map_err(|e| {
+        tracing::error!("Error searching icons: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    Ok(Json(response))
 }
 
 async fn feedback_handler(
