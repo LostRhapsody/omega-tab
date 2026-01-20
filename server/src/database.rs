@@ -2,13 +2,13 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use anyhow::Result;
-use bcrypt::{hash, verify, DEFAULT_COST};
+use bcrypt::{DEFAULT_COST, hash, verify};
 use chrono::{DateTime, Utc};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use sqlx::{
-    sqlite::{SqlitePool, SqlitePoolOptions},
     FromRow, Row,
+    sqlite::{SqlitePool, SqlitePoolOptions},
 };
 
 // Type definitions matching Database.ts
@@ -171,9 +171,7 @@ impl Database {
             .await?;
 
         // Run migrations
-        sqlx::migrate!("./migrations_sqlite")
-            .run(&pool)
-            .await?;
+        sqlx::migrate!("./migrations_sqlite").run(&pool).await?;
 
         tracing::info!("Database migrations completed successfully");
 
@@ -337,13 +335,12 @@ impl Database {
     pub async fn get_links(&self, owner_id: &str, owner_type: &str) -> Result<Vec<Link>> {
         tracing::info!("Fetching links for owner {}: {}", owner_type, owner_id);
 
-        let links = sqlx::query_as::<_, Link>(
-            "SELECT * FROM links WHERE owner_id = ? AND owner_type = ?",
-        )
-        .bind(owner_id)
-        .bind(owner_type)
-        .fetch_all(&self.pool)
-        .await?;
+        let links =
+            sqlx::query_as::<_, Link>("SELECT * FROM links WHERE owner_id = ? AND owner_type = ?")
+                .bind(owner_id)
+                .bind(owner_type)
+                .fetch_all(&self.pool)
+                .await?;
 
         tracing::info!("Successfully fetched {} links", links.len());
         Ok(links)
@@ -451,12 +448,11 @@ impl Database {
     pub async fn get_user_memberships(&self, user_id: &str) -> Result<Vec<UserMembership>> {
         tracing::info!("Fetching memberships for user: {}", user_id);
 
-        let memberships = sqlx::query_as::<_, UserMembership>(
-            "SELECT * FROM user_memberships WHERE user_id = ?",
-        )
-        .bind(user_id)
-        .fetch_all(&self.pool)
-        .await?;
+        let memberships =
+            sqlx::query_as::<_, UserMembership>("SELECT * FROM user_memberships WHERE user_id = ?")
+                .bind(user_id)
+                .fetch_all(&self.pool)
+                .await?;
 
         tracing::info!("Successfully fetched {} memberships", memberships.len());
         Ok(memberships)
@@ -502,14 +498,13 @@ impl Database {
             entity_id
         );
 
-        let result = sqlx::query(
-            "UPDATE user_memberships SET role = ? WHERE user_id = ? AND entity_id = ?",
-        )
-        .bind(role)
-        .bind(user_id)
-        .bind(entity_id)
-        .execute(&self.pool)
-        .await?;
+        let result =
+            sqlx::query("UPDATE user_memberships SET role = ? WHERE user_id = ? AND entity_id = ?")
+                .bind(role)
+                .bind(user_id)
+                .bind(entity_id)
+                .execute(&self.pool)
+                .await?;
 
         if result.rows_affected() == 0 {
             return Err(anyhow::anyhow!("Membership not found or update failed"));
@@ -710,11 +705,10 @@ impl Database {
     pub async fn check_feedback_timestamp(&self, user_id: &str) -> Result<bool> {
         tracing::info!("Checking feedback timestamp for user: {}", user_id);
 
-        let timestamp =
-            sqlx::query("SELECT created_at FROM feedback_timestamps WHERE user_id = ?")
-                .bind(user_id)
-                .fetch_optional(&self.pool)
-                .await?;
+        let timestamp = sqlx::query("SELECT created_at FROM feedback_timestamps WHERE user_id = ?")
+            .bind(user_id)
+            .fetch_optional(&self.pool)
+            .await?;
 
         if let Some(record) = timestamp {
             let created_at: String = record.try_get("created_at")?;
@@ -951,7 +945,11 @@ impl Database {
         owner_id: &str,
         plan_id: &str,
     ) -> Result<String> {
-        tracing::info!("Creating organization: {} for owner: {}", org_name, owner_id);
+        tracing::info!(
+            "Creating organization: {} for owner: {}",
+            org_name,
+            owner_id
+        );
 
         // Start a transaction
         let mut tx = self.pool.begin().await?;
@@ -960,13 +958,15 @@ impl Database {
         let created_at = Utc::now().to_rfc3339();
 
         // Create the organization
-        sqlx::query("INSERT INTO organizations (id, name, owner_id, created_at) VALUES (?, ?, ?, ?)")
-            .bind(&org_id)
-            .bind(org_name)
-            .bind(owner_id)
-            .bind(&created_at)
-            .execute(&mut *tx)
-            .await?;
+        sqlx::query(
+            "INSERT INTO organizations (id, name, owner_id, created_at) VALUES (?, ?, ?, ?)",
+        )
+        .bind(&org_id)
+        .bind(org_name)
+        .bind(owner_id)
+        .bind(&created_at)
+        .execute(&mut *tx)
+        .await?;
 
         // Create subscription for the organization
         let sub_id = uuid::Uuid::new_v4().to_string();

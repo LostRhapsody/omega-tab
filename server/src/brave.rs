@@ -19,12 +19,13 @@ impl RateLimiter {
             time_window: Duration::from_secs(time_window_secs),
         }
     }
-    
+
     fn can_make_request(&mut self) -> bool {
         let now = Instant::now();
         // Remove timestamps older than the time window
-        self.requests.retain(|timestamp| now.duration_since(*timestamp) < self.time_window);
-        
+        self.requests
+            .retain(|timestamp| now.duration_since(*timestamp) < self.time_window);
+
         // Check if we've reached the limit
         if self.requests.len() < self.max_requests {
             self.requests.push(now);
@@ -33,13 +34,13 @@ impl RateLimiter {
             false
         }
     }
-    
+
     fn time_until_next_slot(&self) -> Duration {
         let now = Instant::now();
         if self.requests.len() < self.max_requests {
             return Duration::from_secs(0);
         }
-        
+
         // Get the oldest request and calculate when it will expire
         if let Some(oldest) = self.requests.first() {
             let expiry = *oldest + self.time_window;
@@ -87,7 +88,7 @@ impl Brave {
         let client = Client::new();
         // Configure rate limiter for 2 requests per second
         let rate_limiter = Arc::new(Mutex::new(RateLimiter::new(1, 1)));
-        
+
         Ok(Self {
             client,
             url: url.to_string(),
@@ -98,25 +99,26 @@ impl Brave {
 
     pub async fn get_suggestions(&self, query: &str) -> Result<SuggestResponse> {
         tracing::info!("Fetching suggestions for query: {}", query);
-        
+
         // Check rate limiting
         let can_proceed = {
             let mut limiter = self.rate_limiter.lock().unwrap();
             limiter.can_make_request()
         };
-        
+
         if !can_proceed {
             // Calculate wait time and potentially wait if needed
-            let wait_time = {
-                self.rate_limiter.lock().unwrap().time_until_next_slot()
-            };
-            
+            let wait_time = { self.rate_limiter.lock().unwrap().time_until_next_slot() };
+
             if wait_time > Duration::from_secs(0) {
                 // Return rate limit error rather than waiting
-                tracing::warn!("Rate limit exceeded for Brave API, need to wait {:?}", wait_time);
+                tracing::warn!(
+                    "Rate limit exceeded for Brave API, need to wait {:?}",
+                    wait_time
+                );
                 return Err(anyhow::anyhow!("429"));
             }
-            
+
             // Try again after rate limit window has passed
             let mut limiter = self.rate_limiter.lock().unwrap();
             if !limiter.can_make_request() {
@@ -124,15 +126,12 @@ impl Brave {
                 return Err(anyhow::anyhow!("429"));
             }
         }
-        
-        let response = self.client
+
+        let response = self
+            .client
             .get(&self.url)
             .header("X-Subscription-Token", &self.api_key)
-            .query(&[
-                ("q", query),
-                ("country", "US"),
-                ("rich", "false"),
-            ])
+            .query(&[("q", query), ("country", "US"), ("rich", "false")])
             .send()
             .await?;
 
@@ -148,7 +147,10 @@ impl Brave {
 
         // Parse the response body back to a Response to return
         let suggestions: SuggestResponse = serde_json::from_str(&response_body)?;
-        tracing::info!("Successfully fetched {} suggestions", suggestions.results.len());
+        tracing::info!(
+            "Successfully fetched {} suggestions",
+            suggestions.results.len()
+        );
         Ok(suggestions)
     }
 }
