@@ -11,24 +11,24 @@ mod tray;
 mod user_jwt;
 
 use axum::{
+    Router,
     extract::{Extension, Json, Path, State},
     http::{HeaderMap, HeaderValue, Method, StatusCode},
     routing::{delete, get, post},
-    Router,
 };
 use base64::prelude::*;
 use brave::Brave;
 use chrono::Utc;
 use database::Database;
 use dotenv::dotenv;
-use middleware::{authenticate_user, UserContext};
+use middleware::{UserContext, authenticate_user};
 use resend::ResendClient;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{collections::HashMap, env, sync::mpsc, thread};
 use tower_http::cors::{Any, CorsLayer};
-use tray::TrayMessage;
 use tracing_subscriber::prelude::*;
+use tray::TrayMessage;
 use url::Url;
 
 #[derive(Deserialize)]
@@ -46,6 +46,7 @@ pub struct CreateLinkRequest {
     owner_type: String,
     owner_id: String,
     column_type: String,
+    icon: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -221,7 +222,11 @@ async fn runtime(shutdown_rx: mpsc::Receiver<()>) {
 
         match environment.as_str() {
             "production" => CorsLayer::new()
-                .allow_origin("https://omega-tab.evanrobertson.dev".parse::<HeaderValue>().unwrap())
+                .allow_origin(
+                    "https://omega-tab.evanrobertson.dev"
+                        .parse::<HeaderValue>()
+                        .unwrap(),
+                )
                 .allow_methods([
                     Method::GET,
                     Method::POST,
@@ -618,7 +623,8 @@ async fn create_link(
         }
     };
 
-    // use the user's title, if empty use metadata, metadata will be the URL if metadata is not fetched
+    // use the user's title, if empty use metadata, metadata will be
+    // the URL if metadata is not fetched
     let title = if payload.title.as_deref() == Some("") {
         metadata.title.unwrap_or_else(|| "".to_string())
     } else {
@@ -627,8 +633,9 @@ async fn create_link(
             .unwrap_or_else(|| metadata.title.unwrap().clone())
     };
 
-    // grab the favicon, or just pass an empty string
-    let favicon = if metadata_on {
+    // grab the favicon if meta data is turned on the user
+    // did not provide one or just pass an empty string
+    let favicon = if payload.icon.is_none() && metadata_on {
         get_favicon(
             State(client),
             &url,
@@ -640,6 +647,8 @@ async fn create_link(
             tracing::error!("Error getting favicon: {:?}", e);
         })
         .unwrap_or_else(|_| "".to_string())
+    } else if payload.icon.is_some() {
+        payload.icon.unwrap()
     } else {
         "".to_string()
     };
