@@ -70,6 +70,7 @@
                 Clear
               </TpButton>
             </div>
+            <IconSearchPanel @select="handleIconSelect" />
           </div>
         </div>
       </div>
@@ -118,6 +119,7 @@ import {
   TpTooltip,
   TpIcon,
 } from "@/components/ui";
+import IconSearchPanel from "@/components/IconSearchPanel.vue";
 
 const linksStore = useLinksStore();
 const { smAndDown: mobile } = useBreakpoint();
@@ -224,6 +226,10 @@ const clearIcon = () => {
   if (fileInputRef.value) {
     fileInputRef.value.value = "";
   }
+};
+
+const handleIconSelect = (url: string) => {
+  formData.value.icon = url;
 };
 
 const validateForm = (): boolean => {

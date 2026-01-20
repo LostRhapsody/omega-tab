@@ -1,7 +1,7 @@
 use std::sync::mpsc::{self, Receiver};
 use tray_icon::{
-    menu::{Menu, MenuEvent, MenuItem},
     TrayIcon, TrayIconBuilder,
+    menu::{Menu, MenuEvent, MenuItem},
 };
 
 /// Message types that can be sent from the tray
@@ -52,11 +52,13 @@ pub fn create_tray() -> Result<(TrayIcon, Receiver<TrayMessage>), Box<dyn std::e
 
     // Listen for menu events in a separate thread
     let exit_id = exit_item.id().clone();
-    std::thread::spawn(move || loop {
-        if let Ok(event) = MenuEvent::receiver().recv() {
-            if event.id == exit_id {
-                let _ = tx.send(TrayMessage::Exit);
-                break;
+    std::thread::spawn(move || {
+        loop {
+            if let Ok(event) = MenuEvent::receiver().recv() {
+                if event.id == exit_id {
+                    let _ = tx.send(TrayMessage::Exit);
+                    break;
+                }
             }
         }
     });

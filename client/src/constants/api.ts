@@ -11,6 +11,7 @@ export const API = {
   UPDATE_LINK: `${apiBase}/link`,
   DELETE_LINK: (linkId: string) => `${apiBase}/link/${linkId}`,
   SUGGEST: (query: string) => `${apiBase}/suggest/${query}`,
+  SEARCH_ICONS: (query: string) => `${apiBase}/icons/search/${encodeURIComponent(query)}`,
   FEEDBACK: `${apiBase}/feedback`,
   CREATE_SETTINGS: `${apiBase}/settings`,
   UPDATE_SETTINGS: `${apiBase}/settings`,

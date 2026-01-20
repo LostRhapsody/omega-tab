@@ -1,5 +1,5 @@
-use axum::{http::Request, middleware::Next, response::Response};
 use crate::user_jwt;
+use axum::{http::Request, middleware::Next, response::Response};
 
 #[derive(Clone, Debug)]
 pub struct UserContext {
@@ -16,7 +16,10 @@ pub async fn authenticate_user(
     // Skip authentication for public paths
     let public_paths = ["/login", "/register", "/staging_login", "/health"];
     if public_paths.contains(&req.uri().path()) {
-        tracing::debug!("Skipping authentication for public path: {}", req.uri().path());
+        tracing::debug!(
+            "Skipping authentication for public path: {}",
+            req.uri().path()
+        );
         return Ok(next.run(req).await);
     }
 
