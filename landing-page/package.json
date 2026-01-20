@@ -4,25 +4,27 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"dev": "vite",
-		"build": "NODE_ENV=production run-s tailwind:build type-check \"build-only --mode production --minify\"",
-		"preview": "vite preview",
-		"build-only": "vite build",
-		"type-check": "vue-tsc --build",
-		"tailwind:watch": "tailwindcss -i ./src/assets/css/main.css -o ./src/assets/css/tailwind.css --watch",
-		"tailwind:build": "tailwindcss -i ./src/assets/css/main.css -o ./src/assets/css/tailwind.css --minify",
-		"dev:all": "run-p dev tailwind:watch",
-		"start": "bun dev:all"
+		"dev": "bunx vite",
+		"build": "bunx vite build",
+		"preview": "bunx vite preview",
+		"type-check": "bunx vue-tsc --noEmit",
+		"lint": "bunx oxlint src",
+		"format": "bunx oxfmt src",
+		"check": "bun run lint && bun run type-check",
+		"verify": "bun run type-check && bun run lint && bun run format && bun run build",
+		"verify:fast": "bun run type-check && bun run lint && bun run format"
 	},
 	"dependencies": {
+		"@tailwindcss/vite": "^4.0.1",
 		"vue": "^3.5.13",
 		"vue-router": "^4.5.0"
 	},
 	"devDependencies": {
 		"@vitejs/plugin-vue": "^5.2.1",
 		"@vue/tsconfig": "^0.7.0",
-		"npm-run-all2": "^7.0.2",
-		"tailwindcss": "^3.4.17",
+		"oxfmt": "^0.26.0",
+		"oxlint": "^1.41.0",
+		"tailwindcss": "4",
 		"typescript": "~5.7.3",
 		"vite": "^6.0.11",
 		"vue-tsc": "^2.2.0"
