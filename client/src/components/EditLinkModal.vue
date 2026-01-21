@@ -255,7 +255,27 @@ const handleSubmit = async () => {
   try {
     isLoading.value = true;
     props.link.url = formData.value.url;
-    props.link.title = formData.value.title || new URL(formData.value.url).hostname;
+
+    // Safe URL parsing with fallback for special characters
+    let hostname = "";
+    try {
+      const parsedUrl = new URL(formData.value.url);
+      hostname = parsedUrl.hostname;
+    } catch (urlError) {
+      // Fallback: try to extract domain from the URL string
+      try {
+        // For URLs like "example.com/path", extract "example.com"
+        const urlParts = formData.value.url.split("/")[0].split(".");
+        if (urlParts.length >= 2) {
+          hostname = urlParts[urlParts.length - 2] + "." + urlParts[urlParts.length - 1];
+        }
+      } catch (fallbackError) {
+        // If all else fails, use the URL as-is
+        hostname = formData.value.url;
+      }
+    }
+
+    props.link.title = formData.value.title || hostname;
     props.link.description = formData.value.description;
     props.link.column_type = formData.value.columnType;
     props.link.icon = formData.value.icon || null;

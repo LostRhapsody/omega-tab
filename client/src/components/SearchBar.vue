@@ -390,10 +390,27 @@ const addToHistory = (query: string) => {
 };
 
 const prepareUrl = (url: string) => {
-  if (!url.startsWith("http://") && !url.startsWith("https://")) {
-    return `https://${url}`;
+  try {
+    // First, ensure we have a protocol
+    let processedUrl = url;
+    if (!processedUrl.startsWith("http://") && !processedUrl.startsWith("https://")) {
+      processedUrl = `https://${processedUrl}`;
+    }
+
+    // Try to parse the URL to validate it
+    const parsedUrl = new URL(processedUrl);
+
+    // Return the properly formatted URL
+    return parsedUrl.href;
+  } catch (error) {
+    // If URL parsing fails, try basic protocol addition as fallback
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+      return `https://${url}`;
+    }
+    // If it already has a protocol but still fails parsing, return as-is
+    // The browser will handle the error gracefully
+    return url;
   }
-  return url;
 };
 
 const performSearch = () => {
