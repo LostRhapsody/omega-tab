@@ -200,7 +200,8 @@ export const useLinksStore = defineStore("links", {
     validateUrl(url: string): boolean | string {
       // More permissive regex that handles special characters like +, #, !, %, &, ?
       // Allows encoded characters and common special chars in URLs
-      const urlPattern = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w\s\.\-\+\#\!\?\=\&\%\~\:\;\,\@]*)*\/?(\?.*)?$/i;
+      const urlPattern =
+        /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w\s.\-+#!?=&%~:;,@]*)*\/?(\?.*)?$/i;
       return urlPattern.test(url) ? true : "Please enter a valid URL";
     },
 

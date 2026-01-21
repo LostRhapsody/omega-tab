@@ -265,9 +265,9 @@ const handleSubmit = async () => {
       // Fallback: try to extract domain from the URL string
       try {
         // For URLs like "example.com/path", extract "example.com"
-        const urlParts = formData.value.url.split('/')[0].split('.');
+        const urlParts = formData.value.url.split("/")[0].split(".");
         if (urlParts.length >= 2) {
-          hostname = urlParts[urlParts.length - 2] + '.' + urlParts[urlParts.length - 1];
+          hostname = urlParts[urlParts.length - 2] + "." + urlParts[urlParts.length - 1];
         }
       } catch (fallbackError) {
         // If all else fails, use the URL as-is
