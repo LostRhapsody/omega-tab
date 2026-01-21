@@ -562,6 +562,12 @@ async fn create_link(
         payload.url
     };
 
+    // Validate URL format before proceeding
+    if let Err(e) = Url::parse(&url) {
+        tracing::error!("Invalid URL format: {} - {:?}", url, e);
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
     // Check for the custom authorization header
     let auth_token = headers
         .get("X-User-Authorization")
@@ -704,6 +710,14 @@ async fn update_link(
     });
 
     tracing::info!("Updating link: {}", payload.id);
+
+    // Validate URL format if provided
+    if let Some(ref url) = payload.url {
+        if let Err(e) = Url::parse(url) {
+            tracing::error!("Invalid URL format in update: {} - {:?}", url, e);
+            return Err(StatusCode::BAD_REQUEST);
+        }
+    }
 
     // Use app_state's database instance
     let database = &app_state.database;
@@ -880,7 +894,13 @@ async fn get_favicon(
     favicon_source: Option<String>,
     mime_type: Option<String>,
 ) -> Result<String, StatusCode> {
-    let parsed_url = Url::parse(url).expect("Invalid URL");
+    let parsed_url = match Url::parse(url) {
+        Ok(url) => url,
+        Err(e) => {
+            tracing::error!("Invalid URL for favicon: {} - {:?}", url, e);
+            return Err(StatusCode::BAD_REQUEST);
+        }
+    };
     let domain = parsed_url.host_str().unwrap_or("").to_string();
 
     let domain = if !domain.starts_with("https://") {
