@@ -102,7 +102,7 @@
             <div class="shortcuts-modal__section">
               <div class="shortcuts-modal__row">
                 <span class="shortcuts-modal__label">Show Keyboard Shortcuts</span>
-                <span class="shortcuts-modal__keys"> <kbd>?</kbd> (<kbd>shift + /</kbd>) </span>
+                <span class="shortcuts-modal__keys"> <kbd>Ctrl</kbd> + <kbd>/</kbd> </span>
               </div>
               <TpDivider />
               <div class="shortcuts-modal__row">
@@ -292,7 +292,7 @@ const isModalOpen = () => {
 };
 
 const handleShowKeyboardShortcuts = (event: KeyboardEvent) => {
-  if (event.key === "?" && !isModalOpen()) {
+  if (event.key === "/" && event.ctrlKey && !isModalOpen()) {
     showHelpDialog.value = true;
   }
 };
